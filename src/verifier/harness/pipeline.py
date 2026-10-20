@@ -27,7 +27,7 @@ from verifier.harness.trace import Trace
 from verifier.judge.aggregate import apply_parent_recheck, relation_verdict, sentences_needing_recheck
 from verifier.judge.entail import UnitJudgment, decide_verdict, judge_questions
 from verifier.models.decider import Decider
-from verifier.models.openai_llm import OpenAILLM
+from verifier.models.openai_llm import StructuredLLM
 from verifier.output.render import to_response
 from verifier.output.schemas import Verdict, VerifyRequest, VerifyResponse
 from verifier.rag import store as rag_store
@@ -42,7 +42,7 @@ from verifier.semantics.select import make_sentence_unit, select_units
 @dataclass
 class Dependencies:
     settings: Settings
-    llm: OpenAILLM
+    llm: StructuredLLM
     decider: Decider
     conn: sqlite3.Connection | None = None
 

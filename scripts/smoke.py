@@ -71,12 +71,12 @@ async def smoke_jev(deps) -> None:
     assert a.choice == "blue", "Jev answered the sanity question wrong?!"
 
 
-async def smoke_openai(deps) -> None:
+async def smoke_llm(deps) -> None:
     class Tiny(BaseModel):
         color: str
         word_count: int
 
-    print("== 2. OpenAI structured-output smoke ==")
+    print(f"== 2. {deps.llm.name} structured-output smoke ==")
     started = time.perf_counter()
     result = await deps.llm.generate_structured(
         [
@@ -87,7 +87,8 @@ async def smoke_openai(deps) -> None:
     )
     ms = (time.perf_counter() - started) * 1000
     print(f"   parsed: {result.model_dump()}  latency {ms:.0f} ms")
-    print(f"   model: {deps.settings.openai_model}, usage: in={deps.llm.usage.input_tokens} out={deps.llm.usage.output_tokens}")
+    print(f"   provider: {deps.llm.name}, model: {deps.llm.model}, "
+          f"usage: in={deps.llm.usage.input_tokens} out={deps.llm.usage.output_tokens}")
 
 
 async def smoke_pipeline(deps) -> None:
@@ -111,18 +112,20 @@ async def smoke_pipeline(deps) -> None:
 
 async def main() -> None:
     settings = Settings(cache_mode="record")
+    llm_key = settings.openai_api_key if settings.llm_provider == "openai" else settings.dashscope_api_key
+    llm_key_name = "OPENAI_API_KEY" if settings.llm_provider == "openai" else "DASHSCOPE_API_KEY"
     missing = [
         name
-        for name, value in (("OPENAI_API_KEY", settings.openai_api_key), ("TYPESAFE_API_KEY", settings.typesafe_api_key))
+        for name, value in ((llm_key_name, llm_key), ("TYPESAFE_API_KEY", settings.typesafe_api_key))
         if not value
     ]
     if missing:
-        print(f"missing keys in .env: {missing}")
+        print(f"missing keys in .env: {missing} (llm_provider={settings.llm_provider})")
         raise SystemExit(1)
     deps = build_dependencies(settings)
     try:
         await smoke_jev(deps)
-        await smoke_openai(deps)
+        await smoke_llm(deps)
         await smoke_pipeline(deps)
         print("SMOKE OK")
     finally:

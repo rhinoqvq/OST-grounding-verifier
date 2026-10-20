@@ -27,18 +27,36 @@ from verifier.harness.errors import (
 from verifier.harness.pipeline import Dependencies, run_verification
 from verifier.models.cache import ModelCallCache
 from verifier.models.jev import JevDecider
-from verifier.models.openai_llm import OpenAILLM
+from verifier.models.openai_llm import LLMProviderConfig, StructuredLLM
 from verifier.output.schemas import VerifyRequest, VerifyResponse
 from verifier.rag.store import connect, init_db
+
+
+def llm_config(settings: Settings) -> LLMProviderConfig:
+    if settings.llm_provider == "openai":
+        return LLMProviderConfig(
+            name="openai", model=settings.openai_model, api_key=settings.openai_api_key
+        )
+    if settings.llm_provider == "qwen":
+        return LLMProviderConfig(
+            name="qwen",
+            model=settings.qwen_model,
+            api_key=settings.dashscope_api_key,
+            base_url=settings.qwen_base_url,
+            api="chat",
+            schema_mode="json_object" if settings.qwen_schema_mode == "json_object" else "json_schema",
+            # structured output is unavailable in thinking mode (DashScope docs)
+            extra_body={"enable_thinking": False},
+        )
+    raise ValueError(f"unknown llm_provider {settings.llm_provider!r}")
 
 
 def build_dependencies(settings: Settings) -> Dependencies:
     conn = connect(settings.db_path)
     init_db(conn)
     cache = ModelCallCache(conn, mode=settings.cache_mode)
-    llm = OpenAILLM(
-        api_key=settings.openai_api_key,
-        model=settings.openai_model,
+    llm = StructuredLLM(
+        llm_config(settings),
         cache=cache,
         attempts=settings.upstream_attempts,
         timeout=settings.openai_timeout_s,

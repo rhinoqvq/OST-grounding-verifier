@@ -13,7 +13,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from verifier.harness.context import build_answer_token_view
-from verifier.models.openai_llm import OpenAILLM
+from verifier.models.openai_llm import StructuredLLM
 from verifier.rag.source import Span, TextStore
 from verifier.rag.tree import Node, NodeKind, NodeStatus, RelationType, SemanticTree
 
@@ -63,7 +63,7 @@ def build_decompose_messages(store: TextStore) -> list[dict[str, str]]:
     ]
 
 
-async def propose_structure(llm: OpenAILLM, store: TextStore) -> Proposal:
+async def propose_structure(llm: StructuredLLM, store: TextStore) -> Proposal:
     return await llm.generate_structured(build_decompose_messages(store), Proposal)
 
 

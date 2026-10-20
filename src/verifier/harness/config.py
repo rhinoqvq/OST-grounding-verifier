@@ -12,9 +12,14 @@ class Settings(BaseSettings):
     # keys (no prefix: standard names)
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     typesafe_api_key: str | None = Field(default=None, alias="TYPESAFE_API_KEY")
+    dashscope_api_key: str | None = Field(default=None, alias="DASHSCOPE_API_KEY")
 
     # models
+    llm_provider: str = "openai"  # openai | qwen (which generative model proposes structure)
     openai_model: str = "gpt-6-astra"
+    qwen_model: str = "qwen-plus"
+    qwen_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    qwen_schema_mode: str = "json_schema"  # json_schema (Max/Plus/Flash) | json_object (older)
     jev_model: str = "jev-latest"
 
     # input limits (chars; checked before any model call)

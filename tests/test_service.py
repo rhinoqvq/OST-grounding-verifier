@@ -95,3 +95,21 @@ def test_empty_answer_is_200_empty_claims(wal_decider):
         resp = client.post("/verify", json={"context_passages": [PASSAGE_0], "generated_answer": ""})
     assert resp.status_code == 200
     assert resp.json() == {"claims": []}
+
+
+def test_llm_provider_selection():
+    from verifier.service import llm_config
+
+    qwen = llm_config(Settings(_env_file=None, llm_provider="qwen", dashscope_api_key="k"))
+    assert qwen.name == "qwen" and qwen.api == "chat"
+    assert "dashscope" in qwen.base_url
+    assert qwen.extra_body == {"enable_thinking": False}
+
+    openai_cfg = llm_config(Settings(_env_file=None, llm_provider="openai", openai_api_key="k"))
+    assert openai_cfg.name == "openai" and openai_cfg.api == "responses"
+    assert openai_cfg.base_url is None
+
+    import pytest as _pytest
+
+    with _pytest.raises(ValueError):
+        llm_config(Settings(_env_file=None, llm_provider="nope"))
