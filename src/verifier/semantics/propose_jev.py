@@ -68,6 +68,12 @@ _MIN_FRAGMENT_WORDS = 3
 # B" -> carry "X accepts" over to B). Only 'and': splitting a disjunction would
 # assert both sides of an 'or', which asserts neither — 'or' stays keep_whole.
 _SHARE_CONNECTIVES = {"and"}
+
+# A keep_whole verdict on one of these markers reads the sentence as a
+# conditional: it asserts nothing unconditionally, so NO accepted cut in that
+# sentence may produce unconditionally asserted fragments (measured, audit09:
+# an interior 'because' cut lifted "memory is exhausted" out of an if-scope).
+_CONDITIONAL_CONNECTIVES = {"if", "unless", "when"}
 # 6 covers subject + copula + participle + preposition ("A tied election is
 # resolved by ..."); a live a12 run showed 4 forces a meaning-bending prefix.
 _MAX_SHARE_PREFIX_TOKENS = 6
@@ -401,6 +407,19 @@ def build_tree_from_cuts(
                 # verdict, but each side gets a grounding check later
                 kept_whole.append(candidate)
                 notes.append(f"{candidate.question_id}: keep_whole -> diagnostic parts (p={p:.2f})")
+
+        # conditional-scope guard: a kept-whole conditional marker means the
+        # sentence asserts nothing unconditionally — every accepted cut in it
+        # is undone (the whole sentence stays one unit, original text is the
+        # safe recovery point) and the undone markers join the diagnostics.
+        if accepted and any(c.connective in _CONDITIONAL_CONNECTIVES for c in kept_whole):
+            for candidate, _ in accepted:
+                notes.append(
+                    f"{candidate.question_id}: cut undone "
+                    "(inside a kept-whole conditional's scope)"
+                )
+                kept_whole.append(candidate)
+            accepted = []
 
         if not accepted:
             if kept_whole:

@@ -949,3 +949,31 @@ async def test_opposition_filter_demotes_non_opposite_c():
         make_deps(FakeLLM(), scripted_decider(dict(base)), proposer="jev"),
     )
     assert response.claims[0].verdict is Verdict.CONTRADICTED
+
+
+def test_conditional_scope_undoes_interior_cuts():
+    """audit09: a kept-whole conditional (lead 'if') must not let an interior
+    'because' cut lift conditional content into unconditional claims — every
+    accepted cut in the sentence is undone, the sentence stays whole and the
+    undone markers join the diagnostic parts."""
+    answer = "If the watchdog fires, the service restarts because memory is exhausted."
+    store = TextStore.from_request(answer, ["(src)"])
+    cands = find_candidates(store)
+    by_conn = {c.connective: c for c in cands}
+    answers = {
+        by_conn["if"].question_id: choice(by_conn["if"].question_id, "keep_whole"),
+        by_conn["because"].question_id: choice(by_conn["because"].question_id, "cause_link"),
+    }
+    outcome = build_tree_from_cuts(store, cands, answers, min_prob=0.6)
+    assert outcome.units == []  # select falls back to the whole sentence
+    assert any("kept-whole conditional" in n for n in outcome.notes)
+    sent = outcome.tree.nodes["sent::A.S0"]
+    assert len(sent.diagnostic_spans) >= 2  # parts still get grounding checks
+
+    # control: a kept-whole 'or' elsewhere does NOT undo an accepted cut
+    answer2 = "The backup failed because the disk was full."
+    store2 = TextStore.from_request(answer2, ["(src)"])
+    cands2 = find_candidates(store2)
+    answers2 = {cands2[0].question_id: choice(cands2[0].question_id, "cause_link")}
+    outcome2 = build_tree_from_cuts(store2, cands2, answers2, min_prob=0.6)
+    assert len([u for u in outcome2.units if u.kind is NodeKind.FACT]) == 2
