@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     dashscope_api_key: str | None = Field(default=None, alias="DASHSCOPE_API_KEY")
 
     # models
+    proposer: str = "llm"  # llm (generative model proposes structure) | jev (code cut points + Jev)
+    jev_cut_min_prob: float = 0.60  # jev proposer: accept a cut above this probability
     llm_provider: str = "openai"  # openai | qwen (which generative model proposes structure)
     openai_model: str = "gpt-6-astra"
     qwen_model: str = "qwen-plus"

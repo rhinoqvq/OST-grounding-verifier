@@ -36,6 +36,7 @@ from verifier.rag.source import TextStore
 from verifier.rag.tree import NodeKind, SemanticTree
 from verifier.semantics.check import CheckOutcome, apply_check_results, check_questions
 from verifier.semantics.propose import Proposal, propose_structure, proposal_to_tree
+from verifier.semantics.propose_jev import propose_with_jev
 from verifier.semantics.select import make_sentence_unit, select_units
 
 
@@ -73,42 +74,61 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
         trace.note("answer empty or whitespace: no claims")
         return VerifyResponse(claims=[])
 
-    # round 1: LLM proposes the structure (answer only) ----------------------
-    r = trace.start_round("1-propose")
-    try:
-        proposal = await propose_structure(deps.llm, store)
-        tree, non_claim_spans, problems = proposal_to_tree(store, proposal)
-        trace.end_round(r, units=len(proposal.units), dropped=len(problems), problems=problems[:10])
-    except MalformedModelOutput as exc:
-        # degraded mode: whole sentences become the units; still trustworthy
-        tree, non_claim_spans, _ = proposal_to_tree(store, Proposal(units=[]))
-        trace.fail_round(r, exc)
-        trace.note("proposal malformed twice: falling back to whole-sentence units")
-
-    # round 2: Jev checks the decomposition (answer only) --------------------
-    answer_units = [
-        n for n in tree.nodes.values() if n.kind is not NodeKind.SENTENCE and n.origin == "answer"
-    ]
-    if answer_units:
-        r = trace.start_round("2-fidelity")
-        questions = check_questions(store, tree)
-        answers = await ask_batched(
+    # round 1: propose the structure (answer only) ----------------------------
+    # proposer "llm": generative model proposes units, Jev checks them (round 2)
+    # proposer "jev": code proposes cut points, Jev classifies them; fragments
+    #                 are verbatim, so there is no fidelity round to run
+    non_claim_spans: list = []
+    if settings.proposer == "jev":
+        r = trace.start_round("1-propose-jev")
+        jev_outcome = await propose_with_jev(
             deps.decider,
-            build_answer_state(store),
-            questions,
+            store,
+            min_prob=settings.jev_cut_min_prob,
             max_per_request=settings.max_questions_per_request,
             max_parallel=settings.max_parallel_requests,
         )
-        outcome = apply_check_results(tree, answers, fidelity_min_prob=settings.fidelity_min_prob)
-        trace.end_round(
-            r,
-            questions=len(questions),
-            accepted=len(outcome.accepted_units),
-            fallback_sentences=sorted(outcome.fallback_sentence_ids),
-            notes=outcome.notes[:10],
+        tree = jev_outcome.tree
+        outcome = CheckOutcome(
+            accepted_units=jev_outcome.units, fallback_sentence_ids=set(), notes=jev_outcome.notes
         )
+        trace.end_round(r, units=len(jev_outcome.units), notes=jev_outcome.notes[:10])
     else:
-        outcome = CheckOutcome(accepted_units=[], fallback_sentence_ids=set(), notes=[])
+        r = trace.start_round("1-propose")
+        try:
+            proposal = await propose_structure(deps.llm, store)
+            tree, non_claim_spans, problems = proposal_to_tree(store, proposal)
+            trace.end_round(r, units=len(proposal.units), dropped=len(problems), problems=problems[:10])
+        except MalformedModelOutput as exc:
+            # degraded mode: whole sentences become the units; still trustworthy
+            tree, non_claim_spans, _ = proposal_to_tree(store, Proposal(units=[]))
+            trace.fail_round(r, exc)
+            trace.note("proposal malformed twice: falling back to whole-sentence units")
+
+        # round 2: Jev checks the decomposition (answer only) ------------------
+        answer_units = [
+            n for n in tree.nodes.values() if n.kind is not NodeKind.SENTENCE and n.origin == "answer"
+        ]
+        if answer_units:
+            r = trace.start_round("2-fidelity")
+            questions = check_questions(store, tree)
+            answers = await ask_batched(
+                deps.decider,
+                build_answer_state(store),
+                questions,
+                max_per_request=settings.max_questions_per_request,
+                max_parallel=settings.max_parallel_requests,
+            )
+            outcome = apply_check_results(tree, answers, fidelity_min_prob=settings.fidelity_min_prob)
+            trace.end_round(
+                r,
+                questions=len(questions),
+                accepted=len(outcome.accepted_units),
+                fallback_sentences=sorted(outcome.fallback_sentence_ids),
+                notes=outcome.notes[:10],
+            )
+        else:
+            outcome = CheckOutcome(accepted_units=[], fallback_sentence_ids=set(), notes=[])
 
     # round 2.5: select the final units (pure code) ---------------------------
     r = trace.start_round("2.5-select")
