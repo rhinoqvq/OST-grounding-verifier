@@ -138,6 +138,10 @@ def scripted_decider(script: dict[str, Answer] | None = None) -> FakeDecider:
         if qid.startswith("br4::") and isinstance(question, ChoiceQuestion):
             probs = {"matches": 0.9, "opposite": 0.05, "different": 0.05}
             return Answer(qid, choice="matches", probabilities=probs, confidence=0.9)
+        if qid.startswith("c1::") and isinstance(question, ChoiceQuestion):
+            # default: the opposition is explicit, so scripted C verdicts stand
+            probs = {"opposite": 0.9, "different": 0.05, "matches": 0.05}
+            return Answer(qid, choice="opposite", probabilities=probs, confidence=0.9)
         if qid.startswith("cut::") and isinstance(question, ChoiceQuestion):
             probs = dict.fromkeys(question.options, 0.02)
             probs["keep_whole"] = 0.9

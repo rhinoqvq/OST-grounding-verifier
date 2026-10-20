@@ -826,3 +826,126 @@ def test_coverage_check_ignores_whole_sentence_inherited_spans():
     selection = select_units(store, tree, [unit], set(), [])
     assert [u.node_id for u in selection.units] == [f"sent::{sentence.sentence_id}"]
     assert any("uncovered content" in n for n in selection.notes)
+
+
+def test_grounding_gate_verbatim_witness():
+    """Fix (1): a diagnostic part whose text is verbatim present in a source
+    passage must not be capped on a low probe score (presence is a decidable
+    string property); absent content still caps (m10 stays capped)."""
+    from verifier.judge.entail import UnitJudgment, apply_grounding_gate
+    from verifier.rag.source import Span
+    from verifier.rag.tree import Node, NodeStatus
+
+    passages = ["If the cache is full, old entries are evicted to make room."]
+    answer = "If the cache is full, old entries are evicted."
+    store = TextStore.from_request(answer, passages)
+    sentence = store.answer_sentences[0]
+    comma = store.answer.index(",")
+    unit = Node(
+        node_id="sent::A.S0", origin="answer", sentence_id=sentence.sentence_id,
+        kind=NodeKind.SENTENCE, anchor_spans=[sentence.span],
+        display_text=sentence.text, status=NodeStatus.CHECKED,
+    )
+    unit.diagnostic_spans = [
+        Span(store.ANSWER_DOC, sentence.span.start, comma),
+        Span(store.ANSWER_DOC, comma + 2, sentence.span.end - 1),
+    ]
+    answers = {
+        "g::sent::A.S0::0": Answer("g::sent::A.S0::0", yes_prob=0.05),  # false low probe
+        "g::sent::A.S0::1": Answer("g::sent::A.S0::1", yes_prob=0.9),
+    }
+    j = UnitJudgment(node_id=unit.node_id, node_version=1, verdict=Verdict.SUPPORTED,
+                     evidence_sentence_ids=["P0.S0"])
+    apply_grounding_gate(unit, j, answers, grounding_min_prob=0.5, store=store)
+    assert j.verdict is Verdict.SUPPORTED
+    assert any(f.startswith("grounding_witness_0") for f in j.flags)
+
+    store2 = TextStore.from_request(answer, ["Entries are evicted when memory runs low."])
+    j2 = UnitJudgment(node_id=unit.node_id, node_version=1, verdict=Verdict.SUPPORTED,
+                      evidence_sentence_ids=["P0.S0"])
+    apply_grounding_gate(unit, j2, answers, grounding_min_prob=0.5, store=store2)
+    assert j2.verdict is Verdict.UNSUPPORTED
+    assert any(f.startswith("ungrounded_part_0") for f in j2.flags)
+
+
+async def test_member_rescue_on_staged_matched_relation():
+    """Fix (3): a staged-matched CAUSE relation rescues a FLAT member to S with
+    the link sentence as evidence (witness-bearing judgment beats the
+    witness-free one), so the merge is no longer dragged to U."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
+    cand = find_candidates(store)[0]
+    rid = "rel::A.S0::0"
+    script = {
+        cand.question_id: choice(cand.question_id, "cause_link"),
+        # left member flat; right member supported
+        "v::frag::A.S0::0": Answer(
+            "v::frag::A.S0::0", choice="not_in_context",
+            probabilities={"supported": 0.46, "contradicted": 0.08, "not_in_context": 0.46},
+        ),
+        "v::frag::A.S0::1": verdict_answer("v::frag::A.S0::1", "supported"),
+        "r::frag::A.S0::1::P0.S0": Answer("r::frag::A.S0::1::P0.S0", yes_prob=0.9),
+        f"rel1::{rid}": Answer(
+            f"rel1::{rid}", choice="P0.S1",
+            probabilities={"P0.S0": 0.05, "P0.S1": 0.9, "no_such_link": 0.05},
+        ),
+        # rel2/rel3 pass via conftest defaults (matches 0.9) -> staged_matched
+        # bridge find questions fire for the flat member before the rescue:
+        f"br1::frag::A.S0::0": Answer(
+            f"br1::frag::A.S0::0", choice="no_connection",
+            probabilities={"P0.S0": 0.05, "P0.S1": 0.05, "no_connection": 0.9},
+        ),
+        # the rescue completes an all-S sentence, which buys the round-4
+        # whole-sentence recheck — a deliberate extra guard on K2 upgrades
+        "v::sent::A.S0": verdict_answer("v::sent::A.S0", "supported"),
+        "r::sent::A.S0::P0.S1": Answer("r::sent::A.S0::P0.S1", yes_prob=0.9),
+    }
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=STAGED_PASSAGES, generated_answer=STAGED_ANSWER),
+        make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
+    )
+    by_text = {c.claim_text: c for c in response.claims}
+    rescued = next(c for t, c in by_text.items() if not t.startswith("The answer links")
+                   and "expires" in t)
+    assert rescued.verdict is Verdict.SUPPORTED
+    assert "one side of a connection the source itself states" in rescued.reasoning
+    rel = next(c for t, c in by_text.items() if t.startswith("The answer links"))
+    assert rel.verdict is Verdict.SUPPORTED, "merge no longer dragged by the flat member"
+
+
+async def test_opposition_filter_demotes_non_opposite_c():
+    """Fix (4): a confident C whose cited sentence talks about a DIFFERENT
+    entity is demoted to U (R1: explicit opposite only); a genuine opposite
+    (conftest default) keeps its C."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    passages = ["The regulator fined BetaCorp for the data breach."]
+    answer = "The regulator fined Acme for the data breach."
+    uid = "sent::A.S0"
+    base = {
+        f"v::{uid}": verdict_answer(f"v::{uid}", "contradicted"),
+        f"r::{uid}::P0.S0": Answer(f"r::{uid}::P0.S0", yes_prob=0.9),
+    }
+    script = {
+        **base,
+        f"c1::{uid}": Answer(
+            f"c1::{uid}", choice="different",
+            probabilities={"opposite": 0.05, "different": 0.9, "matches": 0.05},
+        ),
+    }
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=passages, generated_answer=answer),
+        make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
+    )
+    assert response.claims[0].verdict is Verdict.UNSUPPORTED
+    assert "states something different" in response.claims[0].reasoning
+
+    # genuine opposition (default c1 answer: opposite 0.9) -> C stands
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=passages, generated_answer=answer),
+        make_deps(FakeLLM(), scripted_decider(dict(base)), proposer="jev"),
+    )
+    assert response.claims[0].verdict is Verdict.CONTRADICTED

@@ -85,6 +85,18 @@ def render_reasoning(unit: Node, judgment: UnitJudgment, *, context_empty: bool 
             f"in full to another entity, and the other states the asserted property for that "
             f"entity ({evidence}) — combined, the source supports the claim."
         )
+    if any(f.startswith("member_rescue") for f in flags):
+        return (
+            f"This claim is one side of a connection the source itself states ({evidence}): "
+            "the stated link covers both sides, so the side is supported with the link "
+            "sentence as evidence."
+        )
+    if any(f.startswith("c_filter_demoted") for f in flags):
+        return (
+            "The judge leaned CONTRADICTED, but the cited text states something different "
+            "rather than the explicit opposite of this claim, so per the strict rule it is "
+            "reported as UNSUPPORTED."
+        )
     if any(f.startswith("low_confidence") for f in flags):
         return (
             f"The judge's probability distribution over verdicts was too flat to trust{p_text}; "

@@ -32,9 +32,11 @@ from verifier.judge.entail import (
     bridge_check_questions,
     bridge_find_questions,
     decide_bridge_rescue,
+    decide_opposition_filter,
     decide_relation_verdict,
     decide_verdict,
     judge_questions,
+    opposition_question,
     relation_link_question,
     relation_stage2_questions,
     staged_link_choice,
@@ -268,7 +270,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             # an ungrounded diagnostic part caps SUPPORTED at UNSUPPORTED
             apply_grounding_gate(
                 unit, judgments[unit.node_id], answers,
-                grounding_min_prob=settings.grounding_min_prob,
+                grounding_min_prob=settings.grounding_min_prob, store=store,
             )
 
         # relation stage 2: for each relation whose stage 1 found a stated-link
@@ -354,9 +356,36 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                     judgments[unit.node_id].flags.append("embed_rescue")
                     apply_grounding_gate(
                         unit, judgments[unit.node_id], answers,
-                        grounding_min_prob=settings.grounding_min_prob,
+                        grounding_min_prob=settings.grounding_min_prob, store=store,
                     )
                 trace.note(f"embed rescue for {[u.node_id for u in thin_units]}")
+
+        # opposition filter (K1): a confident CONTRADICTED stands only when the
+        # cited text states the explicit OPPOSITE of the claim itself (R1).
+        # C -> U keeps the unit flagged, so the S set and hallucination
+        # coverage are untouched by construction; only the severity label is
+        # corrected (measured: C outputs 25-29% correct, dominated by
+        # "different entity/aspect read as exclusive"). Runs after the embed
+        # rescue so a re-decided verdict cannot resurrect a demoted C.
+        c_units = [
+            u for u in fact_units
+            if judgments[u.node_id].verdict is Verdict.CONTRADICTED
+            and judgments[u.node_id].evidence_sentence_ids
+        ]
+        if c_units:
+            answers.update(
+                await ask_batched(
+                    deps.decider, build_source_state(store),
+                    [opposition_question(store, u, judgments[u.node_id]) for u in c_units],
+                    max_per_request=settings.max_questions_per_request,
+                    max_parallel=settings.max_parallel_requests,
+                )
+            )
+            for u in c_units:
+                if decide_opposition_filter(
+                    judgments[u.node_id], answers, min_prob=settings.verdict_min_prob
+                ):
+                    trace.note(f"opposition filter: {u.node_id} C -> U")
 
         # bridge rescue: a flat verdict may hide a two-hop claim whose identity
         # bridge one bounded question cannot carry (measured ~0.47 on two-hop).
@@ -412,6 +441,38 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                     rescued.flags = [*judgments[unit.node_id].flags, *rescued.flags]
                     judgments[unit.node_id] = rescued
                     trace.note(f"bridge rescue: {unit.node_id} -> {rescued.verdict.value}")
+
+        # member rescue (K2): a staged-matched CAUSE/SEQUENCE relation carries
+        # a constructive witness (the link sentence + both side checks) that
+        # the source asserts both sides (veridical connectives), so a member
+        # left FLAT by its own verdict question is rescued to S with that
+        # witness instead of dragging the merge — the witness-bearing judgment
+        # beats the witness-free one, the same principle as the parent
+        # recheck. CONTRAST has no staged witness: its members drag
+        # legitimately. A confident member verdict (any C included) is never
+        # touched, and a C demoted by the opposition filter is not flat, so
+        # it is not rescued either.
+        for unit in relation_units:
+            if unit.relation_type not in (RelationType.CAUSE, RelationType.SEQUENCE):
+                continue
+            own = judgments[unit.node_id]
+            if own.verdict is not Verdict.SUPPORTED or not any(
+                f.startswith("staged_matched") for f in own.flags
+            ):
+                continue
+            for member_id in unit.member_ids:
+                member = judgments.get(member_id)
+                if (
+                    member is None
+                    or member.verdict is not Verdict.UNSUPPORTED
+                    or not any(f.startswith("low_confidence") for f in member.flags)
+                ):
+                    continue
+                member.verdict = Verdict.SUPPORTED
+                member.evidence_sentence_ids = list(own.evidence_sentence_ids)
+                sid = own.evidence_sentence_ids[0] if own.evidence_sentence_ids else "?"
+                member.flags.append(f"member_rescue({sid})")
+                trace.note(f"member rescue: {member_id} <- {unit.node_id} ({sid})")
 
         # relation claims inherit the most severe verdict of their members
         for unit in units:

@@ -13,6 +13,7 @@ they ship in the same round.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from verifier.harness.context import describe_unit
@@ -218,6 +219,68 @@ def relation_stage2_questions(
     if unit.relation_type is RelationType.SEQUENCE:
         questions.append(sequence_order_question(unit, link_sentence, left_text, right_text))
     return questions
+
+
+# --- opposition filter on confident CONTRADICTED ------------------------------
+# R1 (Def. 2's C clause): CONTRADICTED only when the source explicitly states
+# the opposite of the claim itself. Measured: C outputs were 25-29% correct,
+# the dominant error being "a DIFFERENT entity/aspect read as exclusive"
+# (D does-not-establish phi conflated with D establishes not-phi). The filter
+# is a pure K1 operator (C -> U, nothing else): the S set and the flagged set
+# are untouched by construction, so hallucination coverage cannot drop; the
+# only cost dimension is severity labeling of true C's, guarded by reusing the
+# staged check's proven opposite/different distinction at the fact level.
+
+OPPOSITION_OPTIONS = {
+    "opposite": (
+        "At least one cited sentence RULES THE CLAIM OUT: it states the same aspect "
+        "with an inverted or incompatible value, or it restricts the claim's subject "
+        "in a way that excludes the claim ('only does X', 'never', 'nothing but') — "
+        "the sentence and the claim cannot be true together."
+    ),
+    "different": (
+        "The cited sentences state something about a DIFFERENT entity, aspect or scope "
+        "(for example, another thing did or has it) WITHOUT ruling the claim out: both "
+        "could still be true together."
+    ),
+    "matches": "The cited sentences actually agree with or support the claim.",
+}
+
+
+def opposition_question(store: TextStore, unit: Node, judgment: "UnitJudgment") -> ChoiceQuestion:
+    quoted = "\n".join(
+        f'[{sid}] "{store.sentence_by_id(sid).text}"'
+        for sid in judgment.evidence_sentence_ids[:4]
+    )
+    return ChoiceQuestion(
+        question_id=f"c1::{unit.node_id}",
+        instructions=(
+            "This claim was judged CONTRADICTED, citing the source sentence(s):\n"
+            f"{quoted}\n{describe_unit(store, unit)}\n"
+            "A claim counts as contradicted only if a cited sentence states the opposite "
+            "of the claim ITSELF. Classify what the cited sentence(s) state relative to "
+            "the claim."
+        ),
+        options=OPPOSITION_OPTIONS,
+    )
+
+
+def decide_opposition_filter(
+    judgment: "UnitJudgment", answers: dict[str, Answer], *, min_prob: float
+) -> bool:
+    """Demote a CONTRADICTED verdict to UNSUPPORTED unless the opposition is
+    confirmed as explicit ('opposite' at or above the bar). Returns True when
+    the verdict was demoted. Evidence is kept for traceability."""
+    answer = answers.get(f"c1::{judgment.node_id}")
+    probs = answer.probabilities if answer and answer.probabilities else {}
+    top = max(probs, key=probs.__getitem__) if probs else "different"
+    p = probs.get(top, 0.0)
+    judgment.probabilities[f"opposition_{top}"] = p
+    if top == "opposite" and p >= min_prob:
+        return False
+    judgment.verdict = Verdict.UNSUPPORTED
+    judgment.flags.append(f"c_filter_demoted({top},p={p:.2f})")
+    return True
 
 
 # --- staged bridge check (two-hop rescue) ------------------------------------
@@ -435,16 +498,51 @@ def decide_relation_verdict(
     return judgment
 
 
+# Leading framing words a diagnostic part may carry; the part's CONTENT minus
+# such a word being present verbatim is still a syntactic presence witness.
+_WITNESS_LEAD_WORDS = {
+    "if", "when", "unless", "because", "although", "while", "whereas",
+    "and", "or", "but", "then",
+}
+
+
+def _normalized_tokens(text: str) -> str:
+    return " " + " ".join(re.findall(r"[a-z0-9]+", text.lower())) + " "
+
+
+def verbatim_in_source(store: TextStore, part_text: str) -> bool:
+    """Syntactic presence witness: the part's words appear verbatim (modulo
+    case/punctuation/whitespace) inside one source passage. Content presence
+    is a string property, so this is decidable with certainty — a probabilistic
+    grounding answer must not override it (Def. 3's verbatim clause; measured
+    false caps hit verbatim-supported if/when content at probe 0.02-0.47).
+    Fails closed: a paraphrased part gets no witness and the cap stands."""
+    norm = _normalized_tokens(part_text)
+    tokens = norm.split()
+    alt = ""
+    if tokens and tokens[0] in _WITNESS_LEAD_WORDS and len(tokens) > 1:
+        alt = " " + " ".join(tokens[1:]) + " "
+    for passage in store.passages:
+        hay = _normalized_tokens(passage)
+        if norm in hay or (alt and alt in hay):
+            return True
+    return False
+
+
 def apply_grounding_gate(
     unit: Node,
     judgment: "UnitJudgment",
     answers: dict[str, Answer],
     *,
     grounding_min_prob: float,
+    store: TextStore | None = None,
 ) -> None:
     """An ungrounded diagnostic part caps a SUPPORTED verdict at UNSUPPORTED.
     CONTRADICTED is left alone (the block already flags a conflict), and
-    UNSUPPORTED cannot get worse."""
+    UNSUPPORTED cannot get worse. A part whose text is verbatim present in a
+    source passage is grounded by that fact alone: the syntactic witness
+    overrides a low probe score (the gate stays a one-directional S->U
+    operator; the witness only narrows where it fires, never adds S or C)."""
     if judgment.verdict is not Verdict.SUPPORTED or not unit.diagnostic_spans:
         return
     for i in range(len(unit.diagnostic_spans)):
@@ -452,6 +550,9 @@ def apply_grounding_gate(
         if answer is None or answer.yes_prob is None:
             continue
         if answer.yes_prob < grounding_min_prob:
+            if store is not None and verbatim_in_source(store, store.slice(unit.diagnostic_spans[i])):
+                judgment.flags.append(f"grounding_witness_{i}(p={answer.yes_prob:.2f})")
+                continue
             judgment.verdict = Verdict.UNSUPPORTED
             judgment.evidence_sentence_ids = []
             judgment.flags.append(f"ungrounded_part_{i}(p={answer.yes_prob:.2f})")
