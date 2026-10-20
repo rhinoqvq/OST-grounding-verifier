@@ -25,6 +25,42 @@ def render_reasoning(unit: Node, judgment: UnitJudgment, *, context_empty: bool 
             "alternative or added detail) has no grounding in the provided context, so the claim "
             "is reported as UNSUPPORTED rather than letting the grounded part carry the rest."
         )
+    # staged relation check: templates keyed to which stage decided, unless the
+    # member aggregation overrode the staged verdict afterwards
+    if not any(f.startswith("relation_merged_from_") for f in flags):
+        if "contrast_truth_functional" in flags and judgment.verdict is Verdict.SUPPORTED:
+            return (
+                "A contrast ('but') asserts no mechanism of its own — the claim holds exactly "
+                f"when both sides hold, and both do ({evidence})."
+            )
+        if any(f.startswith("staged_matched") for f in flags):
+            return (
+                f"The source itself states this connection ({evidence}), and both sides of the "
+                "answer's link match the stated link's sides (verbatim, or a specific instance "
+                f"or subset){p_text}."
+            )
+        if any(f.startswith("staged_incompatible") for f in flags):
+            return (
+                f"The source states an incompatible link ({evidence}): the same mechanism with "
+                f"the opposite direction or outcome{p_text}."
+            )
+        if any(f.startswith("staged_side_mismatch") for f in flags):
+            return (
+                "A source sentence states a link of this kind, but the answer transfers it to a "
+                "different trigger or agent, or widens its scope, so the claimed connection "
+                "cannot be verified from the context."
+            )
+        if any(f.startswith("staged_no_link") for f in flags):
+            return (
+                "No source sentence states the connection the answer asserts between these "
+                "parts; the parts may each be true, but the link itself is unverifiable from "
+                "the provided context."
+            )
+        if any(f.startswith("staged_flat_link") for f in flags):
+            return (
+                "The judge could not settle on any source sentence as stating this connection"
+                f"{p_text}; per policy the uncertain link is reported as UNSUPPORTED."
+            )
     if any(f.startswith("low_confidence") for f in flags):
         return (
             f"The judge's probability distribution over verdicts was too flat to trust{p_text}; "

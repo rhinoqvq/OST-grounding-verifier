@@ -107,6 +107,13 @@ def scripted_decider(script: dict[str, Answer] | None = None) -> FakeDecider:
             return Answer(qid, yes_prob=0.9)
         if qid.startswith("recomb::"):
             return Answer(qid, yes_prob=0.9)
+        if qid.startswith("rel1::") and isinstance(question, ChoiceQuestion):
+            probs = dict.fromkeys(question.options, 0.02)
+            probs["no_such_link"] = 0.9
+            return Answer(qid, choice="no_such_link", probabilities=probs, confidence=0.9)
+        if qid.startswith(("rel2::", "rel3::")) and isinstance(question, ChoiceQuestion):
+            probs = {"matches": 0.9, "opposite": 0.05, "different": 0.05}
+            return Answer(qid, choice="matches", probabilities=probs, confidence=0.9)
         if qid.startswith("cut::") and isinstance(question, ChoiceQuestion):
             probs = dict.fromkeys(question.options, 0.02)
             probs["keep_whole"] = 0.9

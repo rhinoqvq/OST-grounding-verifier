@@ -296,6 +296,166 @@ async def test_pipeline_splits_shared_coordination():
     assert response.claims[1].citations, "assembled claim still gets verbatim citations"
 
 
+R04_ANSWER = "Because the gateway compresses large responses, those transfers finish faster."
+
+STAGED_ANSWER = "The cache evicts entries whenever a key expires, so memory usage stays bounded."
+STAGED_PASSAGES = [
+    "The cache evicts entries periodically so that memory usage stays bounded. "
+    "The cache also evicts entries whenever a key expires."
+]
+
+
+def test_sentence_initial_connective_is_a_candidate():
+    """'Because A, B' used to produce no candidate (the regex wanted leading
+    whitespace); now the comma is the split point and the fragments exclude
+    the connective, which anchors the relation node instead."""
+    store = TextStore.from_request(R04_ANSWER, ["(src)"])
+    cands = find_candidates(store)
+    assert [c.connective for c in cands] == ["because"]
+    cand = cands[0]
+    assert cand.lead_start is not None
+    assert store.answer[cand.lead_start : cand.lead_end].strip() == "Because"
+    answers = {cand.question_id: choice(cand.question_id, "cause_link")}
+    outcome = build_tree_from_cuts(store, cands, answers, min_prob=0.6)
+    facts = [u for u in outcome.units if u.kind is NodeKind.FACT]
+    assert [f.display_text for f in facts] == [
+        "the gateway compresses large responses",
+        "those transfers finish faster.",
+    ]
+    rel = [u for u in outcome.units if u.kind is NodeKind.RELATION][0]
+    assert store.slice(rel.anchor_spans[0]).strip() == "Because"
+
+
+def _staged_relation(store):
+    from verifier.rag.tree import NodeKind as NK
+
+    cands = find_candidates(store)
+    cand = [c for c in cands if c.connective == "so"][0]
+    answers = {c.question_id: choice(c.question_id, "not_boundary") for c in cands}
+    answers[cand.question_id] = choice(cand.question_id, "cause_link")
+    outcome = build_tree_from_cuts(store, cands, answers, min_prob=0.6)
+    return [u for u in outcome.units if u.kind is NK.RELATION][0]
+
+
+def side(qid: str, label: str, p: float = 0.9) -> Answer:
+    probs = dict.fromkeys(("matches", "opposite", "different"), (1 - p) / 2)
+    probs[label] = p
+    return Answer(qid, choice=label, probabilities=probs)
+
+
+def test_staged_relation_composition():
+    """The settled rule, enforced by code over single-hop answers: a
+    'different' side (sibling trigger, widening) -> U; both sides 'matches'
+    -> S with the link sentence cited; an 'opposite' side (same aspect,
+    inverted value) -> C; no stated link -> U."""
+    from verifier.judge.entail import decide_relation_verdict
+
+    store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
+    rel = _staged_relation(store)
+    rid = rel.node_id
+
+    def link(choice_label, p=0.9):
+        probs = dict.fromkeys(("P0.S0", "P0.S1", "no_such_link"), (1 - p) / 2)
+        probs[choice_label] = p
+        return Answer(f"rel1::{rid}", choice=choice_label, probabilities=probs)
+
+    answers = {
+        f"rel1::{rid}": link("P0.S0"),
+        f"rel2::{rid}": side(f"rel2::{rid}", "different"),  # expiry != periodic
+        f"rel3::{rid}": side(f"rel3::{rid}", "matches"),
+    }
+    j = decide_relation_verdict(rel, answers, min_prob=0.55)
+    assert j.verdict is Verdict.UNSUPPORTED
+    assert any(f.startswith("staged_side_mismatch") for f in j.flags)
+    assert j.evidence_sentence_ids == []
+
+    answers[f"rel2::{rid}"] = side(f"rel2::{rid}", "matches")
+    j = decide_relation_verdict(rel, answers, min_prob=0.55)
+    assert j.verdict is Verdict.SUPPORTED and j.evidence_sentence_ids == ["P0.S0"]
+
+    # 'different' outranks 'opposite': a sibling trigger with an inverted other
+    # side is still an unstated link, not a contradiction
+    answers[f"rel2::{rid}"] = side(f"rel2::{rid}", "different")
+    answers[f"rel3::{rid}"] = side(f"rel3::{rid}", "opposite")
+    j = decide_relation_verdict(rel, answers, min_prob=0.55)
+    assert j.verdict is Verdict.UNSUPPORTED
+
+    answers[f"rel2::{rid}"] = side(f"rel2::{rid}", "matches")
+    j = decide_relation_verdict(rel, answers, min_prob=0.55)
+    assert j.verdict is Verdict.CONTRADICTED and j.evidence_sentence_ids == ["P0.S0"]
+
+    answers[f"rel1::{rid}"] = link("no_such_link")
+    j = decide_relation_verdict(rel, answers, min_prob=0.55)
+    assert j.verdict is Verdict.UNSUPPORTED and "staged_no_link" in j.flags
+
+
+async def test_pipeline_staged_relation_end_to_end():
+    """r03 shape through the whole pipeline: stage 1 finds the mechanism
+    sentence, stage 2's left-side check kills the sibling-trigger transfer,
+    the relation claim comes out U (not C) while both fragments stay S."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
+    cand = find_candidates(store)[0]
+    rid = "rel::A.S0::0"
+    script = {
+        cand.question_id: choice(cand.question_id, "cause_link"),
+        "v::frag::A.S0::0": verdict_answer("v::frag::A.S0::0", "supported"),
+        "r::frag::A.S0::0::P0.S1": Answer("r::frag::A.S0::0::P0.S1", yes_prob=0.9),
+        "v::frag::A.S0::1": verdict_answer("v::frag::A.S0::1", "supported"),
+        "r::frag::A.S0::1::P0.S0": Answer("r::frag::A.S0::1::P0.S0", yes_prob=0.9),
+        f"rel1::{rid}": Answer(
+            f"rel1::{rid}", choice="P0.S0",
+            probabilities={"P0.S0": 0.9, "P0.S1": 0.05, "no_such_link": 0.05},
+        ),
+        f"rel2::{rid}": side(f"rel2::{rid}", "different"),  # sibling trigger
+        # rel3 passes via the conftest default (matches 0.9)
+    }
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=STAGED_PASSAGES, generated_answer=STAGED_ANSWER),
+        make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
+    )
+    rel_claims = [c for c in response.claims if c.claim_text.startswith("The answer links")]
+    assert len(rel_claims) == 1
+    assert rel_claims[0].verdict is Verdict.UNSUPPORTED
+    assert "different trigger" in rel_claims[0].reasoning
+    others = [c.verdict for c in response.claims if not c.claim_text.startswith("The answer links")]
+    assert others == [Verdict.SUPPORTED, Verdict.SUPPORTED]
+
+
+async def test_contrast_relation_is_truth_functional():
+    """'but' asserts no mechanism: the relation skips the staged check, and a
+    contradicted member propagates up WITH its evidence (the contract refuses a
+    CONTRADICTED claim that cites nothing)."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    answer = "The scheduler retries hourly but alerts the on-call engineer."
+    passages = ["The scheduler retries hourly. It never alerts anyone."]
+    store = TextStore.from_request(answer, passages)
+    cand = [c for c in find_candidates(store) if c.connective == "but"][0]
+    script = {
+        cand.question_id: choice(cand.question_id, "contrast_link"),
+        "v::frag::A.S0::0": verdict_answer("v::frag::A.S0::0", "supported"),
+        "r::frag::A.S0::0::P0.S0": Answer("r::frag::A.S0::0::P0.S0", yes_prob=0.9),
+        "v::frag::A.S0::1": verdict_answer("v::frag::A.S0::1", "contradicted"),
+        "r::frag::A.S0::1::P0.S1": Answer("r::frag::A.S0::1::P0.S1", yes_prob=0.9),
+    }
+    decider = scripted_decider(script)
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=passages, generated_answer=answer),
+        make_deps(FakeLLM(), decider, proposer="jev"),
+    )
+    rel = [c for c in response.claims if c.claim_text.startswith("The answer links")][0]
+    assert rel.verdict is Verdict.CONTRADICTED
+    assert rel.citations, "merged C inherits the contradicted member's evidence"
+    asked = [q.question_id for _, questions in decider.seen for q in questions]
+    assert not any(q.startswith("rel1::") for q in asked), (
+        "contrast relations never reach the staged link question"
+    )
+
+
 def test_embed_prior_rescues_linking_premise(wal_store):
     """A linking premise with probe 0.4 (< 0.6 bar) joins the evidence when the
     embedding prior ranks it top-2 and it clears the 0.25 floor."""

@@ -26,7 +26,16 @@ from verifier.harness.context import (
 from verifier.harness.errors import MalformedModelOutput
 from verifier.harness.trace import Trace
 from verifier.judge.aggregate import apply_parent_recheck, relation_verdict, sentences_needing_recheck
-from verifier.judge.entail import UnitJudgment, apply_grounding_gate, decide_verdict, judge_questions
+from verifier.judge.entail import (
+    UnitJudgment,
+    apply_grounding_gate,
+    decide_relation_verdict,
+    decide_verdict,
+    judge_questions,
+    relation_link_question,
+    relation_stage2_questions,
+    staged_link_choice,
+)
 from verifier.models.decider import Decider
 from verifier.models.openai_llm import StructuredLLM
 from verifier.output.render import to_response
@@ -34,7 +43,7 @@ from verifier.output.schemas import Verdict, VerifyRequest, VerifyResponse
 from verifier.rag import store as rag_store
 from verifier.rag.retrieve import candidate_sentences
 from verifier.rag.source import TextStore
-from verifier.rag.tree import NodeKind, SemanticTree
+from verifier.rag.tree import NodeKind, RelationType, SemanticTree
 from verifier.semantics.check import CheckOutcome, apply_check_results, check_questions
 from verifier.semantics.propose import Proposal, propose_structure, proposal_to_tree
 from verifier.semantics.propose_jev import propose_with_jev
@@ -160,14 +169,25 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             )
     else:
         r = trace.start_round("3-judge")
+        # relation units skip the generic verdict/relevance path: their check is
+        # staged (find the stated link, then match sides and polarity), because
+        # one bounded question cannot carry that multi-hop chain
+        fact_units = [u for u in units if u.kind is not NodeKind.RELATION]
+        relation_units = [u for u in units if u.kind is NodeKind.RELATION]
+        # CONTRAST asserts no mechanism of its own ('but' ~ 'and' plus rhetoric),
+        # so it skips the staged check and aggregates its members instead
+        staged_relations = [
+            u for u in relation_units if u.relation_type is not RelationType.CONTRAST
+        ]
         candidates = {
             u.node_id: candidate_sentences(
                 store, u, u.display_text or store.slice(u.anchor_spans[0]),
                 max_candidates=settings.max_candidate_sentences,
             )
-            for u in units
+            for u in fact_units
         }
-        questions = judge_questions(store, units, candidates)
+        questions = judge_questions(store, fact_units, candidates)
+        questions += [relation_link_question(store, u) for u in staged_relations]
 
         # hybrid evidence selector: embedding ranking as a prior. It is gated:
         # v1/v2 already handle most cases without it, so the prior only runs
@@ -216,7 +236,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
         else:
             answers = await ask
 
-        for unit in units:
+        for unit in fact_units:
             judgments[unit.node_id] = decide_verdict(
                 unit,
                 answers,
@@ -234,6 +254,57 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 unit, judgments[unit.node_id], answers,
                 grounding_min_prob=settings.grounding_min_prob,
             )
+
+        # relation stage 2: for each relation whose stage 1 found a stated-link
+        # sentence, three single-hop questions (sides, polarity) in one small
+        # extra request; code composes the verdict
+        if relation_units:
+            stage2: list = []
+            for unit in staged_relations:
+                sid, _status = staged_link_choice(
+                    answers.get(f"rel1::{unit.node_id}"), min_prob=settings.verdict_min_prob
+                )
+                if sid is None:
+                    continue
+                try:
+                    link_sentence = store.sentence_by_id(sid)
+                except KeyError:
+                    continue
+                left = tree.nodes.get(unit.member_ids[0]) if unit.member_ids else None
+                right = tree.nodes.get(unit.member_ids[1]) if len(unit.member_ids) > 1 else None
+                stage2 += relation_stage2_questions(
+                    store, unit, link_sentence,
+                    left.display_text if left else "",
+                    right.display_text if right else "",
+                )
+            if stage2:
+                answers.update(
+                    await ask_batched(
+                        deps.decider,
+                        build_source_state(store),
+                        stage2,
+                        max_per_request=settings.max_questions_per_request,
+                        max_parallel=settings.max_parallel_requests,
+                    )
+                )
+            for unit in relation_units:
+                if unit.relation_type is RelationType.CONTRAST:
+                    evidence: list[str] = []
+                    for member_id in unit.member_ids:
+                        for sid in (judgments.get(member_id) or UnitJudgment("", 0, Verdict.UNSUPPORTED)).evidence_sentence_ids:
+                            if sid not in evidence:
+                                evidence.append(sid)
+                    judgments[unit.node_id] = UnitJudgment(
+                        node_id=unit.node_id,
+                        node_version=unit.version,
+                        verdict=Verdict.SUPPORTED,  # neutral; member merge decides
+                        evidence_sentence_ids=evidence,
+                        flags=["contrast_truth_functional"],
+                    )
+                else:
+                    judgments[unit.node_id] = decide_relation_verdict(
+                        unit, answers, min_prob=settings.verdict_min_prob
+                    )
         # post-judge rescue: units whose evidence came out thin get the
         # embedding prior after all, via one extra small call
         if hybrid and not pre_trigger and settings.embed_trigger in ("thin_evidence", "both"):
@@ -248,7 +319,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                     and claim_words >= settings.embed_thin_min_words
                 )
 
-            thin_units = [u for u in units if _thin(u)]
+            thin_units = [u for u in fact_units if _thin(u)]
             if thin_units:
                 rescue_ranked = await embed_rank(thin_units)
                 for unit in thin_units:
@@ -282,6 +353,14 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                     judgments[unit.node_id].verdict = merged
                     if merged is Verdict.UNSUPPORTED:
                         judgments[unit.node_id].evidence_sentence_ids = []
+                    elif merged is Verdict.CONTRADICTED and not judgments[unit.node_id].evidence_sentence_ids:
+                        # the C came from a member: the relation claim must cite
+                        # that member's evidence or the contract will refuse it
+                        for member_id in unit.member_ids:
+                            member = judgments.get(member_id)
+                            if member and member.verdict is Verdict.CONTRADICTED and member.evidence_sentence_ids:
+                                judgments[unit.node_id].evidence_sentence_ids = list(member.evidence_sentence_ids)
+                                break
         trace.end_round(r, questions=len(questions),
                         verdicts={u.node_id: judgments[u.node_id].verdict.value for u in units})
 

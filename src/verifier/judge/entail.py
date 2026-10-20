@@ -94,6 +94,148 @@ def judge_questions(
     return questions
 
 
+# --- staged relation check -------------------------------------------------
+# A relation unit ("A —so→ B") packs a multi-hop judgment into one question:
+# find the stated link, match the antecedent, match the consequent. One bounded
+# question cannot carry that chain (measured: instantiation judged C, pure
+# narrowing judged U), so the check is decomposed into single-hop questions
+# that code composes under the settled rule:
+#   SUPPORTED     verbatim link, general-rule instantiation, pure narrowing
+#   UNSUPPORTED   sibling-trigger transfer, novel link, agent shift, widening
+#   CONTRADICTED  only when the source states an incompatible link
+
+_LINK_KIND = {
+    "cause": "causal link (one side causes or explains the other)",
+    "contrast": "contrast (the sides are set against each other)",
+    "sequence": "temporal order (one side happens before the other)",
+    "condition": "conditional link (one side holds under the other)",
+}
+
+
+def relation_link_question(store: TextStore, unit: Node) -> ChoiceQuestion:
+    """Stage 1: which source sentence states a link of this kind at all —
+    in ANY direction or polarity (an opposite link still counts here; stage 2
+    sorts compatibility out)."""
+    kind = _LINK_KIND.get(unit.relation_type.value, "link")
+    options = {
+        s.sentence_id: f'"{s.text}"' for s in store.all_source_sentences()
+    }
+    options["no_such_link"] = (
+        "No source sentence states a link of this kind between contents like these; "
+        "sentences that merely mention the parts separately do not count."
+    )
+    return ChoiceQuestion(
+        question_id=f"rel1::{unit.node_id}",
+        instructions=(
+            f"{describe_unit(store, unit)}\n"
+            f"Which source sentence ITSELF states a {kind} between contents of this kind — "
+            "in any direction or polarity? Pick the sentence that states the connection "
+            "(because / so that / but / then ...), not one that merely mentions the parts."
+        ),
+        options=options,
+    )
+
+
+SIDE_OPTIONS = {
+    "matches": (
+        "In the claimed link this side plays the same role and refers to the same thing as the "
+        "source link's corresponding side — or to a specific instance/subset of it (a generic "
+        "statement covers its instances)."
+    ),
+    "opposite": (
+        "Same role, same aspect, but with the OPPOSITE or negated value (fast vs slow, enabled "
+        "vs disabled, inverted direction)."
+    ),
+    "different": (
+        "It refers to a DIFFERENT thing: another trigger, agent or mechanism that the source "
+        "keeps separate, a generalization, or a wider scope than the source side covers."
+    ),
+}
+
+
+def relation_stage2_questions(
+    store: TextStore, unit: Node, link_sentence: Sentence, left_text: str, right_text: str
+) -> list[Question]:
+    """Stage 2 for a found link sentence: classify each side against the
+    stated link's corresponding side. Polarity is folded into the options —
+    'opposite' (same aspect, inverted value) is what licenses CONTRADICTED,
+    while 'different' (sibling trigger, widening) can only mean UNSUPPORTED."""
+    header = (
+        f'Source sentence [{link_sentence.sentence_id}] states a link: "{link_sentence.text}"\n'
+        f"Claimed link from the answer: {unit.display_text}\n"
+    )
+    tail = "Compare it with the corresponding side of the source link and classify."
+    return [
+        ChoiceQuestion(
+            question_id=f"rel2::{unit.node_id}",
+            instructions=f'{header}Side under check: "{left_text}"\n{tail}',
+            options=SIDE_OPTIONS,
+        ),
+        ChoiceQuestion(
+            question_id=f"rel3::{unit.node_id}",
+            instructions=f'{header}Side under check: "{right_text}"\n{tail}',
+            options=SIDE_OPTIONS,
+        ),
+    ]
+
+
+def staged_link_choice(answer: Answer | None, *, min_prob: float) -> tuple[str | None, str]:
+    """Resolve stage 1: (sentence_id, 'chosen') | (None, 'no_link'|'flat')."""
+    if answer is None or not answer.probabilities:
+        return None, "flat"
+    top = max(answer.probabilities, key=answer.probabilities.__getitem__)
+    p = answer.probabilities[top]
+    if p < min_prob:
+        return None, "flat"
+    if top == "no_such_link":
+        return None, "no_link"
+    return top, "chosen"
+
+
+def decide_relation_verdict(
+    unit: Node,
+    answers: dict[str, Answer],
+    *,
+    min_prob: float,
+) -> UnitJudgment:
+    judgment = UnitJudgment(node_id=unit.node_id, node_version=unit.version, verdict=Verdict.UNSUPPORTED)
+    link_answer = answers.get(f"rel1::{unit.node_id}")
+    if link_answer is not None:
+        judgment.probabilities = dict(link_answer.probabilities)
+        judgment.confidence = link_answer.confidence
+    sid, status = staged_link_choice(link_answer, min_prob=min_prob)
+    if sid is None:
+        judgment.flags.append("staged_no_link" if status == "no_link" else "staged_flat_link")
+        return judgment
+
+    sides: list[tuple[str, str, float]] = []  # (which, top option, its prob)
+    for which, qid in (("left", f"rel2::{unit.node_id}"), ("right", f"rel3::{unit.node_id}")):
+        answer = answers.get(qid)
+        probs = answer.probabilities if answer and answer.probabilities else {}
+        top = max(probs, key=probs.__getitem__) if probs else "different"
+        p = probs.get(top, 0.0)
+        judgment.probabilities[f"{which}_{top}"] = p
+        sides.append((which, top if p >= min_prob else "flat", p))
+
+    detail = ",".join(f"{w}={t}({p:.2f})" for w, t, p in sides)
+    # 'different' (sibling trigger, agent switch, widening) can only mean the
+    # link is unstated; 'opposite' (same aspect, inverted value) is what
+    # licenses CONTRADICTED; both sides matching makes the stated link cover
+    # the claimed one.
+    if any(t in ("different", "flat") for _, t, _ in sides):
+        judgment.flags.append(f"staged_side_mismatch({sid},{detail})")
+        return judgment
+    if any(t == "opposite" for _, t, _ in sides):
+        judgment.verdict = Verdict.CONTRADICTED
+        judgment.evidence_sentence_ids = [sid]
+        judgment.flags.append(f"staged_incompatible({sid},{detail})")
+        return judgment
+    judgment.verdict = Verdict.SUPPORTED
+    judgment.evidence_sentence_ids = [sid]
+    judgment.flags.append(f"staged_matched({sid})")
+    return judgment
+
+
 def apply_grounding_gate(
     unit: Node,
     judgment: "UnitJudgment",

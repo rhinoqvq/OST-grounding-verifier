@@ -47,6 +47,13 @@ _CUT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# A subordinator can also OPEN the sentence ("Because A, B"): the relation is
+# the same, but the split point is the comma after the first clause, and the
+# fragments must exclude the connective itself.
+_LEAD_CONNECTIVES = ("because", "if", "when", "unless", "although", "while", "whereas")
+_LEAD_RE = re.compile(r"^(" + "|".join(_LEAD_CONNECTIVES) + r")\b\s+", re.IGNORECASE)
+_LEAD_SPLIT_RE = re.compile(r",\s+")
+
 # Applied when BUILDING fragments (a produced fragment must be able to stand
 # as an assertion), never when proposing candidates: every regex match reaches
 # Jev, and a cut whose fragments fail this guard is undone (whole sentence).
@@ -92,6 +99,10 @@ class CutCandidate:
     marker_start: int  # char offsets into the answer document
     marker_end: int
     connective: str
+    # set for sentence-initial subordinators ("Because A, B"): the span of the
+    # leading connective; marker_start/end then point at the comma split
+    lead_start: int | None = None
+    lead_end: int | None = None
 
 
 def _word_count(text: str) -> int:
@@ -101,6 +112,21 @@ def _word_count(text: str) -> int:
 def find_candidates(store: TextStore) -> list[CutCandidate]:
     candidates: list[CutCandidate] = []
     for sentence in store.answer_sentences:
+        lead = _LEAD_RE.match(sentence.text)
+        if lead:
+            split = _LEAD_SPLIT_RE.search(sentence.text, lead.end())
+            if split:
+                candidates.append(
+                    CutCandidate(
+                        question_id=f"cut::{sentence.sentence_id}::{sentence.span.start + split.start()}",
+                        sentence_id=sentence.sentence_id,
+                        marker_start=sentence.span.start + split.start(),
+                        marker_end=sentence.span.start + split.end(),
+                        connective=lead.group(1).lower(),
+                        lead_start=sentence.span.start,
+                        lead_end=sentence.span.start + lead.end(),
+                    )
+                )
         for match in _CUT_RE.finditer(sentence.text):
             candidates.append(
                 CutCandidate(
@@ -143,16 +169,26 @@ def _share_options(store: TextStore, sentence: Sentence, candidate: CutCandidate
 
 def cut_question(store: TextStore, candidate: CutCandidate) -> ChoiceQuestion:
     sentence = store.sentence_by_id(candidate.sentence_id)
-    left = store.answer[sentence.span.start : candidate.marker_start].strip()
     right = store.answer[candidate.marker_end : sentence.span.end].strip()
-    return ChoiceQuestion(
-        question_id=candidate.question_id,
-        instructions=(
+    if candidate.lead_start is not None:
+        left = store.answer[candidate.lead_end : candidate.marker_start].strip()
+        instructions = (
+            f"Answer sentence [{candidate.sentence_id}]: \"{sentence.text}\"\n"
+            f"The sentence opens with '{candidate.connective}', linking its first clause to the rest.\n"
+            f"Candidate split at the comma:\nLEFT: \"{left}\"\nRIGHT: \"{right}\"\n"
+            "Classify what this leading connective does in this sentence."
+        )
+    else:
+        left = store.answer[sentence.span.start : candidate.marker_start].strip()
+        instructions = (
             f"Answer sentence [{candidate.sentence_id}]: \"{sentence.text}\"\n"
             f"Candidate split at the marker '{candidate.connective}':\n"
             f"LEFT: \"{left}\"\nRIGHT: \"{right}\"\n"
             "Classify what this marker does in this sentence."
-        ),
+        )
+    return ChoiceQuestion(
+        question_id=candidate.question_id,
+        instructions=instructions,
         options={**CUT_OPTIONS, **_share_options(store, sentence, candidate)},
     )
 
@@ -334,6 +370,9 @@ def build_tree_from_cuts(
         accepted.sort(key=lambda t: t[0].marker_start)
         bounds = [sentence.span.start, *[c.marker_start for c, _ in accepted], sentence.span.end]
         starts = [sentence.span.start, *[c.marker_end for c, _ in accepted]]
+        # a sentence-initial connective belongs to the cut, not to fragment 0
+        if accepted and accepted[0][0].lead_end is not None:
+            starts[0] = accepted[0][0].lead_end
         fragment_nodes: list[Node | None] = []
         for i in range(len(accepted) + 1):
             span = _trim_span(store, starts[i], bounds[i + 1])
@@ -413,7 +452,11 @@ def build_tree_from_cuts(
                     origin="answer",
                     sentence_id=sentence.sentence_id,
                     kind=NodeKind.RELATION,
-                    anchor_spans=[Span(store.ANSWER_DOC, candidate.marker_start, candidate.marker_end)],
+                    anchor_spans=[
+                        Span(store.ANSWER_DOC, candidate.lead_start, candidate.lead_end)
+                        if candidate.lead_start is not None
+                        else Span(store.ANSWER_DOC, candidate.marker_start, candidate.marker_end)
+                    ],
                     inherited_spans=[sentence.span],
                     relation_type=_LINK_RELATION[choice],
                     member_ids=[left.node_id, right.node_id],
