@@ -1,0 +1,26 @@
+# secrets
+.env
+*.key
+local-secrets/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# local data (runs/cache live in SQLite; evaluation data is committed explicitly)
+var/
+*.sqlite3
+*.db
+
+# editors / os
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
