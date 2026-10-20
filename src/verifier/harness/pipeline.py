@@ -12,6 +12,7 @@ Rounds (latency is bounded by rounds, not by question count):
 
 from __future__ import annotations
 
+import asyncio
 import sqlite3
 from dataclasses import dataclass
 
@@ -164,28 +165,53 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             for u in units
         }
         questions = judge_questions(store, units, candidates)
-        answers = await ask_batched(
+
+        # hybrid evidence selector: embedding ranking as a prior. It is gated:
+        # v1/v2 already handle most cases without it, so the prior only runs
+        # when the request shape warrants it (pre-trigger, concurrent with the
+        # judge round at zero latency cost) or when a unit's evidence turned
+        # out thin (post-judge rescue, a second small call).
+        hybrid = settings.evidence_selector == "hybrid" and deps.embedder is not None
+
+        async def embed_rank(target_units) -> dict[str, list[str]]:
+            from verifier.models.embedder import cosine
+
+            sentences = store.all_source_sentences()
+            unit_texts = [u.display_text or store.slice(u.anchor_spans[0]) for u in target_units]
+            vectors = await deps.embedder.embed([*unit_texts, *[s.text for s in sentences]])
+            unit_vecs, sent_vecs = vectors[: len(target_units)], vectors[len(target_units):]
+            ranked: dict[str, list[str]] = {}
+            for unit, uvec in zip(target_units, unit_vecs):
+                scored = sorted(
+                    ((cosine(uvec, svec), s.sentence_id) for svec, s in zip(sent_vecs, sentences)),
+                    key=lambda t: -t[0],
+                )
+                ranked[unit.node_id] = [sid for _, sid in scored]
+            return ranked
+
+        pre_trigger = hybrid and (
+            settings.embed_trigger == "always"
+            or (
+                settings.embed_trigger in ("multi_passage", "both")
+                and (
+                    sum(1 for p in store.passages if p.strip()) >= 2
+                    or len(store.all_source_sentences()) >= settings.embed_min_sentences
+                )
+            )
+        )
+
+        ask = ask_batched(
             deps.decider,
             build_source_state(store),
             questions,
             max_per_request=settings.max_questions_per_request,
             max_parallel=settings.max_parallel_requests,
         )
-        # hybrid evidence selector: embedding ranking as a prior
         embed_ranked: dict[str, list[str]] = {}
-        if settings.evidence_selector == "hybrid" and deps.embedder is not None:
-            sentences = store.all_source_sentences()
-            unit_texts = [u.display_text or store.slice(u.anchor_spans[0]) for u in units]
-            vectors = await deps.embedder.embed([*unit_texts, *[s.text for s in sentences]])
-            unit_vecs, sent_vecs = vectors[: len(units)], vectors[len(units):]
-            from verifier.models.embedder import cosine
-
-            for unit, uvec in zip(units, unit_vecs):
-                scored = sorted(
-                    ((cosine(uvec, svec), s.sentence_id) for svec, s in zip(sent_vecs, sentences)),
-                    key=lambda t: -t[0],
-                )
-                embed_ranked[unit.node_id] = [sid for _, sid in scored]
+        if pre_trigger:
+            answers, embed_ranked = await asyncio.gather(ask, embed_rank(units))
+        else:
+            answers = await ask
 
         for unit in units:
             judgments[unit.node_id] = decide_verdict(
@@ -205,6 +231,43 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 unit, judgments[unit.node_id], answers,
                 grounding_min_prob=settings.grounding_min_prob,
             )
+        # post-judge rescue: units whose evidence came out thin get the
+        # embedding prior after all, via one extra small call
+        if hybrid and not pre_trigger and settings.embed_trigger in ("thin_evidence", "both"):
+            def _thin(unit) -> bool:
+                j = judgments[unit.node_id]
+                if any(f.startswith(("no_evidence_for_", "evidence_rank_fallback")) for f in j.flags):
+                    return True
+                claim_words = len((unit.display_text or "").split())
+                return (
+                    j.verdict is not Verdict.UNSUPPORTED
+                    and len(j.evidence_sentence_ids) <= 1
+                    and claim_words >= settings.embed_thin_min_words
+                )
+
+            thin_units = [u for u in units if _thin(u)]
+            if thin_units:
+                rescue_ranked = await embed_rank(thin_units)
+                for unit in thin_units:
+                    judgments[unit.node_id] = decide_verdict(
+                        unit,
+                        answers,
+                        candidates[unit.node_id],
+                        verdict_min_prob=settings.verdict_min_prob,
+                        relevance_min_prob=settings.relevance_min_prob,
+                        evidence_floor_prob=settings.evidence_floor_prob,
+                        max_evidence=settings.max_evidence_sentences,
+                        embed_ranked=rescue_ranked.get(unit.node_id),
+                        embed_top_k=settings.embed_top_k,
+                        embed_floor_prob=settings.embed_floor_prob,
+                    )
+                    judgments[unit.node_id].flags.append("embed_rescue")
+                    apply_grounding_gate(
+                        unit, judgments[unit.node_id], answers,
+                        grounding_min_prob=settings.grounding_min_prob,
+                    )
+                trace.note(f"embed rescue for {[u.node_id for u in thin_units]}")
+
         # relation claims inherit the most severe verdict of their members
         for unit in units:
             if unit.kind is NodeKind.RELATION:

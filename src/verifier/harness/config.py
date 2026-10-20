@@ -37,8 +37,15 @@ class Settings(BaseSettings):
     grounding_min_prob: float = 0.50   # diagnostic part of a kept-whole unit counts as grounded above this
     evidence_selector: str = "probe"   # probe | hybrid (probe + embedding prior)
     embed_model: str = "text-embedding-v3"
+    embed_base_url: str | None = None  # None -> qwen_base_url; point at any OpenAI-compatible /v1 (e.g. local)
     embed_top_k: int = 2               # hybrid: embedding-ranked sentences eligible to join evidence
     embed_floor_prob: float = 0.25     # hybrid: minimum probe score for an embedding-prior sentence
+    # when hybrid runs: "always" | "multi_passage" (request-level pre-trigger,
+    # concurrent with the judge round) | "thin_evidence" (post-judge rescue of
+    # units with thin evidence) | "both" (pre-trigger OR rescue)
+    embed_trigger: str = "both"
+    embed_min_sentences: int = 10      # pre-trigger also fires at this many source sentences
+    embed_thin_min_words: int = 10     # rescue: claim this long with <=1 evidence sentence counts as thin
     fidelity_min_prob: float = 0.60    # decomposition unit accepted above this
     max_evidence_sentences: int = 4
     max_candidate_sentences: int = 60  # lexical prefilter above this many source sentences

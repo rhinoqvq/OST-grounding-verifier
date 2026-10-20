@@ -189,3 +189,82 @@ def test_embed_prior_rescues_linking_premise(wal_store):
     assert "P0.S1" in judgment.evidence_sentence_ids, "premise rescued by embedding prior"
     assert "P0.S2" not in judgment.evidence_sentence_ids, "noise stays out (below floor)"
     assert any(f.startswith("embed_prior(P0.S1") for f in judgment.flags)
+
+
+class FakeEmbedder:
+    """Deterministic embedder: vector = bag of word-hash buckets."""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def embed(self, texts):
+        self.calls += 1
+        out = []
+        for t in texts:
+            v = [0.0] * 64
+            for w in t.lower().split():
+                v[hash(w) % 64] += 1.0
+            out.append(v)
+        return out
+
+
+async def test_pre_trigger_fires_only_on_multi_passage(wal_decider, wal_proposal):
+    """embed_trigger=both: single short passage -> no embedding call;
+    two passages -> embedding runs (concurrently with the judge round)."""
+    from conftest import ANSWER, PASSAGE_0, PASSAGE_1, FakeLLM
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    # two passages: pre-trigger fires
+    deps = make_deps(FakeLLM(proposal=wal_proposal), wal_decider, proposer="jev",
+                     evidence_selector="hybrid", embed_trigger="both")
+    deps.embedder = FakeEmbedder()
+    await run_verification(
+        VerifyRequest(context_passages=[PASSAGE_0, PASSAGE_1], generated_answer=ANSWER), deps
+    )
+    assert deps.embedder.calls == 1
+
+    # one short passage, strong evidence everywhere: no embedding at all
+    from conftest import scripted_decider, verdict_answer
+    from verifier.models.decider import Answer
+
+    script = {
+        "v::sent::A.S0": verdict_answer("v::sent::A.S0", "supported"),
+        "r::sent::A.S0::P0.S0": Answer("r::sent::A.S0::P0.S0", yes_prob=0.9),
+    }
+    deps2 = make_deps(FakeLLM(), scripted_decider(script), proposer="jev",
+                      evidence_selector="hybrid", embed_trigger="both")
+    deps2.embedder = FakeEmbedder()
+    await run_verification(
+        VerifyRequest(context_passages=["The cache stores recent results."],
+                      generated_answer="The cache stores recent results."),
+        deps2,
+    )
+    assert deps2.embedder.calls == 0
+
+
+async def test_thin_evidence_rescue_runs_embedding(wal_decider):
+    """Single passage (no pre-trigger) + long claim with no passing evidence:
+    the rescue path fires one embedding call and restores the evidence."""
+    from conftest import FakeLLM, scripted_decider, verdict_answer
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+    from verifier.models.decider import Answer
+
+    passage = "The uploader keeps retrying failed chunks until every chunk succeeds."
+    answer = "The uploader keeps retrying failed chunks until every chunk of the file succeeds."
+    script = {
+        "v::sent::A.S0": verdict_answer("v::sent::A.S0", "supported"),
+        # probe gives the only sentence 0.4: below the 0.6 bar, above 0.25 floor
+        "r::sent::A.S0::P0.S0": Answer("r::sent::A.S0::P0.S0", yes_prob=0.4),
+    }
+    deps = make_deps(FakeLLM(), scripted_decider(script), proposer="jev",
+                     evidence_selector="hybrid", embed_trigger="both")
+    deps.embedder = FakeEmbedder()
+    response, trace = await run_verification(
+        VerifyRequest(context_passages=[passage], generated_answer=answer), deps
+    )
+    assert deps.embedder.calls == 1, "rescue must fire exactly one embedding call"
+    claim = response.claims[0]
+    assert claim.verdict is Verdict.SUPPORTED
+    assert claim.citations, "rescued evidence should produce a citation"

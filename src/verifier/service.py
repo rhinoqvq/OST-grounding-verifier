@@ -75,7 +75,7 @@ def build_dependencies(settings: Settings) -> Dependencies:
         embedder = Embedder(
             api_key=settings.dashscope_api_key,
             model=settings.embed_model,
-            base_url=settings.qwen_base_url,
+            base_url=settings.embed_base_url or settings.qwen_base_url,
             cache=cache,
             attempts=settings.upstream_attempts,
         )
