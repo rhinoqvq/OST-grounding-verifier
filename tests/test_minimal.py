@@ -171,10 +171,12 @@ async def test_run_request_routes_by_method():
     response, _ = await run_request(wal_request(), make_deps(llm))
     assert len(response.claims) == 3
 
+    # "baseline" now routes to method 1 (no LLM call — the fake stays untouched)
     deps = make_deps(llm)
     deps.settings.method = "baseline"
-    with pytest.raises(NotImplementedError):
-        await run_request(wal_request(), deps)
+    calls_before = len(llm.calls)
+    response, _ = await run_request(wal_request(), deps)
+    assert response.claims and len(llm.calls) == calls_before
 
 
 def test_service_with_minimal_method():

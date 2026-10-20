@@ -13,6 +13,10 @@ class Settings(BaseSettings):
 
     # which of the assignment's three methods serves POST /verify
     method: Literal["optimized", "minimal_llm", "baseline"] = "optimized"
+    # method 1 (baseline): claims whose best source sentence covers less than
+    # this IDF-weighted share of their content words become UNSUPPORTED.
+    # Deliberately an untuned round default; retune on the eval dev split.
+    baseline_coverage_min: float = 0.5
 
     # keys (no prefix: standard names)
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")

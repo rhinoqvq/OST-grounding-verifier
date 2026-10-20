@@ -73,6 +73,10 @@ async def run_request(request: VerifyRequest, deps: Dependencies) -> tuple[Verif
         from verifier.harness.minimal import run_minimal_llm
 
         return await run_minimal_llm(request, deps)
+    if method == "baseline":
+        from verifier.harness.baseline import run_baseline
+
+        return await run_baseline(request, deps)
     raise NotImplementedError(f"method {method!r} is not implemented yet")
 
 
