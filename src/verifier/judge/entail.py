@@ -155,6 +155,9 @@ def decide_verdict(
     relevance_min_prob: float,
     evidence_floor_prob: float,
     max_evidence: int,
+    embed_ranked: list[str] | None = None,
+    embed_top_k: int = 2,
+    embed_floor_prob: float = 0.25,
 ) -> UnitJudgment:
     judgment = UnitJudgment(node_id=unit.node_id, node_version=unit.version, verdict=Verdict.UNSUPPORTED)
     answer = answers.get(f"v::{unit.node_id}")
@@ -174,6 +177,18 @@ def decide_verdict(
     judgment.evidence_sentence_ids = [
         sid for p, sid in ranked[:max_evidence] if p >= relevance_min_prob
     ]
+    # Embedding prior: the top embedding-ranked sentences join the evidence if
+    # the probe gave them at least a floor score. This rescues linking premises
+    # ("X uses policy Y") that look unevidential alone and score 0.3-0.5 on the
+    # probe, while the floor keeps out pure topic noise.
+    if embed_ranked:
+        probe = {sid: p for p, sid in ranked}
+        for sid in embed_ranked[:embed_top_k]:
+            if sid in judgment.evidence_sentence_ids:
+                continue
+            if probe.get(sid, 0.0) >= embed_floor_prob:
+                judgment.evidence_sentence_ids.append(sid)
+                judgment.flags.append(f"embed_prior({sid},probe={probe.get(sid, 0.0):.2f})")
 
     top_label = max(answer.probabilities, key=answer.probabilities.get, default=None)
     top_prob = answer.probabilities.get(top_label, 0.0) if top_label else 0.0

@@ -68,7 +68,18 @@ def build_dependencies(settings: Settings) -> Dependencies:
         attempts=settings.upstream_attempts,
         timeout=settings.jev_timeout_s,
     )
-    return Dependencies(settings=settings, llm=llm, decider=decider, conn=conn)
+    embedder = None
+    if settings.evidence_selector == "hybrid":
+        from verifier.models.embedder import Embedder
+
+        embedder = Embedder(
+            api_key=settings.dashscope_api_key,
+            model=settings.embed_model,
+            base_url=settings.qwen_base_url,
+            cache=cache,
+            attempts=settings.upstream_attempts,
+        )
+    return Dependencies(settings=settings, llm=llm, decider=decider, conn=conn, embedder=embedder)
 
 
 def create_app(settings: Settings | None = None, dependencies: Dependencies | None = None) -> FastAPI:

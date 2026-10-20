@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     relevance_min_prob: float = 0.60   # source sentence counts as evidence above this
     evidence_floor_prob: float = 0.30  # rank-fallback evidence must at least reach this
     grounding_min_prob: float = 0.50   # diagnostic part of a kept-whole unit counts as grounded above this
+    evidence_selector: str = "probe"   # probe | hybrid (probe + embedding prior)
+    embed_model: str = "text-embedding-v3"
+    embed_top_k: int = 2               # hybrid: embedding-ranked sentences eligible to join evidence
+    embed_floor_prob: float = 0.25     # hybrid: minimum probe score for an embedding-prior sentence
     fidelity_min_prob: float = 0.60    # decomposition unit accepted above this
     max_evidence_sentences: int = 4
     max_candidate_sentences: int = 60  # lexical prefilter above this many source sentences

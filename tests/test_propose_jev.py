@@ -159,3 +159,33 @@ async def test_grounded_conditional_stays_supported():
         make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
     )
     assert response.claims[0].verdict is Verdict.SUPPORTED
+
+
+def test_embed_prior_rescues_linking_premise(wal_store):
+    """A linking premise with probe 0.4 (< 0.6 bar) joins the evidence when the
+    embedding prior ranks it top-2 and it clears the 0.25 floor."""
+    from verifier.judge.entail import decide_verdict
+    from verifier.rag.tree import Node, NodeKind, NodeStatus
+    from verifier.rag.source import Span
+
+    unit = Node(
+        node_id="u1", origin="answer", sentence_id="A.S0", kind=NodeKind.FACT,
+        anchor_spans=[Span("answer", 0, 10)], display_text="claim", status=NodeStatus.CHECKED,
+    )
+    answers = {
+        "v::u1": verdict_answer("v::u1", "supported"),
+        "r::u1::P0.S0": Answer("r::u1::P0.S0", yes_prob=0.9),   # direct evidence
+        "r::u1::P0.S1": Answer("r::u1::P0.S1", yes_prob=0.4),   # linking premise, below bar
+        "r::u1::P0.S2": Answer("r::u1::P0.S2", yes_prob=0.1),   # noise
+    }
+    sentences = [wal_store.all_source_sentences()[i] for i in range(3)]
+    judgment = decide_verdict(
+        unit, answers, sentences,
+        verdict_min_prob=0.55, relevance_min_prob=0.60, evidence_floor_prob=0.30,
+        max_evidence=4,
+        embed_ranked=["P0.S1", "P0.S0", "P0.S2"], embed_top_k=2, embed_floor_prob=0.25,
+    )
+    assert "P0.S0" in judgment.evidence_sentence_ids
+    assert "P0.S1" in judgment.evidence_sentence_ids, "premise rescued by embedding prior"
+    assert "P0.S2" not in judgment.evidence_sentence_ids, "noise stays out (below floor)"
+    assert any(f.startswith("embed_prior(P0.S1") for f in judgment.flags)

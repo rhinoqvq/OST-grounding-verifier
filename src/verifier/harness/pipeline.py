@@ -46,6 +46,7 @@ class Dependencies:
     llm: StructuredLLM
     decider: Decider
     conn: sqlite3.Connection | None = None
+    embedder: object | None = None  # models.embedder.Embedder when evidence_selector == "hybrid"
 
 
 async def run_verification(request: VerifyRequest, deps: Dependencies) -> tuple[VerifyResponse, Trace]:
@@ -170,6 +171,22 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             max_per_request=settings.max_questions_per_request,
             max_parallel=settings.max_parallel_requests,
         )
+        # hybrid evidence selector: embedding ranking as a prior
+        embed_ranked: dict[str, list[str]] = {}
+        if settings.evidence_selector == "hybrid" and deps.embedder is not None:
+            sentences = store.all_source_sentences()
+            unit_texts = [u.display_text or store.slice(u.anchor_spans[0]) for u in units]
+            vectors = await deps.embedder.embed([*unit_texts, *[s.text for s in sentences]])
+            unit_vecs, sent_vecs = vectors[: len(units)], vectors[len(units):]
+            from verifier.models.embedder import cosine
+
+            for unit, uvec in zip(units, unit_vecs):
+                scored = sorted(
+                    ((cosine(uvec, svec), s.sentence_id) for svec, s in zip(sent_vecs, sentences)),
+                    key=lambda t: -t[0],
+                )
+                embed_ranked[unit.node_id] = [sid for _, sid in scored]
+
         for unit in units:
             judgments[unit.node_id] = decide_verdict(
                 unit,
@@ -179,6 +196,9 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 relevance_min_prob=settings.relevance_min_prob,
                 evidence_floor_prob=settings.evidence_floor_prob,
                 max_evidence=settings.max_evidence_sentences,
+                embed_ranked=embed_ranked.get(unit.node_id),
+                embed_top_k=settings.embed_top_k,
+                embed_floor_prob=settings.embed_floor_prob,
             )
             # an ungrounded diagnostic part caps SUPPORTED at UNSUPPORTED
             apply_grounding_gate(
