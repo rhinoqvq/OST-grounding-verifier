@@ -54,6 +54,11 @@ _CUT_RE = re.compile(
 # fragments must exclude the connective itself.
 _LEAD_CONNECTIVES = ("because", "if", "when", "unless", "although", "while", "whereas")
 _LEAD_RE = re.compile(r"^(" + "|".join(_LEAD_CONNECTIVES) + r")\b\s+", re.IGNORECASE)
+# Inverted conditionals carry no 'if' marker ("Should the watchdog fire, ...");
+# without a candidate the conditional-scope guard never triggers (measured,
+# second self-audit n05). The inversion words become lead candidates too —
+# Jev still classifies them (keep_whole expected; a misread costs a question).
+_LEAD_INVERSION_RE = re.compile(r"^(should|had|were)\b\s+", re.IGNORECASE)
 _LEAD_SPLIT_RE = re.compile(r",\s+")
 
 # Applied when BUILDING fragments (a produced fragment must be able to stand
@@ -73,7 +78,9 @@ _SHARE_CONNECTIVES = {"and"}
 # conditional: it asserts nothing unconditionally, so NO accepted cut in that
 # sentence may produce unconditionally asserted fragments (measured, audit09:
 # an interior 'because' cut lifted "memory is exhausted" out of an if-scope).
-_CONDITIONAL_CONNECTIVES = {"if", "unless", "when"}
+# Includes the inversion words (lead candidates only). Known lexicon remainder,
+# untested: prepositional ("in case of") and imperative conditionals.
+_CONDITIONAL_CONNECTIVES = {"if", "unless", "when", "should", "had", "were"}
 # 6 covers subject + copula + participle + preposition ("A tied election is
 # resolved by ..."); a live a12 run showed 4 forces a meaning-bending prefix.
 _MAX_SHARE_PREFIX_TOKENS = 6
@@ -127,7 +134,7 @@ def _word_count(text: str) -> int:
 def find_candidates(store: TextStore) -> list[CutCandidate]:
     candidates: list[CutCandidate] = []
     for sentence in store.answer_sentences:
-        lead = _LEAD_RE.match(sentence.text)
+        lead = _LEAD_RE.match(sentence.text) or _LEAD_INVERSION_RE.match(sentence.text)
         if lead:
             split = _LEAD_SPLIT_RE.search(sentence.text, lead.end())
             if split:

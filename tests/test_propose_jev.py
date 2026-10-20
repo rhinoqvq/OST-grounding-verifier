@@ -389,6 +389,7 @@ def test_staged_relation_composition():
         f"rel1::{rid}": link("P0.S0"),
         f"rel2::{rid}": side(f"rel2::{rid}", "different"),  # expiry != periodic
         f"rel3::{rid}": side(f"rel3::{rid}", "matches"),
+        f"rel5::{rid}": Answer(f"rel5::{rid}", yes_prob=0.9),  # link is asserted
     }
     j = decide_relation_verdict(rel, answers, min_prob=0.55)
     assert j.verdict is Verdict.UNSUPPORTED
@@ -729,9 +730,9 @@ def test_sequence_relation_order_composition():
     rid = rel.node_id
     link = store.all_source_sentences()[0]
 
-    # the order question is asked for sequence relations only
+    # the order question is asked for sequence relations only (rel5 for all)
     qids = [q.question_id for q in relation_stage2_questions(store, rel, link, "L", "R")]
-    assert qids == [f"rel2::{rid}", f"rel3::{rid}", f"rel4::{rid}"]
+    assert qids == [f"rel2::{rid}", f"rel3::{rid}", f"rel4::{rid}", f"rel5::{rid}"]
     cause_store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
     cause_rel = _staged_relation(cause_store)
     cause_qids = [
@@ -753,6 +754,7 @@ def test_sequence_relation_order_composition():
         f"rel2::{rid}": side(f"rel2::{rid}", "matches"),
         f"rel3::{rid}": side(f"rel3::{rid}", "matches"),
         f"rel4::{rid}": order("right_first"),
+        f"rel5::{rid}": Answer(f"rel5::{rid}", yes_prob=0.9),
     }
     j = decide_relation_verdict(rel, judge_answers, min_prob=0.55)
     assert j.verdict is Verdict.CONTRADICTED
@@ -977,3 +979,67 @@ def test_conditional_scope_undoes_interior_cuts():
     answers2 = {cands2[0].question_id: choice(cands2[0].question_id, "cause_link")}
     outcome2 = build_tree_from_cuts(store2, cands2, answers2, min_prob=0.6)
     assert len([u for u in outcome2.units if u.kind is NodeKind.FACT]) == 2
+
+
+def test_staged_link_assertedness_gate():
+    """P-assert (second self-audit n02): a link the source states only inside a
+    condition or reported speech composes neither S nor C — the relation stays
+    UNSUPPORTED with the unasserted flag. An asserted link (default) passes."""
+    from verifier.judge.entail import decide_relation_verdict
+
+    store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
+    rel = _staged_relation(store)
+    rid = rel.node_id
+    answers = {
+        f"rel1::{rid}": Answer(f"rel1::{rid}", choice="P0.S0",
+                               probabilities={"P0.S0": 0.9, "no_such_link": 0.1}),
+        f"rel2::{rid}": side(f"rel2::{rid}", "matches"),
+        f"rel3::{rid}": side(f"rel3::{rid}", "matches"),
+        f"rel5::{rid}": Answer(f"rel5::{rid}", yes_prob=0.08),  # inside if/reported
+    }
+    j = decide_relation_verdict(rel, answers, min_prob=0.55)
+    assert j.verdict is Verdict.UNSUPPORTED
+    assert any(f.startswith("staged_link_unasserted") for f in j.flags)
+
+    # even an 'opposite' side must not compose C from an unasserted link
+    answers[f"rel3::{rid}"] = side(f"rel3::{rid}", "opposite")
+    j = decide_relation_verdict(rel, answers, min_prob=0.55)
+    assert j.verdict is Verdict.UNSUPPORTED
+
+    answers[f"rel3::{rid}"] = side(f"rel3::{rid}", "matches")
+    answers[f"rel5::{rid}"] = Answer(f"rel5::{rid}", yes_prob=0.9)
+    j = decide_relation_verdict(rel, answers, min_prob=0.55)
+    assert j.verdict is Verdict.SUPPORTED
+
+
+def test_witness_matches_within_single_sentence_only():
+    """Phantom match (second self-audit n04, deterministic): normalization must
+    not erase sentence boundaries — cross-sentence assembled content gets no
+    witness, real single-sentence presence still does."""
+    from verifier.judge.entail import verbatim_in_source
+
+    store = TextStore.from_request(
+        "x", ["The system alerts on-call staff when errors occur. "
+              "The server restarts. Daily backups run at noon."])
+    assert not verbatim_in_source(store, "the server restarts daily")
+    assert verbatim_in_source(store, "the server restarts")
+    assert verbatim_in_source(store, "Daily backups run at noon")
+    assert not verbatim_in_source(store, "the server restarts weekly")
+
+
+def test_inverted_conditional_triggers_scope_guard():
+    """Lexicon gap (second self-audit n05): 'Should the watchdog fire, ...'
+    now yields a lead candidate; keep_whole on it undoes the interior
+    'because' cut like any conditional."""
+    answer = "Should the watchdog fire, the service restarts because memory is exhausted."
+    store = TextStore.from_request(answer, ["(src)"])
+    cands = find_candidates(store)
+    by_conn = {c.connective: c for c in cands}
+    assert "should" in by_conn and by_conn["should"].lead_start is not None
+    answers = {
+        by_conn["should"].question_id: choice(by_conn["should"].question_id, "keep_whole"),
+        by_conn["because"].question_id: choice(by_conn["because"].question_id, "cause_link"),
+    }
+    outcome = build_tree_from_cuts(store, cands, answers, min_prob=0.6)
+    assert outcome.units == []
+    assert any("kept-whole conditional" in n for n in outcome.notes)

@@ -25,7 +25,10 @@ from verifier.rag.tree import Node, RelationType
 VERDICT_OPTIONS = {
     "supported": (
         "Every part of the claim (subject, numbers, conditions, negation) follows from the "
-        "source sentences alone. Combining several source sentences is fine. Paraphrase is fine."
+        "source sentences alone. Combining several source sentences is fine. Paraphrase is fine. "
+        "A claim asserted outright is NOT supported by content the source states only under an "
+        "'if'/'when' condition or inside reported speech — but a claim that ITSELF states that "
+        "same condition or attribution is judged as a whole and can be supported."
     ),
     "contradicted": (
         "The source explicitly states something that cannot be true together with the claim "
@@ -34,7 +37,9 @@ VERDICT_OPTIONS = {
     "not_in_context": (
         "The source neither establishes nor contradicts the claim: it is not mentioned, is only "
         "implied, or the source says something weaker (e.g. 'most' vs the claim's 'all'). "
-        "True-in-the-real-world but absent from the source belongs here."
+        "True-in-the-real-world but absent from the source belongs here — and so does a claim "
+        "asserted outright whose content the source gives only under a condition or as "
+        "someone's reported claim (not a claim that itself states that same condition)."
     ),
 }
 
@@ -218,6 +223,24 @@ def relation_stage2_questions(
     ]
     if unit.relation_type is RelationType.SEQUENCE:
         questions.append(sequence_order_question(unit, link_sentence, left_text, right_text))
+    # P-assert premise (second self-audit, n02): the found link sentence must
+    # itself ASSERT the link. rel1 deliberately accepts links in any polarity
+    # or wrapper, so without this gate a link stated inside an 'if' condition
+    # or reported speech composes S (measured false-S chain). Claim-free, like
+    # br2/br5: assertedness is a fact about the one sentence.
+    questions.append(
+        YesNoQuestion(
+            question_id=f"rel5::{unit.node_id}",
+            instructions=(
+                f'Sentence: "{link_sentence.text}"\n'
+                "Does this sentence ASSERT that connection as a fact in its own voice — "
+                "not merely inside an 'if'/'when'/'unless' condition, inside reported or "
+                "attributed speech ('according to', 'claims', 'the brochure says'), in a "
+                "question, or under a negation of the connection? Answer no if the "
+                "connection only appears under such a wrapper."
+            ),
+        )
+    )
     return questions
 
 
@@ -452,6 +475,16 @@ def decide_relation_verdict(
         judgment.flags.append("staged_no_link" if status == "no_link" else "staged_flat_link")
         return judgment
 
+    # P-assert gate: a link that the source states only inside a condition,
+    # reported speech or a negation is not an asserted link — neither S nor C
+    # may be composed from it (a conditional-scoped opposite is not an
+    # explicit incompatibility). Flat answers fail closed to UNSUPPORTED.
+    assert_p = (answers.get(f"rel5::{unit.node_id}") or Answer("")).yes_prob or 0.0
+    judgment.probabilities["link_asserted"] = assert_p
+    if assert_p < min_prob:
+        judgment.flags.append(f"staged_link_unasserted({sid},p={assert_p:.2f})")
+        return judgment
+
     sides: list[tuple[str, str, float]] = []  # (which, top option, its prob)
     for which, qid in (("left", f"rel2::{unit.node_id}"), ("right", f"rel3::{unit.node_id}")):
         answer = answers.get(qid)
@@ -522,8 +555,12 @@ def verbatim_in_source(store: TextStore, part_text: str) -> bool:
     alt = ""
     if tokens and tokens[0] in _WITNESS_LEAD_WORDS and len(tokens) > 1:
         alt = " " + " ".join(tokens[1:]) + " "
-    for passage in store.passages:
-        hay = _normalized_tokens(passage)
+    # match within ONE source sentence: normalizing a whole passage erases
+    # sentence boundaries and can assemble phantom content the source never
+    # asserted ("...restarts. Daily backups..." -> "restarts daily"; proven
+    # deterministically, second self-audit n04)
+    for sentence in store.all_source_sentences():
+        hay = _normalized_tokens(sentence.text)
         if norm in hay or (alt and alt in hay):
             return True
     return False

@@ -61,6 +61,12 @@ def render_reasoning(unit: Node, judgment: UnitJudgment, *, context_empty: bool 
                 "different trigger or agent, or widens its scope, so the claimed connection "
                 "cannot be verified from the context."
             )
+        if any(f.startswith("staged_link_unasserted") for f in flags):
+            return (
+                f"A source sentence mentions a link of this kind ({evidence}), but only "
+                "inside a condition, reported speech or a negation — the source does not "
+                "assert the link itself, so the claimed connection cannot be verified."
+            )
         if any(f.startswith("staged_no_link") for f in flags):
             return (
                 "No source sentence states the connection the answer asserts between these "
