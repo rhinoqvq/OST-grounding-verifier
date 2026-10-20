@@ -80,8 +80,9 @@ CUT_OPTIONS = {
     "cause_link": "Both sides are asserted AND the sentence asserts that one causes/explains the other (because/so/therefore).",
     "contrast_link": "Both sides are asserted AND set against each other (but/however/whereas/although).",
     "sequence_link": (
-        "Both sides are asserted AND ordered in time: LEFT happens first, then RIGHT "
-        "(then/after which). Pick this only when the sentence reads in that order."
+        "Both sides are asserted AND the sentence itself marks their order in time: LEFT "
+        "happens first, then RIGHT (then/after which). A plain 'and' joining two actions "
+        "is two_facts, not this — pick this only for an explicit order marker."
     ),
     "keep_whole": (
         "Splitting would change meaning: a conditional (if/unless/when), a disjunction (or), "
