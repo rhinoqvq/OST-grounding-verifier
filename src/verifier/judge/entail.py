@@ -21,6 +21,7 @@ from verifier.models.decider import Answer, ChoiceQuestion, Question, YesNoQuest
 from verifier.output.schemas import Verdict
 from verifier.rag.source import Sentence, TextStore
 from verifier.rag.tree import Node, RelationType
+from verifier.semantics.lexicon import words_with
 
 VERDICT_OPTIONS = {
     "supported": (
@@ -142,6 +143,17 @@ def relation_link_question(store: TextStore, unit: Node) -> ChoiceQuestion:
     )
 
 
+# One definition of "rules it out", shared by every opposition check
+# (redundancy audit B: SIDE and OPPOSITION approximated the same EXCL predicate
+# with drifting texts — the exclusivity clause got patched into one and not the
+# other). Question framing stays per-use; the predicate definition lives once.
+_EXCL_DEF = (
+    "an inverted or incompatible value, or an exclusivity restriction "
+    "('only does X', 'never', 'nothing but') that the source ITSELF states — such that "
+    "the two cannot be true together. Absence of confirmation is NOT exclusion: the "
+    "source merely not establishing the claim does not rule it out"
+)
+
 SIDE_OPTIONS = {
     "matches": (
         "In the claimed link this side plays the same role and refers to the same thing as the "
@@ -149,8 +161,8 @@ SIDE_OPTIONS = {
         "statement covers its instances)."
     ),
     "opposite": (
-        "Same role, same aspect, but with the OPPOSITE or negated value (fast vs slow, enabled "
-        "vs disabled, inverted direction)."
+        f"Same role, same aspect, but stated with {_EXCL_DEF} "
+        "(e.g. fast vs slow, enabled vs disabled, inverted direction)."
     ),
     "different": (
         "It refers to a DIFFERENT thing: another trigger, agent or mechanism that the source "
@@ -318,10 +330,7 @@ def _attach_aux_premise(unit: Node, judgment: "UnitJudgment", answers: dict[str,
 
 OPPOSITION_OPTIONS = {
     "opposite": (
-        "At least one cited sentence RULES THE CLAIM OUT: it states the same aspect "
-        "with an inverted or incompatible value, or it restricts the claim's subject "
-        "in a way that excludes the claim ('only does X', 'never', 'nothing but') — "
-        "the sentence and the claim cannot be true together."
+        f"At least one cited sentence RULES THE CLAIM OUT: it states the same aspect with {_EXCL_DEF}."
     ),
     "different": (
         "The cited sentences state something about a DIFFERENT entity, aspect or scope "
@@ -607,10 +616,8 @@ def decide_relation_verdict(
 
 # Leading framing words a diagnostic part may carry; the part's CONTENT minus
 # such a word being present verbatim is still a syntactic presence witness.
-_WITNESS_LEAD_WORDS = {
-    "if", "when", "unless", "because", "although", "while", "whereas",
-    "and", "or", "but", "then",
-}
+# A projection of the one lexicon — never hand-listed here (redundancy audit A).
+_WITNESS_LEAD_WORDS = frozenset(words_with("strippable"))
 
 
 # Keeps meaning-bearing symbols: a sign attached to a digit, comparators and

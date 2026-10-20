@@ -124,7 +124,6 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             recomb_min_prob=settings.fidelity_min_prob,
             max_per_request=settings.max_questions_per_request,
             max_parallel=settings.max_parallel_requests,
-            cut_votes=settings.jev_cut_votes,
         )
         tree = jev_outcome.tree
         outcome = CheckOutcome(

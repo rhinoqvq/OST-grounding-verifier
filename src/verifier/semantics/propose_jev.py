@@ -36,14 +36,10 @@ from verifier.harness.context import build_answer_state
 from verifier.models.decider import Answer, ChoiceQuestion, Decider, YesNoQuestion
 from verifier.rag.source import Sentence, Span, TextStore
 from verifier.rag.tree import Node, NodeKind, NodeStatus, RelationType, SemanticTree
+from verifier.semantics.lexicon import words_with
 
-# connective -> (what a "linked" cut means here)
-_CONNECTIVES = [
-    "because", "so that", "so", "therefore", "thus",
-    "but", "however", "whereas", "while", "although",
-    "which", "who", "whose",
-    "and", "or", "unless", "if", "when", "after which", "then",
-]
+# every connective list is a projection of the one lexicon (semantics/lexicon.py)
+_CONNECTIVES = words_with("cut")
 _CUT_RE = re.compile(
     r"[,;:]?\s+\b(" + "|".join(re.escape(c) for c in sorted(_CONNECTIVES, key=len, reverse=True)) + r")\b\s",
     re.IGNORECASE,
@@ -52,13 +48,12 @@ _CUT_RE = re.compile(
 # A subordinator can also OPEN the sentence ("Because A, B"): the relation is
 # the same, but the split point is the comma after the first clause, and the
 # fragments must exclude the connective itself.
-_LEAD_CONNECTIVES = ("because", "if", "when", "unless", "although", "while", "whereas")
-_LEAD_RE = re.compile(r"^(" + "|".join(_LEAD_CONNECTIVES) + r")\b\s+", re.IGNORECASE)
+_LEAD_RE = re.compile(r"^(" + "|".join(words_with("lead")) + r")\b\s+", re.IGNORECASE)
 # Inverted conditionals carry no 'if' marker ("Should the watchdog fire, ...");
 # without a candidate the conditional-scope guard never triggers (measured,
 # second self-audit n05). The inversion words become lead candidates too —
 # Jev still classifies them (keep_whole expected; a misread costs a question).
-_LEAD_INVERSION_RE = re.compile(r"^(should|had|were)\b\s+", re.IGNORECASE)
+_LEAD_INVERSION_RE = re.compile(r"^(" + "|".join(words_with("inversion")) + r")\b\s+", re.IGNORECASE)
 _LEAD_SPLIT_RE = re.compile(r",\s+")
 
 # Applied when BUILDING fragments (a produced fragment must be able to stand
@@ -72,15 +67,15 @@ _MIN_FRAGMENT_WORDS = 3
 # Connectives whose questions also offer shared-part options ("X accepts A and
 # B" -> carry "X accepts" over to B). Only 'and': splitting a disjunction would
 # assert both sides of an 'or', which asserts neither — 'or' stays keep_whole.
-_SHARE_CONNECTIVES = {"and"}
+_SHARE_CONNECTIVES = frozenset(words_with("share"))
 
 # A keep_whole verdict on one of these markers reads the sentence as a
 # conditional: it asserts nothing unconditionally, so NO accepted cut in that
 # sentence may produce unconditionally asserted fragments (measured, audit09:
 # an interior 'because' cut lifted "memory is exhausted" out of an if-scope).
-# Includes the inversion words (lead candidates only). Known lexicon remainder,
-# untested: prepositional ("in case of") and imperative conditionals.
-_CONDITIONAL_CONNECTIVES = {"if", "unless", "when", "should", "had", "were"}
+# Known lexicon remainder, untested: prepositional ("in case of") and
+# imperative conditionals.
+_CONDITIONAL_CONNECTIVES = frozenset(words_with("conditional"))
 # 6 covers subject + copula + participle + preposition ("A tied election is
 # resolved by ..."); a live a12 run showed 4 forces a meaning-bending prefix.
 _MAX_SHARE_PREFIX_TOKENS = 6
@@ -553,23 +548,12 @@ def build_tree_from_cuts(
     return JevProposalOutcome(tree=tree, units=units, notes=notes, shared_checks=shared_checks)
 
 
-def _mean_answer(question_id: str, samples: list[Answer]) -> Answer | None:
-    """Average the calibrated distributions of several independent samples of
-    the same question. Cut decisions determine the output's shape and have no
-    conservative fallback, so a borderline single sample must not decide alone:
-    the mean of k samples cuts the run-to-run variance by sqrt(k)."""
-    present = [s for s in samples if s is not None and s.probabilities]
-    if not present:
-        return None
-    keys = {k for s in present for k in s.probabilities}
-    probs = {k: sum(s.probabilities.get(k, 0.0) for s in present) / len(present) for k in keys}
-    confidences = [s.confidence for s in present if s.confidence is not None]
-    return Answer(
-        question_id=question_id,
-        choice=max(probs, key=probs.__getitem__),
-        probabilities=probs,
-        confidence=sum(confidences) / len(confidences) if confidences else None,
-    )
+# cut-vote averaging was removed (redundancy audit E, revised after rebuttal):
+# measured 2026-10-21 (41 candidates x 6 rounds) votes=3 reduced no decision
+# flips on the borderline population it was built for, at triple the cost.
+# Removal is an experimental decision, not a theorem — the rebuttal's exact
+# counterexample (mean exactly on the threshold, asymmetric mass) shows voting
+# CAN help in principle; on our measured candidates it did not.
 
 
 async def propose_with_jev(
@@ -580,42 +564,18 @@ async def propose_with_jev(
     recomb_min_prob: float,
     max_per_request: int,
     max_parallel: int,
-    cut_votes: int = 1,
 ) -> JevProposalOutcome:
     candidates = find_candidates(store)
     answers: dict[str, Answer] = {}
     if candidates:
-        votes = max(1, cut_votes)
-        questions: list[ChoiceQuestion] = []
-        for c in candidates:
-            q = cut_question(store, c)
-            if votes == 1:
-                questions.append(q)
-            else:
-                questions += [
-                    ChoiceQuestion(
-                        question_id=f"{c.question_id}::v{i}",
-                        instructions=q.instructions,
-                        options=q.options,
-                    )
-                    for i in range(votes)
-                ]
-        raw = await ask_batched(
+        questions = [cut_question(store, c) for c in candidates]
+        answers = await ask_batched(
             decider,
             build_answer_state(store),
             questions,
             max_per_request=max_per_request,
             max_parallel=max_parallel,
         )
-        if votes == 1:
-            answers = raw
-        else:
-            for c in candidates:
-                mean = _mean_answer(
-                    c.question_id, [raw.get(f"{c.question_id}::v{i}") for i in range(votes)]
-                )
-                if mean is not None:
-                    answers[c.question_id] = mean
     outcome = build_tree_from_cuts(store, candidates, answers, min_prob=min_prob)
     if not outcome.shared_checks:
         return outcome

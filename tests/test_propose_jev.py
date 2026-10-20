@@ -249,32 +249,6 @@ def test_family_majority_accepts_c20_run0_distribution():
     ]
 
 
-async def test_cut_votes_average_over_samples():
-    """cut_votes=3: a borderline candidate is decided by the MEAN of three
-    samples (live c20 runs flapped 0.47/0.61/0.54 against ~0.5), not by
-    whichever single draw happened."""
-    store = TextStore.from_request(C20_ANSWER, ["(src)"])
-    cand = find_candidates(store)[0]
-
-    def vote(i, share18, nb):
-        qid = f"{cand.question_id}::v{i}"
-        probs = {"share_18": share18, "not_boundary": nb}
-        return Answer(qid, choice=max(probs, key=probs.get), probabilities=probs)
-
-    script = {
-        f"{cand.question_id}::v0": vote(0, 0.47, 0.53),  # this draw alone: no cut
-        f"{cand.question_id}::v1": vote(1, 0.61, 0.39),
-        f"{cand.question_id}::v2": vote(2, 0.54, 0.46),
-    }
-    outcome = await propose_with_jev(
-        scripted_decider(script), store,
-        min_prob=0.6, recomb_min_prob=0.6, max_per_request=50, max_parallel=2,
-        cut_votes=3,
-    )
-    facts = [u for u in outcome.units if u.kind is NodeKind.FACT]
-    assert len(facts) == 2, "mean share mass 0.54 beats mean not_boundary 0.46"
-
-
 async def test_recombination_failure_undoes_shared_cut():
     """The assembled claim is the one sentence the answer never wrote, so it
     carries a fidelity check; failing it rebuilds without the cut."""
