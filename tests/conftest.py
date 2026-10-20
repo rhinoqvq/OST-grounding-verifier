@@ -103,6 +103,14 @@ def scripted_decider(script: dict[str, Answer] | None = None) -> FakeDecider:
 
     def default(question) -> Answer:
         qid = question.question_id
+        # vote copies of a cut question (cut::...::vN) reuse the scripted
+        # answer for the base question, so scripted tests are vote-agnostic
+        if qid.startswith("cut::") and "::v" in qid:
+            base = qid.rsplit("::v", 1)[0]
+            if base in (script or {}):
+                import dataclasses
+
+                return dataclasses.replace(script[base], question_id=qid)
         if qid.startswith("g::"):
             return Answer(qid, yes_prob=0.9)
         if qid.startswith("recomb::"):
@@ -112,6 +120,19 @@ def scripted_decider(script: dict[str, Answer] | None = None) -> FakeDecider:
             probs["no_such_link"] = 0.9
             return Answer(qid, choice="no_such_link", probabilities=probs, confidence=0.9)
         if qid.startswith(("rel2::", "rel3::")) and isinstance(question, ChoiceQuestion):
+            probs = {"matches": 0.9, "opposite": 0.05, "different": 0.05}
+            return Answer(qid, choice="matches", probabilities=probs, confidence=0.9)
+        if qid.startswith("br1::") and isinstance(question, ChoiceQuestion):
+            probs = dict.fromkeys(question.options, 0.02)
+            probs["no_connection"] = 0.9
+            return Answer(qid, choice="no_connection", probabilities=probs, confidence=0.9)
+        if qid.startswith("br3::") and isinstance(question, ChoiceQuestion):
+            probs = dict.fromkeys(question.options, 0.02)
+            probs["no_property"] = 0.9
+            return Answer(qid, choice="no_property", probabilities=probs, confidence=0.9)
+        if qid.startswith("br2::"):
+            return Answer(qid, yes_prob=0.9)
+        if qid.startswith("br4::") and isinstance(question, ChoiceQuestion):
             probs = {"matches": 0.9, "opposite": 0.05, "different": 0.05}
             return Answer(qid, choice="matches", probabilities=probs, confidence=0.9)
         if qid.startswith("cut::") and isinstance(question, ChoiceQuestion):

@@ -29,6 +29,9 @@ from verifier.judge.aggregate import apply_parent_recheck, relation_verdict, sen
 from verifier.judge.entail import (
     UnitJudgment,
     apply_grounding_gate,
+    bridge_check_questions,
+    bridge_find_questions,
+    decide_bridge_rescue,
     decide_relation_verdict,
     decide_verdict,
     judge_questions,
@@ -101,6 +104,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             recomb_min_prob=settings.fidelity_min_prob,
             max_per_request=settings.max_questions_per_request,
             max_parallel=settings.max_parallel_requests,
+            cut_votes=settings.jev_cut_votes,
         )
         tree = jev_outcome.tree
         outcome = CheckOutcome(
@@ -341,6 +345,61 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                         grounding_min_prob=settings.grounding_min_prob,
                     )
                 trace.note(f"embed rescue for {[u.node_id for u in thin_units]}")
+
+        # bridge rescue: a flat verdict may hide a two-hop claim whose identity
+        # bridge one bounded question cannot carry (measured ~0.47 on two-hop).
+        # The hop is decomposed into single-hop questions; the rescue can only
+        # turn a flat UNSUPPORTED into a composed S or C with both sentences
+        # cited — confident ordinary verdicts are never touched.
+        flat_units = [
+            u for u in fact_units
+            if any(f.startswith("low_confidence") for f in judgments[u.node_id].flags)
+        ]
+        if flat_units:
+            find_qs: list = []
+            for unit in flat_units:
+                find_qs += bridge_find_questions(store, unit)
+            answers.update(
+                await ask_batched(
+                    deps.decider, build_source_state(store), find_qs,
+                    max_per_request=settings.max_questions_per_request,
+                    max_parallel=settings.max_parallel_requests,
+                )
+            )
+            check_qs: list = []
+            for unit in flat_units:
+                bid, _ = staged_link_choice(
+                    answers.get(f"br1::{unit.node_id}"),
+                    min_prob=settings.verdict_min_prob, none_label="no_connection",
+                )
+                pid, _ = staged_link_choice(
+                    answers.get(f"br3::{unit.node_id}"),
+                    min_prob=settings.verdict_min_prob, none_label="no_property",
+                )
+                if bid is None or pid is None or bid == pid:
+                    continue
+                try:
+                    check_qs += bridge_check_questions(
+                        store, unit, store.sentence_by_id(bid), store.sentence_by_id(pid)
+                    )
+                except KeyError:
+                    continue
+            if check_qs:
+                answers.update(
+                    await ask_batched(
+                        deps.decider, build_source_state(store), check_qs,
+                        max_per_request=settings.max_questions_per_request,
+                        max_parallel=settings.max_parallel_requests,
+                    )
+                )
+            for unit in flat_units:
+                rescued = decide_bridge_rescue(
+                    unit, answers, min_prob=settings.verdict_min_prob
+                )
+                if rescued is not None:
+                    rescued.flags = [*judgments[unit.node_id].flags, *rescued.flags]
+                    judgments[unit.node_id] = rescued
+                    trace.note(f"bridge rescue: {unit.node_id} -> {rescued.verdict.value}")
 
         # relation claims inherit the most severe verdict of their members
         for unit in units:

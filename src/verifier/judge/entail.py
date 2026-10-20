@@ -179,15 +179,136 @@ def relation_stage2_questions(
     ]
 
 
-def staged_link_choice(answer: Answer | None, *, min_prob: float) -> tuple[str | None, str]:
-    """Resolve stage 1: (sentence_id, 'chosen') | (None, 'no_link'|'flat')."""
+# --- staged bridge check (two-hop rescue) ------------------------------------
+# A claim like "Production accepts V2" against "Production routes exclusively
+# to Azure" + "Azure accepts V2" needs an identity hop that one bounded verdict
+# question cannot carry (measured: flat ~0.47). When the ordinary verdict comes
+# back flat, the hop is decomposed: find the bridge sentence, check it licenses
+# a full transfer, find the property sentence, compare the asserted property.
+# It can only upgrade a flat UNSUPPORTED to a composed S or C — a confident
+# ordinary verdict is never touched.
+
+
+def bridge_find_questions(store: TextStore, unit: Node) -> list[Question]:
+    """Round A: locate the bridge sentence and the property sentence."""
+    sentence_options = {s.sentence_id: f'"{s.text}"' for s in store.all_source_sentences()}
+    return [
+        ChoiceQuestion(
+            question_id=f"br1::{unit.node_id}",
+            instructions=(
+                f"{describe_unit(store, unit)}\n"
+                "Which source sentence states that the claim's SUBJECT is connected to or "
+                "covered by some other entity in the source (routed to it, an alias of it, "
+                "part of it, 'all X go through Y')? Pick the connecting sentence itself; if "
+                "no sentence states such a connection, choose no_connection."
+            ),
+            options={
+                **sentence_options,
+                "no_connection": "No source sentence connects the claim's subject to another entity.",
+            },
+        ),
+        ChoiceQuestion(
+            question_id=f"br3::{unit.node_id}",
+            instructions=(
+                f"{describe_unit(store, unit)}\n"
+                "Which source sentence states the PROPERTY or behaviour that the claim "
+                "asserts — in ANY polarity (a sentence stating its opposite or negation "
+                "also counts), possibly about a different entity than the claim's subject? "
+                "If none does, choose no_property."
+            ),
+            options={
+                **sentence_options,
+                "no_property": (
+                    "No source sentence states the asserted property or its opposite."
+                ),
+            },
+        ),
+    ]
+
+
+def bridge_check_questions(
+    store: TextStore, unit: Node, bridge: Sentence, prop: Sentence
+) -> list[Question]:
+    """Round B: does the bridge license a full transfer, and does the asserted
+    property match the stated one? Reuses the relation check's 3-way side
+    vocabulary for the property comparison."""
+    return [
+        # deliberately claim-free: with the claim in view, a contradiction
+        # scenario contaminates the coverage judgment (measured: 0.76 on a
+        # supported case vs 0.35 on the same bridge shape with a contradicted
+        # property). The bridge's completeness is a fact about one sentence.
+        YesNoQuestion(
+            question_id=f"br2::{unit.node_id}",
+            instructions=(
+                f'Sentence: "{bridge.text}"\n'
+                "Does this sentence state a COMPLETE connection — ALL of its subject goes "
+                "to, passes through, or simply is the other entity (exclusive routing, a "
+                "plain alias, total coverage)? Partial coverage ('some', 'about half') or "
+                "qualified coverage means no."
+            ),
+        ),
+        ChoiceQuestion(
+            question_id=f"br4::{unit.node_id}",
+            instructions=(
+                f'Property sentence [{prop.sentence_id}]: "{prop.text}"\n'
+                f"{describe_unit(store, unit)}\n"
+                "The SUBJECTS may differ — the connection between the claim's subject and "
+                "this sentence's entity is checked separately, so ignore who or what the "
+                "subject is. Compare ONLY the asserted property or behaviour itself with "
+                "what this sentence states (it may state several things; the one matching "
+                "the claim's property is what counts) and classify."
+            ),
+            options=SIDE_OPTIONS,
+        ),
+    ]
+
+
+def decide_bridge_rescue(
+    unit: Node,
+    answers: dict[str, Answer],
+    *,
+    min_prob: float,
+) -> UnitJudgment | None:
+    """Compose the bridge answers; None means the rescue does not apply and
+    the original flat verdict stands."""
+    br1 = answers.get(f"br1::{unit.node_id}")
+    br3 = answers.get(f"br3::{unit.node_id}")
+    bid, _s1 = staged_link_choice(br1, min_prob=min_prob, none_label="no_connection")
+    pid, _s3 = staged_link_choice(br3, min_prob=min_prob, none_label="no_property")
+    if bid is None or pid is None or bid == pid:
+        return None
+    full_p = (answers.get(f"br2::{unit.node_id}") or Answer("")).yes_prob or 0.0
+    br4 = answers.get(f"br4::{unit.node_id}")
+    probs = br4.probabilities if br4 and br4.probabilities else {}
+    prop_match = max(probs, key=probs.__getitem__) if probs else "different"
+    prop_p = probs.get(prop_match, 0.0)
+    if full_p < min_prob or prop_p < min_prob:
+        return None
+    if prop_match == "different":
+        return None
+    judgment = UnitJudgment(
+        node_id=unit.node_id,
+        node_version=unit.version,
+        verdict=Verdict.SUPPORTED if prop_match == "matches" else Verdict.CONTRADICTED,
+        probabilities={"bridge_full": full_p, f"property_{prop_match}": prop_p},
+        evidence_sentence_ids=[bid, pid],
+        flags=[f"bridge_rescue({bid}->{pid},{prop_match})"],
+    )
+    return judgment
+
+
+def staged_link_choice(
+    answer: Answer | None, *, min_prob: float, none_label: str = "no_such_link"
+) -> tuple[str | None, str]:
+    """Resolve a pick-a-sentence stage: (sentence_id, 'chosen') |
+    (None, 'no_link'|'flat'). `none_label` is that question's none-option."""
     if answer is None or not answer.probabilities:
         return None, "flat"
     top = max(answer.probabilities, key=answer.probabilities.__getitem__)
     p = answer.probabilities[top]
     if p < min_prob:
         return None, "flat"
-    if top == "no_such_link":
+    if top == none_label:
         return None, "no_link"
     return top, "chosen"
 

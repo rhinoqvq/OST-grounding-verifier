@@ -61,6 +61,19 @@ def render_reasoning(unit: Node, judgment: UnitJudgment, *, context_empty: bool 
                 "The judge could not settle on any source sentence as stating this connection"
                 f"{p_text}; per policy the uncertain link is reported as UNSUPPORTED."
             )
+    if any(f.startswith("bridge_rescue") for f in flags):
+        if judgment.verdict is Verdict.CONTRADICTED:
+            return (
+                f"The claim needs an identity hop: one cited sentence connects the claim's "
+                f"subject in full to another entity, and the other states the OPPOSITE of the "
+                f"asserted property for that entity ({evidence}) — combined, the source "
+                f"contradicts the claim."
+            )
+        return (
+            f"The claim needs an identity hop: one cited sentence connects the claim's subject "
+            f"in full to another entity, and the other states the asserted property for that "
+            f"entity ({evidence}) — combined, the source supports the claim."
+        )
     if any(f.startswith("low_confidence") for f in flags):
         return (
             f"The judge's probability distribution over verdicts was too flat to trust{p_text}; "

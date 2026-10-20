@@ -473,6 +473,25 @@ def build_tree_from_cuts(
     return JevProposalOutcome(tree=tree, units=units, notes=notes, shared_checks=shared_checks)
 
 
+def _mean_answer(question_id: str, samples: list[Answer]) -> Answer | None:
+    """Average the calibrated distributions of several independent samples of
+    the same question. Cut decisions determine the output's shape and have no
+    conservative fallback, so a borderline single sample must not decide alone:
+    the mean of k samples cuts the run-to-run variance by sqrt(k)."""
+    present = [s for s in samples if s is not None and s.probabilities]
+    if not present:
+        return None
+    keys = {k for s in present for k in s.probabilities}
+    probs = {k: sum(s.probabilities.get(k, 0.0) for s in present) / len(present) for k in keys}
+    confidences = [s.confidence for s in present if s.confidence is not None]
+    return Answer(
+        question_id=question_id,
+        choice=max(probs, key=probs.__getitem__),
+        probabilities=probs,
+        confidence=sum(confidences) / len(confidences) if confidences else None,
+    )
+
+
 async def propose_with_jev(
     decider: Decider,
     store: TextStore,
@@ -481,17 +500,42 @@ async def propose_with_jev(
     recomb_min_prob: float,
     max_per_request: int,
     max_parallel: int,
+    cut_votes: int = 1,
 ) -> JevProposalOutcome:
     candidates = find_candidates(store)
     answers: dict[str, Answer] = {}
     if candidates:
-        answers = await ask_batched(
+        votes = max(1, cut_votes)
+        questions: list[ChoiceQuestion] = []
+        for c in candidates:
+            q = cut_question(store, c)
+            if votes == 1:
+                questions.append(q)
+            else:
+                questions += [
+                    ChoiceQuestion(
+                        question_id=f"{c.question_id}::v{i}",
+                        instructions=q.instructions,
+                        options=q.options,
+                    )
+                    for i in range(votes)
+                ]
+        raw = await ask_batched(
             decider,
             build_answer_state(store),
-            [cut_question(store, c) for c in candidates],
+            questions,
             max_per_request=max_per_request,
             max_parallel=max_parallel,
         )
+        if votes == 1:
+            answers = raw
+        else:
+            for c in candidates:
+                mean = _mean_answer(
+                    c.question_id, [raw.get(f"{c.question_id}::v{i}") for i in range(votes)]
+                )
+                if mean is not None:
+                    answers[c.question_id] = mean
     outcome = build_tree_from_cuts(store, candidates, answers, min_prob=min_prob)
     if not outcome.shared_checks:
         return outcome

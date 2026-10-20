@@ -249,6 +249,32 @@ def test_family_majority_accepts_c20_run0_distribution():
     ]
 
 
+async def test_cut_votes_average_over_samples():
+    """cut_votes=3: a borderline candidate is decided by the MEAN of three
+    samples (live c20 runs flapped 0.47/0.61/0.54 against ~0.5), not by
+    whichever single draw happened."""
+    store = TextStore.from_request(C20_ANSWER, ["(src)"])
+    cand = find_candidates(store)[0]
+
+    def vote(i, share18, nb):
+        qid = f"{cand.question_id}::v{i}"
+        probs = {"share_18": share18, "not_boundary": nb}
+        return Answer(qid, choice=max(probs, key=probs.get), probabilities=probs)
+
+    script = {
+        f"{cand.question_id}::v0": vote(0, 0.47, 0.53),  # this draw alone: no cut
+        f"{cand.question_id}::v1": vote(1, 0.61, 0.39),
+        f"{cand.question_id}::v2": vote(2, 0.54, 0.46),
+    }
+    outcome = await propose_with_jev(
+        scripted_decider(script), store,
+        min_prob=0.6, recomb_min_prob=0.6, max_per_request=50, max_parallel=2,
+        cut_votes=3,
+    )
+    facts = [u for u in outcome.units if u.kind is NodeKind.FACT]
+    assert len(facts) == 2, "mean share mass 0.54 beats mean not_boundary 0.46"
+
+
 async def test_recombination_failure_undoes_shared_cut():
     """The assembled claim is the one sentence the answer never wrote, so it
     carries a fidelity check; failing it rebuilds without the cut."""
@@ -454,6 +480,95 @@ async def test_contrast_relation_is_truth_functional():
     assert not any(q.startswith("rel1::") for q in asked), (
         "contrast relations never reach the staged link question"
     )
+
+
+BRIDGE_PASSAGES = [
+    "Production traffic is routed exclusively to release Azure.",
+    "Release Azure rejects protocol V1 and accepts protocol V2.",
+]
+BRIDGE_ANSWER = "Production accepts protocol V2."
+
+
+def _flat(uid: str) -> Answer:
+    return Answer(
+        f"v::{uid}", choice="not_in_context",
+        probabilities={"supported": 0.46, "contradicted": 0.08, "not_in_context": 0.46},
+        confidence=0.4,
+    )
+
+
+async def test_bridge_rescue_composes_two_hop_support():
+    """c20-V2 shape: the ordinary verdict is flat; the rescue finds the bridge
+    and property sentences and composes SUPPORTED with both cited."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    uid = "sent::A.S0"
+    script = {
+        f"v::{uid}": _flat(uid),
+        f"br1::{uid}": Answer(f"br1::{uid}", choice="P0.S0",
+                              probabilities={"P0.S0": 0.9, "P1.S0": 0.05, "no_connection": 0.05}),
+        f"br3::{uid}": Answer(f"br3::{uid}", choice="P1.S0",
+                              probabilities={"P0.S0": 0.05, "P1.S0": 0.9, "no_property": 0.05}),
+        # br2 (yes 0.9) and br4 (matches 0.9) pass via conftest defaults
+    }
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=BRIDGE_PASSAGES, generated_answer=BRIDGE_ANSWER),
+        make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
+    )
+    claim = response.claims[0]
+    assert claim.verdict is Verdict.SUPPORTED
+    assert {c.quote for c in claim.citations} == set(BRIDGE_PASSAGES)
+    assert "identity hop" in claim.reasoning
+
+
+async def test_bridge_rescue_gates_hold():
+    """A partial bridge (br2 low) and a missing bridge both leave the flat
+    UNSUPPORTED untouched; a confident ordinary verdict never triggers the
+    rescue at all."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    uid = "sent::A.S0"
+    # partial bridge: br2 says the coverage is not complete
+    script = {
+        f"v::{uid}": _flat(uid),
+        f"br1::{uid}": Answer(f"br1::{uid}", choice="P0.S0",
+                              probabilities={"P0.S0": 0.9, "P1.S0": 0.05, "no_connection": 0.05}),
+        f"br3::{uid}": Answer(f"br3::{uid}", choice="P1.S0",
+                              probabilities={"P0.S0": 0.05, "P1.S0": 0.9, "no_property": 0.05}),
+        f"br2::{uid}": Answer(f"br2::{uid}", yes_prob=0.06),
+    }
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=BRIDGE_PASSAGES, generated_answer=BRIDGE_ANSWER),
+        make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
+    )
+    assert response.claims[0].verdict is Verdict.UNSUPPORTED
+
+    # no bridge found (conftest default: no_connection): flat stands
+    script2 = {f"v::{uid}": _flat(uid)}
+    decider = scripted_decider(script2)
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=BRIDGE_PASSAGES, generated_answer=BRIDGE_ANSWER),
+        make_deps(FakeLLM(), decider, proposer="jev"),
+    )
+    assert response.claims[0].verdict is Verdict.UNSUPPORTED
+    asked = [q.question_id for _, questions in decider.seen for q in questions]
+    assert not any(q.startswith("br2::") for q in asked), "no stage B without a found pair"
+
+    # confident verdict: the rescue never fires
+    script3 = {
+        f"v::{uid}": verdict_answer(f"v::{uid}", "supported"),
+        f"r::{uid}::P0.S0": Answer(f"r::{uid}::P0.S0", yes_prob=0.9),
+    }
+    decider3 = scripted_decider(script3)
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=BRIDGE_PASSAGES, generated_answer=BRIDGE_ANSWER),
+        make_deps(FakeLLM(), decider3, proposer="jev"),
+    )
+    assert response.claims[0].verdict is Verdict.SUPPORTED
+    asked3 = [q.question_id for _, questions in decider3.seen for q in questions]
+    assert not any(q.startswith("br1::") for q in asked3)
 
 
 def test_embed_prior_rescues_linking_premise(wal_store):

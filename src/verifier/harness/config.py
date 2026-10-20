@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     # models
     proposer: str = "llm"  # llm (generative model proposes structure) | jev (code cut points + Jev)
     jev_cut_min_prob: float = 0.60  # jev proposer: accept a cut above this probability
+    # Cut questions can be asked several times in the same request with the
+    # probabilities averaged before thresholding. Measured 2026-10-21 on 41
+    # candidates x 6 rounds: votes=3 did NOT reduce decision flips (4 flipped
+    # either way) — the problematic distributions centre ON the boundary, so
+    # narrowing the spread does not move the mean off it. Kept as a switch,
+    # default off.
+    jev_cut_votes: int = 1
     llm_provider: str = "openai"  # openai | qwen (which generative model proposes structure)
     openai_model: str = "gpt-6-astra"
     qwen_model: str = "qwen-plus"
