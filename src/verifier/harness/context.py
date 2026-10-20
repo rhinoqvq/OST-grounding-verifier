@@ -16,7 +16,7 @@ from functools import lru_cache
 from verifier.harness.config import Settings
 from verifier.harness.errors import InputTooLarge
 from verifier.rag.source import Sentence, TextStore
-from verifier.rag.tree import Node
+from verifier.rag.tree import Node, NodeKind
 
 
 def check_input_limits(answer: str, passages: list[str], settings: Settings) -> None:
@@ -72,6 +72,17 @@ def describe_unit(store: TextStore, unit: Node) -> str:
     if unit.inherited_spans:
         inherited = " ... ".join(store.slice(sp) for sp in unit.inherited_spans)
         parts.append(f'Carried-over context from its sentence: "{inherited}"')
+        # Scoping note for FACT fragments only: without it, the sentence's frame
+        # leaks into the fragment's verdict (a contradicted sibling conjunct or a
+        # contested causal link drags a verbatim-supported fragment down — the
+        # 2026-10-21 ablation measured 1.00 -> 0.55). RELATION units are the
+        # opposite case: their claim IS the sentence's structure, so they keep
+        # the frame.
+        if unit.kind is NodeKind.FACT:
+            parts.append(
+                "The context is only there to resolve references (pronouns, shared "
+                "subjects). Judge ONLY the Claim itself."
+            )
     return "\n".join(parts)
 
 
