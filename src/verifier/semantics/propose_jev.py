@@ -124,6 +124,44 @@ class JevProposalOutcome:
     notes: list[str]
 
 
+def _containing_unit(units: list[Node], position: int) -> Node | None:
+    best: Node | None = None
+    for unit in units:
+        for span in unit.anchor_spans:
+            if span.start <= position < span.end:
+                return unit
+            if span.start <= position and (best is None or span.start > best.anchor_spans[0].start):
+                best = unit
+    return best
+
+
+def _attach_diagnostics(store: TextStore, host: Node, markers: list[CutCandidate], notes: list[str]) -> None:
+    """Split the host's anchor at keep_whole markers into diagnostic parts.
+    Parts are never output and never truth-judged; each gets a grounding
+    question in the judge round, and an ungrounded part caps the host's
+    verdict at UNSUPPORTED (grounding composes across any structure)."""
+    anchor = host.anchor_spans[0]
+    inside = sorted(
+        (m for m in markers if anchor.start < m.marker_start < anchor.end),
+        key=lambda m: m.marker_start,
+    )
+    if not inside:
+        return
+    bounds = [anchor.start, *[m.marker_start for m in inside], anchor.end]
+    starts = [anchor.start, *[m.marker_end for m in inside]]
+    parts: list[Span] = []
+    for i in range(len(inside) + 1):
+        span = _trim_span(store, starts[i], bounds[i + 1])
+        if span is not None and _word_count(store.slice(span)) >= 2:
+            parts.append(span)
+    if len(parts) >= 2:
+        host.diagnostic_spans.extend(parts)
+        notes.append(
+            f"{host.node_id}: {len(parts)} diagnostic parts at "
+            f"{'/'.join(m.connective for m in inside)}"
+        )
+
+
 def _trim_span(store: TextStore, start: int, end: int) -> Span | None:
     text = store.answer[start:end]
     lead = len(text) - len(text.lstrip(" ,;:."))
@@ -158,6 +196,7 @@ def build_tree_from_cuts(
         )
 
         accepted: list[tuple[CutCandidate, str]] = []
+        kept_whole: list[CutCandidate] = []
         for candidate in (c for c in candidates if c.sentence_id == sentence.sentence_id):
             answer = answers.get(candidate.question_id)
             if answer is None or answer.choice is None:
@@ -167,10 +206,15 @@ def build_tree_from_cuts(
                 accepted.append((candidate, answer.choice))
                 notes.append(f"{candidate.question_id}: cut as {answer.choice} (p={p:.2f})")
             elif answer.choice == "keep_whole" and p >= min_prob:
-                notes.append(f"{candidate.question_id}: keep_whole (p={p:.2f})")
+                # downgrade to a DIAGNOSTIC cut: the unit stays whole for the
+                # verdict, but each side gets a grounding check later
+                kept_whole.append(candidate)
+                notes.append(f"{candidate.question_id}: keep_whole -> diagnostic parts (p={p:.2f})")
 
         if not accepted:
-            continue  # select_units falls back to the whole sentence
+            if kept_whole:
+                _attach_diagnostics(store, sentence_node, kept_whole, notes)
+            continue  # select_units falls back to the whole sentence (same node)
 
         accepted.sort(key=lambda t: t[0].marker_start)
         bounds = [sentence.span.start, *[c.marker_start for c, _ in accepted], sentence.span.end]
@@ -203,8 +247,15 @@ def build_tree_from_cuts(
             for node in made:
                 del tree.nodes[node.node_id]
             notes.append(f"{sentence.sentence_id}: cuts produced <2 usable fragments; whole sentence")
+            if kept_whole:
+                _attach_diagnostics(store, sentence_node, kept_whole, notes)
             continue
         units.extend(made)
+
+        # keep_whole markers inside a fragment become that fragment's diagnostics
+        for candidate in kept_whole:
+            host = _containing_unit(made, candidate.marker_start) or sentence_node
+            _attach_diagnostics(store, host, [candidate], notes)
 
         for i, (candidate, choice) in enumerate(accepted):
             if choice not in _LINK_RELATION:

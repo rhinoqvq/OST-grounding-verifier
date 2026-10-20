@@ -51,6 +51,12 @@ class Node:
     status: NodeStatus = NodeStatus.CANDIDATE
     version: int = 1
     notes: list[str] = field(default_factory=list)
+    # Diagnostic-only sub-spans of a unit kept whole (conditional/disjunction/
+    # reported). They are never output as claims and never truth-judged; each
+    # gets a *grounding* question ("is this content present in the source?"),
+    # and an ungrounded part caps the whole unit's verdict at UNSUPPORTED.
+    # Grounding composes across any structure; truth does not.
+    diagnostic_spans: list[Span] = field(default_factory=list)
 
 
 @dataclass

@@ -103,6 +103,8 @@ def scripted_decider(script: dict[str, Answer] | None = None) -> FakeDecider:
 
     def default(question) -> Answer:
         qid = question.question_id
+        if qid.startswith("g::"):
+            return Answer(qid, yes_prob=0.9)
         if qid.startswith("fid::") and isinstance(question, ChoiceQuestion):
             return Answer(qid, choice="faithful",
                           probabilities={"faithful": 0.92, "changed_meaning": 0.03,

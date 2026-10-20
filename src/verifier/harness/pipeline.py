@@ -25,7 +25,7 @@ from verifier.harness.context import (
 from verifier.harness.errors import MalformedModelOutput
 from verifier.harness.trace import Trace
 from verifier.judge.aggregate import apply_parent_recheck, relation_verdict, sentences_needing_recheck
-from verifier.judge.entail import UnitJudgment, decide_verdict, judge_questions
+from verifier.judge.entail import UnitJudgment, apply_grounding_gate, decide_verdict, judge_questions
 from verifier.models.decider import Decider
 from verifier.models.openai_llm import StructuredLLM
 from verifier.output.render import to_response
@@ -180,6 +180,11 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 evidence_floor_prob=settings.evidence_floor_prob,
                 max_evidence=settings.max_evidence_sentences,
             )
+            # an ungrounded diagnostic part caps SUPPORTED at UNSUPPORTED
+            apply_grounding_gate(
+                unit, judgments[unit.node_id], answers,
+                grounding_min_prob=settings.grounding_min_prob,
+            )
         # relation claims inherit the most severe verdict of their members
         for unit in units:
             if unit.kind is NodeKind.RELATION:
@@ -227,6 +232,10 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                     relevance_min_prob=settings.relevance_min_prob,
                     evidence_floor_prob=settings.evidence_floor_prob,
                     max_evidence=settings.max_evidence_sentences,
+                )
+                apply_grounding_gate(
+                    sentence_node, sentence_judgment, answers,
+                    grounding_min_prob=settings.grounding_min_prob,
                 )
                 override, notes = apply_parent_recheck(sentence_judgment, groups[sid], judgments)
                 if override:

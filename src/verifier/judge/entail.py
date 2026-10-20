@@ -61,6 +61,24 @@ def relevance_question(store: TextStore, unit: Node, sentence: Sentence) -> YesN
     )
 
 
+def grounding_question(store: TextStore, unit: Node, part_index: int) -> YesNoQuestion:
+    """Diagnostic part of a kept-whole unit (conditional/disjunction/reported):
+    asks for *presence in the source*, not truth. Grounding composes across any
+    structure, truth does not — this is what catches a fabricated disjunct or
+    condition inside a unit whose overall verdict looks SUPPORTED."""
+    part_text = store.slice(unit.diagnostic_spans[part_index])
+    return YesNoQuestion(
+        question_id=f"g::{unit.node_id}::{part_index}",
+        instructions=(
+            f"The answer contains this unit (kept whole because splitting would change its meaning):\n"
+            f"\"{unit.display_text}\"\n"
+            f"Question: does the source contain the following piece of that unit's content — stated "
+            f"anywhere, including inside a conditional, an alternative/option, or reported speech?\n"
+            f"Content piece: \"{part_text}\""
+        ),
+    )
+
+
 def judge_questions(
     store: TextStore,
     units: list[Node],
@@ -71,7 +89,32 @@ def judge_questions(
         questions.append(verdict_question(store, unit))
         for sentence in candidates.get(unit.node_id, []):
             questions.append(relevance_question(store, unit, sentence))
+        for i in range(len(unit.diagnostic_spans)):
+            questions.append(grounding_question(store, unit, i))
     return questions
+
+
+def apply_grounding_gate(
+    unit: Node,
+    judgment: "UnitJudgment",
+    answers: dict[str, Answer],
+    *,
+    grounding_min_prob: float,
+) -> None:
+    """An ungrounded diagnostic part caps a SUPPORTED verdict at UNSUPPORTED.
+    CONTRADICTED is left alone (the block already flags a conflict), and
+    UNSUPPORTED cannot get worse."""
+    if judgment.verdict is not Verdict.SUPPORTED or not unit.diagnostic_spans:
+        return
+    for i in range(len(unit.diagnostic_spans)):
+        answer = answers.get(f"g::{unit.node_id}::{i}")
+        if answer is None or answer.yes_prob is None:
+            continue
+        if answer.yes_prob < grounding_min_prob:
+            judgment.verdict = Verdict.UNSUPPORTED
+            judgment.evidence_sentence_ids = []
+            judgment.flags.append(f"ungrounded_part_{i}(p={answer.yes_prob:.2f})")
+            return
 
 
 @dataclass

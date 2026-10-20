@@ -19,6 +19,12 @@ def render_reasoning(unit: Node, judgment: UnitJudgment, *, context_empty: bool 
     p = max(judgment.probabilities.values(), default=None)
     p_text = f" (calibrated p={p:.2f})" if p is not None else ""
 
+    if any(f.startswith("ungrounded_part") for f in flags):
+        return (
+            "The unit as a whole matched the source, but part of its content (a condition, "
+            "alternative or added detail) has no grounding in the provided context, so the claim "
+            "is reported as UNSUPPORTED rather than letting the grounded part carry the rest."
+        )
     if any(f.startswith("low_confidence") for f in flags):
         return (
             f"The judge's probability distribution over verdicts was too flat to trust{p_text}; "

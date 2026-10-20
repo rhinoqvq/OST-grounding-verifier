@@ -103,3 +103,59 @@ async def test_pipeline_with_jev_proposer(wal_decider, wal_proposal):
     ]
     round_names = [x["name"] for x in trace.as_dict()["rounds"]]
     assert "1-propose-jev" in round_names and "2-fidelity" not in round_names
+
+
+DISJ_ANSWER = "Boil the potatoes for 15 minutes or until they are soft enough to peel."
+DISJ_PASSAGE = "Boil the potatoes for about 15 minutes."
+
+
+async def test_ungrounded_disjunct_caps_supported_at_unsupported():
+    """Kept-whole disjunction with a fabricated disjunct: block verdict says
+    SUPPORTED, but the grounding check on the invented part caps it at U."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    store = TextStore.from_request(DISJ_ANSWER, [DISJ_PASSAGE])
+    candidates = find_candidates(store)
+    assert [c.connective for c in candidates] == ["or"]
+    qid = candidates[0].question_id
+    script = {
+        qid: choice(qid, "keep_whole"),
+        "v::sent::A.S0": verdict_answer("v::sent::A.S0", "supported"),
+        "r::sent::A.S0::P0.S0": Answer("r::sent::A.S0::P0.S0", yes_prob=0.9),
+        "g::sent::A.S0::0": Answer("g::sent::A.S0::0", yes_prob=0.95),  # "Boil ... 15 minutes" grounded
+        "g::sent::A.S0::1": Answer("g::sent::A.S0::1", yes_prob=0.10),  # "until soft" fabricated
+    }
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=[DISJ_PASSAGE], generated_answer=DISJ_ANSWER),
+        make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
+    )
+    claim = response.claims[0]
+    assert claim.verdict is Verdict.UNSUPPORTED
+    assert claim.citations == []
+    assert "no grounding" in claim.reasoning or "UNSUPPORTED" in claim.reasoning
+
+
+async def test_grounded_conditional_stays_supported():
+    """Kept-whole conditional fully present in the source: both parts grounded,
+    block verdict SUPPORTED survives the gate."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    answer = "The server accepts incoming requests if the recovery procedure succeeds completely."
+    passage = "The server accepts incoming requests if the recovery procedure succeeds completely."
+    store = TextStore.from_request(answer, [passage])
+    candidates = find_candidates(store)
+    assert [c.connective for c in candidates] == ["if"]
+    qid = candidates[0].question_id
+    script = {
+        qid: choice(qid, "keep_whole"),
+        "v::sent::A.S0": verdict_answer("v::sent::A.S0", "supported"),
+        "r::sent::A.S0::P0.S0": Answer("r::sent::A.S0::P0.S0", yes_prob=0.9),
+        # conftest default answers g:: with 0.9 -> grounded
+    }
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=[passage], generated_answer=answer),
+        make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
+    )
+    assert response.claims[0].verdict is Verdict.SUPPORTED
