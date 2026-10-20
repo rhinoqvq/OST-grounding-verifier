@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="GV_", env_file=".env", extra="ignore")
+
+    # which of the assignment's three methods serves POST /verify
+    method: Literal["optimized", "minimal_llm", "baseline"] = "optimized"
 
     # keys (no prefix: standard names)
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")

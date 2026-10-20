@@ -24,7 +24,7 @@ from verifier.harness.errors import (
     ReplayMiss,
     UpstreamError,
 )
-from verifier.harness.pipeline import Dependencies, run_verification
+from verifier.harness.pipeline import Dependencies, run_request
 from verifier.models.cache import ModelCallCache
 from verifier.models.jev import JevDecider
 from verifier.models.openai_llm import LLMProviderConfig, StructuredLLM
@@ -99,7 +99,7 @@ def create_app(settings: Settings | None = None, dependencies: Dependencies | No
 
     @app.post("/verify", response_model=VerifyResponse)
     async def post_verify(request: VerifyRequest) -> VerifyResponse:
-        response, _trace = await run_verification(request, app.state.deps)
+        response, _trace = await run_request(request, app.state.deps)
         return response
 
     @app.get("/health")

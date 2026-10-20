@@ -62,6 +62,18 @@ class Dependencies:
     embedder: object | None = None  # models.embedder.Embedder when evidence_selector == "hybrid"
 
 
+async def run_request(request: VerifyRequest, deps: Dependencies) -> tuple[VerifyResponse, Trace]:
+    """Route the request to the configured method (GV_METHOD)."""
+    method = deps.settings.method
+    if method == "optimized":
+        return await run_verification(request, deps)
+    if method == "minimal_llm":
+        from verifier.harness.minimal import run_minimal_llm
+
+        return await run_minimal_llm(request, deps)
+    raise NotImplementedError(f"method {method!r} is not implemented yet")
+
+
 async def run_verification(request: VerifyRequest, deps: Dependencies) -> tuple[VerifyResponse, Trace]:
     trace = Trace()
     try:
