@@ -1,0 +1,52 @@
+"""Template-based reasoning: assembled from verified pieces (verdict,
+calibrated probability, cited sentence ids) so the explanation step cannot
+introduce new facts of its own. A generative rationale is a later comparison
+arm, not the default."""
+
+from __future__ import annotations
+
+from verifier.judge.entail import UnitJudgment
+from verifier.output.schemas import Verdict
+from verifier.rag.tree import Node, NodeKind
+
+
+def render_reasoning(unit: Node, judgment: UnitJudgment, *, context_empty: bool = False) -> str:
+    if context_empty:
+        return "The provided context is empty, so the claim cannot be verified against it."
+
+    flags = set(judgment.flags)
+    evidence = ", ".join(judgment.evidence_sentence_ids) or "no passage sentence"
+    p = max(judgment.probabilities.values(), default=None)
+    p_text = f" (calibrated p={p:.2f})" if p is not None else ""
+
+    if any(f.startswith("low_confidence") for f in flags):
+        return (
+            f"The judge's probability distribution over verdicts was too flat to trust{p_text}; "
+            "per policy an uncertain claim is reported as UNSUPPORTED rather than guessed."
+        )
+    if any(f.startswith("no_evidence_for_") for f in flags):
+        return (
+            "The judge leaned toward a definite verdict but no source sentence qualified as "
+            "relevant evidence, so the claim is reported as UNSUPPORTED (no citable basis)."
+        )
+    if "parent_override" in flags:
+        return (
+            f"Each split part of this sentence looked supported, but the sentence as a whole "
+            f"did not hold up against the source ({evidence}){p_text} — the split likely dropped "
+            "a connection (same entity, cause, or scope), so the whole sentence is judged instead."
+        )
+
+    if judgment.verdict is Verdict.SUPPORTED:
+        lead = "The cited source text entails the claim"
+        if unit.kind is NodeKind.RELATION:
+            lead = "The source supports both linked parts and the stated connection between them"
+        return f"{lead} ({evidence}){p_text}."
+    if judgment.verdict is Verdict.CONTRADICTED:
+        lead = "The cited source text explicitly states the opposite of the claim"
+        if unit.kind is NodeKind.RELATION:
+            lead = "The source contradicts the claim or the stated connection between its parts"
+        return f"{lead} ({evidence}){p_text}."
+    return (
+        f"The source passages neither establish nor contradict this claim{p_text}; "
+        "it may be true elsewhere, but it cannot be verified from the provided context."
+    )
