@@ -128,6 +128,14 @@ def scripted_decider(script: dict[str, Answer] | None = None) -> FakeDecider:
         if qid.startswith("rel5::"):
             # default: the link sentence asserts the link (P-assert holds)
             return Answer(qid, yes_prob=0.9)
+        if qid.startswith("rel6::") and isinstance(question, ChoiceQuestion):
+            probs = dict.fromkeys(question.options, 0.02)
+            probs["no_discharge"] = 0.9
+            return Answer(qid, choice="no_discharge", probabilities=probs, confidence=0.9)
+        if qid.startswith("rel7::") and isinstance(question, ChoiceQuestion):
+            probs = dict.fromkeys(question.options, 0.02)
+            probs["none_needed"] = 0.9
+            return Answer(qid, choice="none_needed", probabilities=probs, confidence=0.9)
         if qid.startswith("br1::") and isinstance(question, ChoiceQuestion):
             probs = dict.fromkeys(question.options, 0.02)
             probs["no_connection"] = 0.9

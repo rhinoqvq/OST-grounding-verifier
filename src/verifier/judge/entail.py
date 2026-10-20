@@ -244,6 +244,68 @@ def relation_stage2_questions(
     return questions
 
 
+def discharge_question(store: TextStore, unit: Node, link_sentence: Sentence) -> ChoiceQuestion:
+    """B03 (round-2 audit): a link stated under a condition is still usable
+    when ANOTHER sentence establishes that the condition actually holds
+    (modus ponens with citable premises: F->Q plus F |= Q). Asked only when
+    rel5 said the link sentence does not assert the link in its own voice."""
+    options = {
+        s.sentence_id: f'"{s.text}"'
+        for s in store.all_source_sentences()
+        if s.sentence_id != link_sentence.sentence_id
+    }
+    options["no_discharge"] = (
+        "No other source sentence establishes, as plain fact, that the condition holds."
+    )
+    return ChoiceQuestion(
+        question_id=f"rel6::{unit.node_id}",
+        instructions=(
+            f'Source sentence [{link_sentence.sentence_id}] states a connection only under '
+            f'a condition or wrapper: "{link_sentence.text}"\n'
+            "Which OTHER source sentence establishes, as plain fact, that that condition "
+            "actually holds (the 'if'/'when' antecedent is satisfied)? Pick the sentence "
+            "that asserts it outright; if none does — or the wrapper is reported speech or "
+            "a negation rather than a condition — choose no_discharge."
+        ),
+        options=options,
+    )
+
+
+def aux_premise_question(store: TextStore, unit: Node, link_sentence: Sentence) -> ChoiceQuestion:
+    """B07 (round-2 audit): a side match may silently lean on an alias or
+    identity stated elsewhere; the citation must carry that premise or the
+    returned evidence does not entail the claim on its own."""
+    options = {
+        s.sentence_id: f'"{s.text}"'
+        for s in store.all_source_sentences()
+        if s.sentence_id != link_sentence.sentence_id
+    }
+    options["none_needed"] = (
+        "That sentence alone connects to the claim's terms; no other sentence is needed."
+    )
+    return ChoiceQuestion(
+        question_id=f"rel7::{unit.node_id}",
+        instructions=(
+            f'Source sentence [{link_sentence.sentence_id}] states the connection: '
+            f'"{link_sentence.text}"\n'
+            f"Claimed link from the answer: {unit.display_text}\n"
+            "Does matching the claim's terms to that sentence's terms depend on ANOTHER "
+            "source sentence (an alias, a definition, an identity such as 'X and Y are "
+            "the same')? If so, pick that sentence; otherwise choose none_needed."
+        ),
+        options=options,
+    )
+
+
+def _attach_aux_premise(unit: Node, judgment: "UnitJudgment", answers: dict[str, Answer], *, min_prob: float) -> None:
+    aux, _ = staged_link_choice(
+        answers.get(f"rel7::{unit.node_id}"), min_prob=min_prob, none_label="none_needed"
+    )
+    if aux is not None and aux not in judgment.evidence_sentence_ids:
+        judgment.evidence_sentence_ids.append(aux)
+        judgment.flags.append(f"aux_premise({aux})")
+
+
 # --- opposition filter on confident CONTRADICTED ------------------------------
 # R1 (Def. 2's C clause): CONTRADICTED only when the source explicitly states
 # the opposite of the claim itself. Measured: C outputs were 25-29% correct,
@@ -477,13 +539,22 @@ def decide_relation_verdict(
 
     # P-assert gate: a link that the source states only inside a condition,
     # reported speech or a negation is not an asserted link — neither S nor C
-    # may be composed from it (a conditional-scoped opposite is not an
-    # explicit incompatibility). Flat answers fail closed to UNSUPPORTED.
+    # may be composed from it — UNLESS another sentence discharges the
+    # condition (rel6: modus ponens with citable premises, round-2 audit B03).
+    # Flat answers fail closed to UNSUPPORTED.
+    link_evidence = [sid]
     assert_p = (answers.get(f"rel5::{unit.node_id}") or Answer("")).yes_prob or 0.0
     judgment.probabilities["link_asserted"] = assert_p
     if assert_p < min_prob:
-        judgment.flags.append(f"staged_link_unasserted({sid},p={assert_p:.2f})")
-        return judgment
+        did, _ = staged_link_choice(
+            answers.get(f"rel6::{unit.node_id}"), min_prob=min_prob, none_label="no_discharge"
+        )
+        if did is not None and did != sid:
+            judgment.flags.append(f"staged_link_discharged({sid},{did})")
+            link_evidence.append(did)
+        else:
+            judgment.flags.append(f"staged_link_unasserted({sid},p={assert_p:.2f})")
+            return judgment
 
     sides: list[tuple[str, str, float]] = []  # (which, top option, its prob)
     for which, qid in (("left", f"rel2::{unit.node_id}"), ("right", f"rel3::{unit.node_id}")):
@@ -514,20 +585,23 @@ def decide_relation_verdict(
         judgment.probabilities[f"order_{order_top}"] = order_p
         if order_top == "right_first" and order_p >= min_prob:
             judgment.verdict = Verdict.CONTRADICTED
-            judgment.evidence_sentence_ids = [sid]
+            judgment.evidence_sentence_ids = list(link_evidence)
             judgment.flags.append(f"staged_order_inverted({sid},p={order_p:.2f})")
+            _attach_aux_premise(unit, judgment, answers, min_prob=min_prob)
             return judgment
         if order_top != "left_first" or order_p < min_prob:
             judgment.flags.append(f"staged_order_unstated({sid},{order_top},p={order_p:.2f})")
             return judgment
     if any(t == "opposite" for _, t, _ in sides):
         judgment.verdict = Verdict.CONTRADICTED
-        judgment.evidence_sentence_ids = [sid]
+        judgment.evidence_sentence_ids = list(link_evidence)
         judgment.flags.append(f"staged_incompatible({sid},{detail})")
+        _attach_aux_premise(unit, judgment, answers, min_prob=min_prob)
         return judgment
     judgment.verdict = Verdict.SUPPORTED
-    judgment.evidence_sentence_ids = [sid]
+    judgment.evidence_sentence_ids = list(link_evidence)
     judgment.flags.append(f"staged_matched({sid})")
+    _attach_aux_premise(unit, judgment, answers, min_prob=min_prob)
     return judgment
 
 
@@ -539,8 +613,17 @@ _WITNESS_LEAD_WORDS = {
 }
 
 
+# Keeps meaning-bearing symbols: a sign attached to a digit, comparators and
+# equality. A '-' between letters stays punctuation (hyphenated compounds still
+# match their unhyphenated spelling). Round-2 audit B05: stripping ALL symbols
+# made +5/-5 and x<=10/x>=10 normalize to the same string (proven on this very
+# function), so a phantom witness could suppress a justified cap.
+_WITNESS_TOKEN_RE = re.compile(r"[a-z0-9]+(?:\.[0-9]+)?|[+\-](?=\d)|<=|>=|[<>=]")
+
+
 def _normalized_tokens(text: str) -> str:
-    return " " + " ".join(re.findall(r"[a-z0-9]+", text.lower())) + " "
+    text = text.lower().replace("−", "-")
+    return " " + " ".join(_WITNESS_TOKEN_RE.findall(text)) + " "
 
 
 def verbatim_in_source(store: TextStore, part_text: str) -> bool:

@@ -33,6 +33,15 @@ def render_reasoning(unit: Node, judgment: UnitJudgment, *, context_empty: bool 
                 "A contrast ('but') asserts no mechanism of its own — the claim holds exactly "
                 f"when both sides hold, and both do ({evidence})."
             )
+        if (
+            any(f.startswith("staged_link_discharged") for f in flags)
+            and judgment.verdict is Verdict.SUPPORTED
+        ):
+            return (
+                f"The source states this connection under a condition, and another cited "
+                f"sentence establishes that the condition actually holds ({evidence}) — "
+                "together they support the claimed link."
+            )
         if any(f.startswith("staged_matched") for f in flags):
             return (
                 f"The source itself states this connection ({evidence}), and both sides of the "

@@ -29,12 +29,14 @@ from verifier.judge.aggregate import apply_parent_recheck, relation_verdict, sen
 from verifier.judge.entail import (
     UnitJudgment,
     apply_grounding_gate,
+    aux_premise_question,
     bridge_check_questions,
     bridge_find_questions,
     decide_bridge_rescue,
     decide_opposition_filter,
     decide_relation_verdict,
     decide_verdict,
+    discharge_question,
     judge_questions,
     opposition_question,
     relation_link_question,
@@ -309,6 +311,35 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                         max_parallel=settings.max_parallel_requests,
                     )
                 )
+            # discharge + auxiliary-premise round (round-2 audit B03/B07):
+            # rel6 only when the link sentence does not assert the link in its
+            # own voice (a condition may be discharged by another sentence);
+            # rel7 for every found link (a side match may lean on an alias
+            # stated elsewhere — the citation must carry that premise)
+            extra: list = []
+            for unit in staged_relations:
+                sid, _status = staged_link_choice(
+                    answers.get(f"rel1::{unit.node_id}"), min_prob=settings.verdict_min_prob
+                )
+                if sid is None:
+                    continue
+                try:
+                    link_sentence = store.sentence_by_id(sid)
+                except KeyError:
+                    continue
+                a5 = answers.get(f"rel5::{unit.node_id}")
+                assert_p = (a5.yes_prob if a5 is not None and a5.yes_prob is not None else 0.0)
+                if assert_p < settings.verdict_min_prob:
+                    extra.append(discharge_question(store, unit, link_sentence))
+                extra.append(aux_premise_question(store, unit, link_sentence))
+            if extra:
+                answers.update(
+                    await ask_batched(
+                        deps.decider, build_source_state(store), extra,
+                        max_per_request=settings.max_questions_per_request,
+                        max_parallel=settings.max_parallel_requests,
+                    )
+                )
             for unit in relation_units:
                 if unit.relation_type is RelationType.CONTRAST:
                     evidence: list[str] = []
@@ -444,7 +475,13 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 if rescued is not None:
                     rescued.flags = [*judgments[unit.node_id].flags, *rescued.flags]
                     judgments[unit.node_id] = rescued
-                    trace.note(f"bridge rescue: {unit.node_id} -> {rescued.verdict.value}")
+                    # round-2 audit B04: an upgraded S must re-satisfy the
+                    # grounding obligation — the gate never saw this unit as S
+                    apply_grounding_gate(
+                        unit, judgments[unit.node_id], answers,
+                        grounding_min_prob=settings.grounding_min_prob, store=store,
+                    )
+                    trace.note(f"bridge rescue: {unit.node_id} -> {judgments[unit.node_id].verdict.value}")
 
         # member rescue (K2): a staged-matched CAUSE/SEQUENCE relation carries
         # a constructive witness (the link sentence + both side checks) that
@@ -476,6 +513,13 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 member.evidence_sentence_ids = list(own.evidence_sentence_ids)
                 sid = own.evidence_sentence_ids[0] if own.evidence_sentence_ids else "?"
                 member.flags.append(f"member_rescue({sid})")
+                # round-2 audit B04: same re-gating obligation as bridge
+                member_node = tree.nodes.get(member_id)
+                if member_node is not None:
+                    apply_grounding_gate(
+                        member_node, member, answers,
+                        grounding_min_prob=settings.grounding_min_prob, store=store,
+                    )
                 trace.note(f"member rescue: {member_id} <- {unit.node_id} ({sid})")
 
         # relation claims inherit the most severe verdict of their members

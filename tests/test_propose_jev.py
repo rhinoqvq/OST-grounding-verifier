@@ -1043,3 +1043,93 @@ def test_inverted_conditional_triggers_scope_guard():
     outcome = build_tree_from_cuts(store, cands, answers, min_prob=0.6)
     assert outcome.units == []
     assert any("kept-whole conditional" in n for n in outcome.notes)
+
+
+def test_witness_preserves_signs_and_comparators():
+    """Round-2 audit B05: the witness normalization keeps a digit-attached sign
+    and comparison operators, while a hyphen between letters stays punctuation."""
+    from verifier.judge.entail import verbatim_in_source
+
+    s1 = TextStore.from_request("x", ["The single recorded temperature for sample T7 is exactly -5 C."])
+    assert verbatim_in_source(s1, "is exactly -5 C")
+    assert not verbatim_in_source(s1, "is exactly +5 C")
+    s2 = TextStore.from_request("x", ["The only configured acceptance predicate is x <= 10."])
+    assert verbatim_in_source(s2, "predicate is x <= 10")
+    assert not verbatim_in_source(s2, "predicate is x >= 10")
+    s3 = TextStore.from_request("x", ["The system alerts on-call staff."])
+    assert verbatim_in_source(s3, "alerts on-call staff")
+    assert verbatim_in_source(s3, "alerts on call staff")
+
+
+def test_staged_discharge_and_aux_evidence():
+    """Round-2 audit B03/B07: a condition-wrapped link composes S when another
+    sentence discharges the condition (both cited); an alias premise named by
+    rel7 joins the evidence; without a discharge the gate still fails closed."""
+    from verifier.judge.entail import decide_relation_verdict
+
+    store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
+    rel = _staged_relation(store)
+    rid = rel.node_id
+
+    def pick(qid, label, options):
+        probs = dict.fromkeys(options, (1 - 0.9) / (len(options) - 1))
+        probs[label] = 0.9
+        return Answer(qid, choice=label, probabilities=probs)
+
+    answers = {
+        f"rel1::{rid}": pick(f"rel1::{rid}", "P0.S0", ("P0.S0", "P0.S1", "no_such_link")),
+        f"rel2::{rid}": side(f"rel2::{rid}", "matches"),
+        f"rel3::{rid}": side(f"rel3::{rid}", "matches"),
+        f"rel5::{rid}": Answer(f"rel5::{rid}", yes_prob=0.1),  # condition-wrapped
+        f"rel6::{rid}": pick(f"rel6::{rid}", "P0.S1", ("P0.S1", "no_discharge")),
+    }
+    j = decide_relation_verdict(rel, answers, min_prob=0.55)
+    assert j.verdict is Verdict.SUPPORTED
+    assert j.evidence_sentence_ids == ["P0.S0", "P0.S1"]
+    assert any(f.startswith("staged_link_discharged") for f in j.flags)
+
+    answers[f"rel6::{rid}"] = pick(f"rel6::{rid}", "no_discharge", ("P0.S1", "no_discharge"))
+    j = decide_relation_verdict(rel, answers, min_prob=0.55)
+    assert j.verdict is Verdict.UNSUPPORTED
+    assert any(f.startswith("staged_link_unasserted") for f in j.flags)
+
+    answers[f"rel5::{rid}"] = Answer(f"rel5::{rid}", yes_prob=0.9)
+    answers[f"rel7::{rid}"] = pick(f"rel7::{rid}", "P0.S1", ("P0.S1", "none_needed"))
+    j = decide_relation_verdict(rel, answers, min_prob=0.55)
+    assert j.verdict is Verdict.SUPPORTED
+    assert j.evidence_sentence_ids == ["P0.S0", "P0.S1"]
+    assert any(f.startswith("aux_premise") for f in j.flags)
+
+
+async def test_bridge_rescue_regated_for_grounding():
+    """Round-2 audit B04: a flat unit with an ungrounded diagnostic part that
+    bridge rescue upgrades to S must pass the grounding gate again — the
+    rescued S is capped back to U, with both flags kept."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    passages = [
+        "All production traffic is routed exclusively to the Helios cluster.",
+        "The Helios cluster enforces a 30-second request timeout.",
+    ]
+    answer = "Production requests face a 30-second timeout or instant rejection."
+    store = TextStore.from_request(answer, passages)
+    cand = [c for c in find_candidates(store) if c.connective == "or"][0]
+    uid = "sent::A.S0"
+    script = {
+        cand.question_id: choice(cand.question_id, "keep_whole"),
+        f"v::{uid}": _flat(uid),
+        f"g::{uid}::0": Answer(f"g::{uid}::0", yes_prob=0.9),
+        f"g::{uid}::1": Answer(f"g::{uid}::1", yes_prob=0.05),  # 'instant rejection' absent
+        f"br1::{uid}": Answer(f"br1::{uid}", choice="P0.S0",
+                              probabilities={"P0.S0": 0.9, "P1.S0": 0.05, "no_connection": 0.05}),
+        f"br3::{uid}": Answer(f"br3::{uid}", choice="P1.S0",
+                              probabilities={"P0.S0": 0.05, "P1.S0": 0.9, "no_property": 0.05}),
+        # br2/br4/br5 pass via defaults: the rescue composes S, the gate caps it
+    }
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=passages, generated_answer=answer),
+        make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
+    )
+    claim = response.claims[0]
+    assert claim.verdict is Verdict.UNSUPPORTED
