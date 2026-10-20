@@ -112,7 +112,21 @@ def select_units(
                 notes.append(f"{sid}: no accepted units; whole sentence")
             final.append(make_sentence_unit(tree, sentence))
             continue
-        spans = [sp for u in units for sp in [*u.anchor_spans, *u.inherited_spans]]
+        # an inherited span that covers the whole sentence is judge CONTEXT,
+        # not interpretation coverage: every jev fragment inherits its full
+        # sentence, so counting those spans would blind this check for good
+        # (measured: a dropped fragment's words escaped verification unseen)
+        spans = [sp for u in units for sp in u.anchor_spans]
+        spans += [
+            sp
+            for u in units
+            for sp in u.inherited_spans
+            if not (
+                sp.doc == sentence.span.doc
+                and sp.start <= sentence.span.start
+                and sp.end >= sentence.span.end
+            )
+        ]
         gaps = coverage_gaps(store, sentence, spans, non_claim_spans)
         if gaps:
             notes.append(f"{sid}: uncovered content {gaps!r}; falls back to whole sentence")

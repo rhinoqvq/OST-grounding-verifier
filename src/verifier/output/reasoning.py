@@ -39,6 +39,17 @@ def render_reasoning(unit: Node, judgment: UnitJudgment, *, context_empty: bool 
                 "answer's link match the stated link's sides (verbatim, or a specific instance "
                 f"or subset){p_text}."
             )
+        if any(f.startswith("staged_order_inverted") for f in flags):
+            return (
+                f"The source states these two events in the OPPOSITE order ({evidence}), "
+                f"so the claimed sequence is contradicted{p_text}."
+            )
+        if any(f.startswith("staged_order_unstated") for f in flags):
+            return (
+                f"A source sentence links these events ({evidence}), but it does not "
+                "establish the order the answer asserts, so the claimed sequence cannot "
+                "be verified from the context."
+            )
         if any(f.startswith("staged_incompatible") for f in flags):
             return (
                 f"The source states an incompatible link ({evidence}): the same mechanism with "

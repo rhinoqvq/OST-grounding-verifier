@@ -21,7 +21,9 @@ can misbind pronouns). This variant never generates text at all:
 Fragments carry the whole sentence as inherited context, so the judge always
 sees the original wording. There is no fidelity round: a verbatim fragment
 cannot add information, and fragments plus connectives tile the sentence, so
-coverage holds by construction.
+coverage holds by construction — a cut whose fragment would fall below the
+word floor is undone (text merges back) rather than the fragment dropped,
+which is what makes the tiling invariant actually hold.
 """
 
 from __future__ import annotations
@@ -56,7 +58,10 @@ _LEAD_SPLIT_RE = re.compile(r",\s+")
 
 # Applied when BUILDING fragments (a produced fragment must be able to stand
 # as an assertion), never when proposing candidates: every regex match reaches
-# Jev, and a cut whose fragments fail this guard is undone (whole sentence).
+# Jev. A cut whose fragment would fall below this floor is UNDONE (the text
+# merges back into its neighbour) — never dropped, because a dropped fragment's
+# words would belong to no unit and escape verification (the tiling invariant:
+# fragment anchors + markers + trimmed punctuation must cover the sentence).
 _MIN_FRAGMENT_WORDS = 3
 
 # Connectives whose questions also offer shared-part options ("X accepts A and
@@ -74,7 +79,10 @@ CUT_OPTIONS = {
     ),
     "cause_link": "Both sides are asserted AND the sentence asserts that one causes/explains the other (because/so/therefore).",
     "contrast_link": "Both sides are asserted AND set against each other (but/however/whereas/although).",
-    "sequence_link": "Both sides are asserted AND ordered in time (then/after which).",
+    "sequence_link": (
+        "Both sides are asserted AND ordered in time: LEFT happens first, then RIGHT "
+        "(then/after which). Pick this only when the sentence reads in that order."
+    ),
     "keep_whole": (
         "Splitting would change meaning: a conditional (if/unless/when), a disjunction (or), "
         "reported or hedged content, or a negation whose scope covers both sides."
@@ -266,6 +274,37 @@ def _attach_diagnostics(store: TextStore, host: Node, markers: list[CutCandidate
         )
 
 
+def _fragment_layout(
+    store: TextStore,
+    sentence: Sentence,
+    accepted: list[tuple[CutCandidate, str]],
+    shared_prefix_end: dict[str, int],
+) -> tuple[list[int], list[int], list[tuple[Span | None, Span | None, str]]]:
+    """Spans and display texts the accepted cuts would produce, before any node
+    is created: (starts, bounds, [(own_span, prefix_span, display), ...]).
+    One source of truth for both the tiling guard and the build loop."""
+    bounds = [sentence.span.start, *[c.marker_start for c, _ in accepted], sentence.span.end]
+    starts = [sentence.span.start, *[c.marker_end for c, _ in accepted]]
+    # a sentence-initial connective belongs to the cut, not to fragment 0
+    if accepted and accepted[0][0].lead_end is not None:
+        starts[0] = accepted[0][0].lead_end
+    layout: list[tuple[Span | None, Span | None, str]] = []
+    for i in range(len(accepted) + 1):
+        span = _trim_span(store, starts[i], bounds[i + 1])
+        prefix_span: Span | None = None
+        if i > 0 and accepted[i - 1][1] == "shared_part":
+            end = shared_prefix_end[accepted[i - 1][0].question_id]
+            prefix_span = _trim_span(store, sentence.span.start, end)
+        own_text = store.slice(span) if span is not None else ""
+        display = (
+            f"{store.slice(prefix_span)} {own_text}"
+            if prefix_span is not None and span is not None
+            else own_text
+        )
+        layout.append((span, prefix_span, display))
+    return starts, bounds, layout
+
+
 def _trim_span(store: TextStore, start: int, end: int) -> Span | None:
     text = store.answer[start:end]
     lead = len(text) - len(text.lstrip(" ,;:."))
@@ -368,29 +407,43 @@ def build_tree_from_cuts(
             continue  # select_units falls back to the whole sentence (same node)
 
         accepted.sort(key=lambda t: t[0].marker_start)
-        bounds = [sentence.span.start, *[c.marker_start for c, _ in accepted], sentence.span.end]
-        starts = [sentence.span.start, *[c.marker_end for c, _ in accepted]]
-        # a sentence-initial connective belongs to the cut, not to fragment 0
-        if accepted and accepted[0][0].lead_end is not None:
-            starts[0] = accepted[0][0].lead_end
+
+        # tiling guard: a fragment below the word floor UNDOES its neighbouring
+        # cut, merging the text back, instead of being dropped — a dropped
+        # fragment's words would belong to no unit and escape verification
+        # (measured: "...but failed" lost 'failed' entirely, mathprobe m07)
+        while accepted:
+            _, _, layout = _fragment_layout(store, sentence, accepted, shared_prefix_end)
+            small = [
+                i for i, (span, _, display) in enumerate(layout)
+                if span is None or _word_count(display) < _MIN_FRAGMENT_WORDS
+            ]
+            if not small:
+                break
+            i = small[0]
+            undone = accepted[i - 1] if i > 0 else accepted[0]
+            accepted.remove(undone)
+            notes.append(
+                f"{undone[0].question_id}: cut undone (fragment below "
+                f"{_MIN_FRAGMENT_WORDS} words merges back into its neighbour)"
+            )
+        if not accepted:
+            notes.append(f"{sentence.sentence_id}: all cuts undone; whole sentence")
+            if kept_whole:
+                _attach_diagnostics(store, sentence_node, kept_whole, notes)
+            continue
+
+        starts, bounds, layout = _fragment_layout(store, sentence, accepted, shared_prefix_end)
         fragment_nodes: list[Node | None] = []
         for i in range(len(accepted) + 1):
-            span = _trim_span(store, starts[i], bounds[i + 1])
             # the fragment right of a shared-part cut borrows the written-once
             # beginning: discontiguous anchors, both pieces verbatim
-            prefix_span: Span | None = None
-            if i > 0 and accepted[i - 1][1] == "shared_part":
-                end = shared_prefix_end[accepted[i - 1][0].question_id]
-                prefix_span = _trim_span(store, sentence.span.start, end)
-            own_text = store.slice(span) if span is not None else ""
-            display = (
-                f"{store.slice(prefix_span)} {own_text}"
-                if prefix_span is not None and span is not None
-                else own_text
-            )
+            span, prefix_span, display = layout[i]
             if span is None or _word_count(display) < _MIN_FRAGMENT_WORDS:
+                # unreachable after the tiling guard; kept as a defensive check
+                # (the revived coverage check in select catches the gap too)
                 fragment_nodes.append(None)
-                notes.append(f"{sentence.sentence_id}: fragment {i} too small; kept inside neighbours")
+                notes.append(f"{sentence.sentence_id}: fragment {i} below floor after guard; dropped")
                 continue
             node = tree.add(
                 Node(

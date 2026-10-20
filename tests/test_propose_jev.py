@@ -678,3 +678,151 @@ async def test_thin_evidence_rescue_runs_embedding(wal_decider):
     claim = response.claims[0]
     assert claim.verdict is Verdict.SUPPORTED
     assert claim.citations, "rescued evidence should produce a citation"
+
+
+def test_small_fragment_undoes_cut_instead_of_dropping():
+    """m07 shape: 'and' + 'but' both accepted would leave a 1-word fragment
+    ('failed'); the guard undoes the 'but' cut so every word stays inside a
+    unit (the tiling invariant), instead of silently dropping the fragment."""
+    answer = "The migration started in June and ran for seventeen weeks but failed."
+    store = TextStore.from_request(answer, ["(src)"])
+    cands = find_candidates(store)
+    by_conn = {c.connective: c for c in cands}
+    answers = {
+        by_conn["and"].question_id: choice(by_conn["and"].question_id, "two_facts"),
+        by_conn["but"].question_id: choice(by_conn["but"].question_id, "contrast_link"),
+    }
+    outcome = build_tree_from_cuts(store, cands, answers, min_prob=0.6)
+    facts = [u for u in outcome.units if u.kind is NodeKind.FACT]
+    assert [f.display_text for f in facts] == [
+        "The migration started in June",
+        "ran for seventeen weeks but failed.",
+    ]
+    assert any("cut undone" in n for n in outcome.notes)
+    assert not any(u.kind is NodeKind.RELATION for u in outcome.units)
+    # tiling invariant: every content char is inside a fragment or a marker
+    covered: set[int] = set()
+    for u in facts:
+        for sp in u.anchor_spans:
+            covered.update(range(sp.start, sp.end))
+    for c in (by_conn["and"], by_conn["but"]):
+        covered.update(range(c.marker_start, c.marker_end))
+    missing = [i for i, ch in enumerate(store.answer) if ch.isalnum() and i not in covered]
+    assert missing == []
+
+
+def test_sequence_relation_order_composition():
+    """Sequence is asymmetric: matching sides alone cannot tell 'A then B'
+    from 'B then A' (measured: an inverted order composed S, mathprobe m09).
+    The order stage decides: inverted -> C, unstated -> U, same order -> S."""
+    from verifier.judge.entail import decide_relation_verdict, relation_stage2_questions
+
+    answer = "The fix was deployed, then the servers were restarted."
+    passages = ["The servers were restarted first, and only then was the fix deployed."]
+    store = TextStore.from_request(answer, passages)
+    cands = find_candidates(store)
+    cand = [c for c in cands if c.connective == "then"][0]
+    answers = {c.question_id: choice(c.question_id, "not_boundary") for c in cands}
+    answers[cand.question_id] = choice(cand.question_id, "sequence_link")
+    outcome = build_tree_from_cuts(store, cands, answers, min_prob=0.6)
+    rel = [u for u in outcome.units if u.kind is NodeKind.RELATION][0]
+    rid = rel.node_id
+    link = store.all_source_sentences()[0]
+
+    # the order question is asked for sequence relations only
+    qids = [q.question_id for q in relation_stage2_questions(store, rel, link, "L", "R")]
+    assert qids == [f"rel2::{rid}", f"rel3::{rid}", f"rel4::{rid}"]
+    cause_store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
+    cause_rel = _staged_relation(cause_store)
+    cause_qids = [
+        q.question_id
+        for q in relation_stage2_questions(
+            cause_store, cause_rel, cause_store.all_source_sentences()[0], "L", "R"
+        )
+    ]
+    assert not any(q.startswith("rel4::") for q in cause_qids)
+
+    def order(label, p=0.9):
+        probs = dict.fromkeys(("left_first", "right_first", "no_order"), (1 - p) / 2)
+        probs[label] = p
+        return Answer(f"rel4::{rid}", choice=label, probabilities=probs)
+
+    judge_answers = {
+        f"rel1::{rid}": Answer(f"rel1::{rid}", choice="P0.S0",
+                               probabilities={"P0.S0": 0.9, "no_such_link": 0.1}),
+        f"rel2::{rid}": side(f"rel2::{rid}", "matches"),
+        f"rel3::{rid}": side(f"rel3::{rid}", "matches"),
+        f"rel4::{rid}": order("right_first"),
+    }
+    j = decide_relation_verdict(rel, judge_answers, min_prob=0.55)
+    assert j.verdict is Verdict.CONTRADICTED
+    assert any(f.startswith("staged_order_inverted") for f in j.flags)
+    assert j.evidence_sentence_ids == ["P0.S0"]
+
+    judge_answers[f"rel4::{rid}"] = order("no_order")
+    j = decide_relation_verdict(rel, judge_answers, min_prob=0.55)
+    assert j.verdict is Verdict.UNSUPPORTED
+    assert any(f.startswith("staged_order_unstated") for f in j.flags)
+
+    judge_answers[f"rel4::{rid}"] = order("left_first")
+    j = decide_relation_verdict(rel, judge_answers, min_prob=0.55)
+    assert j.verdict is Verdict.SUPPORTED
+
+
+async def test_bridge_binding_gate_blocks_third_entity_property():
+    """Conflict-189 shape: a clean alias bridge (br2 yes) plus br4 that ignores
+    subjects by design — only the binding premise (br5) stops a property stated
+    about an unrelated third entity from transferring. br5 low -> flat U stands."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    passages = [
+        "Acme is also known as Acme Global in overseas filings.",
+        "GammaCo's shares dropped ten percent on Friday.",
+    ]
+    answer = "Acme Global's shares dropped ten percent on Friday."
+    uid = "sent::A.S0"
+    script = {
+        f"v::{uid}": _flat(uid),
+        f"br1::{uid}": Answer(f"br1::{uid}", choice="P0.S0",
+                              probabilities={"P0.S0": 0.9, "P1.S0": 0.05, "no_connection": 0.05}),
+        f"br3::{uid}": Answer(f"br3::{uid}", choice="P1.S0",
+                              probabilities={"P0.S0": 0.05, "P1.S0": 0.9, "no_property": 0.05}),
+        # br2 (yes) and br4 (matches) pass via defaults: without the binding
+        # gate this composes a false SUPPORTED
+        f"br5::{uid}": Answer(f"br5::{uid}", yes_prob=0.05),
+    }
+    decider = scripted_decider(script)
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=passages, generated_answer=answer),
+        make_deps(FakeLLM(), decider, proposer="jev"),
+    )
+    assert response.claims[0].verdict is Verdict.UNSUPPORTED
+    asked = [q.question_id for _, questions in decider.seen for q in questions]
+    assert any(q.startswith("br5::") for q in asked)
+
+
+def test_coverage_check_ignores_whole_sentence_inherited_spans():
+    """A unit whose anchors miss part of the sentence must trigger the
+    whole-sentence fallback even though it inherits the full sentence as
+    context (the inherited span used to blind the check for good)."""
+    from verifier.rag.source import Span
+    from verifier.rag.tree import Node, NodeStatus, SemanticTree
+    from verifier.semantics.select import select_units
+
+    answer = "The migration started in June and ran for seventeen weeks."
+    store = TextStore.from_request(answer, ["(src)"])
+    tree = SemanticTree(store=store)
+    sentence = store.answer_sentences[0]
+    partial_end = sentence.span.start + len("The migration started in June")
+    unit = tree.add(Node(
+        node_id="frag::A.S0::0", origin="answer", sentence_id=sentence.sentence_id,
+        kind=NodeKind.FACT,
+        anchor_spans=[Span(store.ANSWER_DOC, sentence.span.start, partial_end)],
+        inherited_spans=[sentence.span],
+        display_text="The migration started in June",
+        status=NodeStatus.CHECKED,
+    ))
+    selection = select_units(store, tree, [unit], set(), [])
+    assert [u.node_id for u in selection.units] == [f"sent::{sentence.sentence_id}"]
+    assert any("uncovered content" in n for n in selection.notes)

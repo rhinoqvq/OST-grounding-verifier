@@ -19,7 +19,7 @@ from verifier.harness.context import describe_unit
 from verifier.models.decider import Answer, ChoiceQuestion, Question, YesNoQuestion
 from verifier.output.schemas import Verdict
 from verifier.rag.source import Sentence, TextStore
-from verifier.rag.tree import Node
+from verifier.rag.tree import Node, RelationType
 
 VERDICT_OPTIONS = {
     "supported": (
@@ -153,19 +153,57 @@ SIDE_OPTIONS = {
 }
 
 
+# A sequence is an ASYMMETRIC relation: r(x,y) and r(y,x) differ while the
+# side checks alone cannot tell them apart (rel1 finds the link in any
+# direction, rel2/rel3 match content per side — both are invariant under
+# swapping the sides; measured: an inverted order composed S at this layer,
+# mathprobe m09). The order itself gets its own single-hop question, and the
+# claim's own order is fixed by the cut option's wording (sequence_link means
+# LEFT happens first), so code can compare the two.
+ORDER_OPTIONS = {
+    "left_first": (
+        "The source states that the FIRST side happens before the THEN side — "
+        "the same order the claim asserts."
+    ),
+    "right_first": (
+        "The source states that the THEN side happens before the FIRST side — "
+        "the opposite of the order the claim asserts."
+    ),
+    "no_order": "The source sentence does not establish which of the two happens first.",
+}
+
+
+def sequence_order_question(
+    unit: Node, link_sentence: Sentence, left_text: str, right_text: str
+) -> ChoiceQuestion:
+    return ChoiceQuestion(
+        question_id=f"rel4::{unit.node_id}",
+        instructions=(
+            f'Source sentence [{link_sentence.sentence_id}] states a temporal order: '
+            f'"{link_sentence.text}"\n'
+            f'The claim asserts this order — FIRST: "{left_text}", THEN: "{right_text}".\n'
+            "According to the source sentence alone, which of the claim's two sides "
+            "happens first?"
+        ),
+        options=ORDER_OPTIONS,
+    )
+
+
 def relation_stage2_questions(
     store: TextStore, unit: Node, link_sentence: Sentence, left_text: str, right_text: str
 ) -> list[Question]:
     """Stage 2 for a found link sentence: classify each side against the
     stated link's corresponding side. Polarity is folded into the options —
     'opposite' (same aspect, inverted value) is what licenses CONTRADICTED,
-    while 'different' (sibling trigger, widening) can only mean UNSUPPORTED."""
+    while 'different' (sibling trigger, widening) can only mean UNSUPPORTED.
+    A SEQUENCE relation gets one extra question for the stated order, because
+    the side checks are blind to direction."""
     header = (
         f'Source sentence [{link_sentence.sentence_id}] states a link: "{link_sentence.text}"\n'
         f"Claimed link from the answer: {unit.display_text}\n"
     )
     tail = "Compare it with the corresponding side of the source link and classify."
-    return [
+    questions: list[Question] = [
         ChoiceQuestion(
             question_id=f"rel2::{unit.node_id}",
             instructions=f'{header}Side under check: "{left_text}"\n{tail}',
@@ -177,6 +215,9 @@ def relation_stage2_questions(
             options=SIDE_OPTIONS,
         ),
     ]
+    if unit.relation_type is RelationType.SEQUENCE:
+        questions.append(sequence_order_question(unit, link_sentence, left_text, right_text))
+    return questions
 
 
 # --- staged bridge check (two-hop rescue) ------------------------------------
@@ -229,9 +270,13 @@ def bridge_find_questions(store: TextStore, unit: Node) -> list[Question]:
 def bridge_check_questions(
     store: TextStore, unit: Node, bridge: Sentence, prop: Sentence
 ) -> list[Question]:
-    """Round B: does the bridge license a full transfer, and does the asserted
-    property match the stated one? Reuses the relation check's 3-way side
-    vocabulary for the property comparison."""
+    """Round B: the premises of the substitution inference, one question each.
+    The rescue concludes phi(a) from: (P1) the bridge covers a fully / a IS b
+    (br2); (P2a) the stated property matches the asserted one (br4); (P2b) the
+    property sentence predicates of the BRIDGED entity, not some third one
+    (br5) — without P2b a sentence about an unrelated entity passes br4, which
+    deliberately ignores subjects (measured false S, conflict 189 shape).
+    Reuses the relation check's 3-way side vocabulary for br4."""
     return [
         # deliberately claim-free: with the claim in view, a contradiction
         # scenario contaminates the coverage judgment (measured: 0.76 on a
@@ -260,6 +305,20 @@ def bridge_check_questions(
             ),
             options=SIDE_OPTIONS,
         ),
+        # claim-free like br2: a fact about the two sentences alone. This is the
+        # binding premise br4 deliberately looks away from.
+        YesNoQuestion(
+            question_id=f"br5::{unit.node_id}",
+            instructions=(
+                f'Bridge sentence: "{bridge.text}"\n'
+                f'Property sentence: "{prop.text}"\n'
+                "The bridge sentence connects something to a TARGET entity (the thing "
+                "routed to, the alias, the whole it belongs to). Is the property "
+                "sentence's statement made about that same target entity? If the "
+                "property sentence is about some other entity that the bridge sentence "
+                "does not mention, answer no."
+            ),
+        ),
     ]
 
 
@@ -278,11 +337,12 @@ def decide_bridge_rescue(
     if bid is None or pid is None or bid == pid:
         return None
     full_p = (answers.get(f"br2::{unit.node_id}") or Answer("")).yes_prob or 0.0
+    bind_p = (answers.get(f"br5::{unit.node_id}") or Answer("")).yes_prob or 0.0
     br4 = answers.get(f"br4::{unit.node_id}")
     probs = br4.probabilities if br4 and br4.probabilities else {}
     prop_match = max(probs, key=probs.__getitem__) if probs else "different"
     prop_p = probs.get(prop_match, 0.0)
-    if full_p < min_prob or prop_p < min_prob:
+    if full_p < min_prob or bind_p < min_prob or prop_p < min_prob:
         return None
     if prop_match == "different":
         return None
@@ -290,7 +350,7 @@ def decide_bridge_rescue(
         node_id=unit.node_id,
         node_version=unit.version,
         verdict=Verdict.SUPPORTED if prop_match == "matches" else Verdict.CONTRADICTED,
-        probabilities={"bridge_full": full_p, f"property_{prop_match}": prop_p},
+        probabilities={"bridge_full": full_p, "bridge_binding": bind_p, f"property_{prop_match}": prop_p},
         evidence_sentence_ids=[bid, pid],
         flags=[f"bridge_rescue({bid}->{pid},{prop_match})"],
     )
@@ -346,6 +406,24 @@ def decide_relation_verdict(
     if any(t in ("different", "flat") for _, t, _ in sides):
         judgment.flags.append(f"staged_side_mismatch({sid},{detail})")
         return judgment
+    # sequence only: the sides matching says nothing about direction, so the
+    # stated order must agree with the claimed one (LEFT first, per the cut
+    # option's definition). An explicitly inverted order is a stated
+    # incompatibility (C); an unstated order leaves the claimed one unverified.
+    if unit.relation_type is RelationType.SEQUENCE:
+        order = answers.get(f"rel4::{unit.node_id}")
+        order_probs = order.probabilities if order and order.probabilities else {}
+        order_top = max(order_probs, key=order_probs.__getitem__) if order_probs else "no_order"
+        order_p = order_probs.get(order_top, 0.0)
+        judgment.probabilities[f"order_{order_top}"] = order_p
+        if order_top == "right_first" and order_p >= min_prob:
+            judgment.verdict = Verdict.CONTRADICTED
+            judgment.evidence_sentence_ids = [sid]
+            judgment.flags.append(f"staged_order_inverted({sid},p={order_p:.2f})")
+            return judgment
+        if order_top != "left_first" or order_p < min_prob:
+            judgment.flags.append(f"staged_order_unstated({sid},{order_top},p={order_p:.2f})")
+            return judgment
     if any(t == "opposite" for _, t, _ in sides):
         judgment.verdict = Verdict.CONTRADICTED
         judgment.evidence_sentence_ids = [sid]
