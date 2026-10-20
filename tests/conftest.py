@@ -105,6 +105,8 @@ def scripted_decider(script: dict[str, Answer] | None = None) -> FakeDecider:
         qid = question.question_id
         if qid.startswith("g::"):
             return Answer(qid, yes_prob=0.9)
+        if qid.startswith("recomb::"):
+            return Answer(qid, yes_prob=0.9)
         if qid.startswith("cut::") and isinstance(question, ChoiceQuestion):
             probs = dict.fromkeys(question.options, 0.02)
             probs["keep_whole"] = 0.9

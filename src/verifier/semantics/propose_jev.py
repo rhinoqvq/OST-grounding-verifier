@@ -4,13 +4,19 @@ The generative-LLM proposer rewrites the answer into units (flexible, slow,
 can misbind pronouns). This variant never generates text at all:
 
 1. code finds candidate cut points in each answer sentence — connectives and
-   their leading punctuation (and/but/because/so/which/or/if/...);
+   their leading punctuation (and/but/because/so/which/or/if/...). Every match
+   is a candidate: no word-count filter, the cut decision belongs to Jev;
 2. Jev answers one choice question per candidate: do the two sides carry
    independently checkable assertions, are they linked (cause/contrast/
-   sequence), must the sentence stay whole (condition, disjunction, reported
-   speech), or is this no boundary at all;
-3. code applies the accepted cuts: fragments are verbatim answer spans, a
-   linked cut also yields a relation node over its two neighbours.
+   sequence), do they coordinate around a shared written-once beginning
+   ("X accepts A and B" — the 'and' questions offer shared-part options with
+   the assembled second claim spelled out), must the sentence stay whole
+   (condition, disjunction, reported speech), or is this no boundary at all;
+3. code applies the accepted cuts: fragments are verbatim answer spans; a
+   linked cut also yields a relation node over its two neighbours; a shared-
+   part cut gives the right fragment discontiguous anchors (shared prefix +
+   its own span), both verbatim. Plain coordination yields no relation node:
+   conjunction is truth-functional, the conjuncts say it all.
 
 Fragments carry the whole sentence as inherited context, so the judge always
 sees the original wording. There is no fidelity round: a verbatim fragment
@@ -21,11 +27,11 @@ coverage holds by construction.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from verifier.harness.batching import ask_batched
 from verifier.harness.context import build_answer_state
-from verifier.models.decider import Answer, ChoiceQuestion, Decider
+from verifier.models.decider import Answer, ChoiceQuestion, Decider, YesNoQuestion
 from verifier.rag.source import Sentence, Span, TextStore
 from verifier.rag.tree import Node, NodeKind, NodeStatus, RelationType, SemanticTree
 
@@ -41,7 +47,18 @@ _CUT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Applied when BUILDING fragments (a produced fragment must be able to stand
+# as an assertion), never when proposing candidates: every regex match reaches
+# Jev, and a cut whose fragments fail this guard is undone (whole sentence).
 _MIN_FRAGMENT_WORDS = 3
+
+# Connectives whose questions also offer shared-part options ("X accepts A and
+# B" -> carry "X accepts" over to B). Only 'and': splitting a disjunction would
+# assert both sides of an 'or', which asserts neither — 'or' stays keep_whole.
+_SHARE_CONNECTIVES = {"and"}
+# 6 covers subject + copula + participle + preposition ("A tied election is
+# resolved by ..."); a live a12 run showed 4 forces a meaning-bending prefix.
+_MAX_SHARE_PREFIX_TOKENS = 6
 
 CUT_OPTIONS = {
     "two_facts": (
@@ -85,10 +102,6 @@ def find_candidates(store: TextStore) -> list[CutCandidate]:
     candidates: list[CutCandidate] = []
     for sentence in store.answer_sentences:
         for match in _CUT_RE.finditer(sentence.text):
-            left = sentence.text[: match.start()]
-            right = sentence.text[match.end():]
-            if _word_count(left) < _MIN_FRAGMENT_WORDS or _word_count(right) < _MIN_FRAGMENT_WORDS:
-                continue
             candidates.append(
                 CutCandidate(
                     question_id=f"cut::{sentence.sentence_id}::{sentence.span.start + match.start()}",
@@ -99,6 +112,33 @@ def find_candidates(store: TextStore) -> list[CutCandidate]:
                 )
             )
     return candidates
+
+
+def _share_options(store: TextStore, sentence: Sentence, candidate: CutCandidate) -> dict[str, str]:
+    """Extra options for and/or markers: the two sides may coordinate around a
+    beginning written only once ("X accepts A and B"). Each option spells out
+    the assembled second claim for Jev to judge; the key carries the prefix's
+    end offset so code can cut the spans afterwards without parsing anything.
+    Jev only ever chooses — assembling the claim from verbatim spans is code's
+    job, and a collective reading (totals, 'together') belongs in keep_whole."""
+    if candidate.connective not in _SHARE_CONNECTIVES:
+        return {}
+    left_tokens = [
+        t for t in store.answer_tokens
+        if sentence.span.start <= t.span.start and t.span.end <= candidate.marker_start
+    ]
+    right = store.answer[candidate.marker_end : sentence.span.end].strip()
+    if len(left_tokens) < 2 or not right:
+        return {}
+    options: dict[str, str] = {}
+    for i in range(1, min(len(left_tokens), _MAX_SHARE_PREFIX_TOKENS + 1)):
+        end = left_tokens[i - 1].span.end
+        prefix = store.answer[sentence.span.start : end]
+        options[f"share_{end}"] = (
+            "LEFT and RIGHT coordinate around a shared beginning written only once; splitting is "
+            f'correct and the second claim then reads: "{prefix} {right}"'
+        )
+    return options
 
 
 def cut_question(store: TextStore, candidate: CutCandidate) -> ChoiceQuestion:
@@ -113,7 +153,34 @@ def cut_question(store: TextStore, candidate: CutCandidate) -> ChoiceQuestion:
             f"LEFT: \"{left}\"\nRIGHT: \"{right}\"\n"
             "Classify what this marker does in this sentence."
         ),
-        options=CUT_OPTIONS,
+        options={**CUT_OPTIONS, **_share_options(store, sentence, candidate)},
+    )
+
+
+@dataclass(frozen=True)
+class RecombCheck:
+    """Recombination fidelity check for one accepted shared-part cut: the only
+    operation on this path that produces a sentence the answer never wrote, so
+    the only place the fidelity round comes back ("do the pieces together say
+    exactly what the original says"). Failing it undoes the cut."""
+
+    question_id: str       # recomb::<cut question id>
+    cut_question_id: str
+    region_text: str       # the verbatim answer region the two fragments tile
+    claim_texts: list[str]
+
+
+def recomb_question(check: RecombCheck) -> YesNoQuestion:
+    numbered = "\n".join(f'{i + 1}. "{t}"' for i, t in enumerate(check.claim_texts))
+    return YesNoQuestion(
+        question_id=check.question_id,
+        instructions=(
+            f'This part of the answer reads: "{check.region_text}"\n'
+            f"It was split into separate claims, carrying the shared beginning over:\n{numbered}\n"
+            "Do these claims TOGETHER assert exactly what that part asserts — nothing added, "
+            "nothing lost, no change of meaning? Watch for collective readings that break when "
+            "split (totals, 'together', 'between them', mixtures)."
+        ),
     )
 
 
@@ -122,6 +189,7 @@ class JevProposalOutcome:
     tree: SemanticTree
     units: list[Node]
     notes: list[str]
+    shared_checks: list[RecombCheck] = field(default_factory=list)
 
 
 def _containing_unit(units: list[Node], position: int) -> Node | None:
@@ -177,10 +245,12 @@ def build_tree_from_cuts(
     answers: dict[str, Answer],
     *,
     min_prob: float,
+    rejected_shared: set[str] | None = None,
 ) -> JevProposalOutcome:
     tree = SemanticTree(store=store)
     notes: list[str] = []
     units: list[Node] = []
+    shared_checks: list[RecombCheck] = []
 
     for sentence in store.answer_sentences:
         sentence_node = tree.add(
@@ -196,10 +266,55 @@ def build_tree_from_cuts(
         )
 
         accepted: list[tuple[CutCandidate, str]] = []
+        shared_prefix_end: dict[str, int] = {}
         kept_whole: list[CutCandidate] = []
         for candidate in (c for c in candidates if c.sentence_id == sentence.sentence_id):
             answer = answers.get(candidate.question_id)
-            if answer is None or answer.choice is None:
+            if answer is None or not answer.probabilities:
+                continue
+            # 'and' questions carry share_* options, and two_facts / share_* are
+            # the same READING of the marker ("two facts here"), differing only
+            # in how the fragments get assembled. Mass splits between them, so
+            # the cut decision sums the family and compares it to the strongest
+            # rival reading (relative majority); argmax then picks the style.
+            # The assembled style is backstopped by an ABSOLUTE gate — the
+            # recombination fidelity check — which is what licenses deciding
+            # the cut itself by majority instead of an absolute bar.
+            share = {k: v for k, v in answer.probabilities.items() if k.startswith("share_")}
+            share_sum = sum(share.values())
+            if share:
+                two_facts_p = answer.probabilities.get("two_facts", 0.0)
+                split_support = share_sum + two_facts_p
+                rival_max = max(
+                    (
+                        v for k, v in answer.probabilities.items()
+                        if not k.startswith("share_") and k != "two_facts"
+                    ),
+                    default=0.0,
+                )
+                if split_support >= rival_max:
+                    if share_sum >= two_facts_p:
+                        if rejected_shared and candidate.question_id in rejected_shared:
+                            notes.append(
+                                f"{candidate.question_id}: shared_part cut undone "
+                                "(recombination check failed)"
+                            )
+                            continue
+                        best = max(share, key=share.__getitem__)
+                        accepted.append((candidate, "shared_part"))
+                        shared_prefix_end[candidate.question_id] = int(best.rsplit("_", 1)[1])
+                        notes.append(
+                            f"{candidate.question_id}: cut as shared_part "
+                            f"(family={split_support:.2f} vs rival={rival_max:.2f}, {best})"
+                        )
+                    else:
+                        accepted.append((candidate, "two_facts"))
+                        notes.append(
+                            f"{candidate.question_id}: cut as two_facts "
+                            f"(family={split_support:.2f} vs rival={rival_max:.2f})"
+                        )
+                    continue
+            if answer.choice is None:
                 continue
             p = answer.probabilities.get(answer.choice, 0.0)
             if answer.choice in ("two_facts", *_LINK_RELATION) and p >= min_prob:
@@ -222,7 +337,19 @@ def build_tree_from_cuts(
         fragment_nodes: list[Node | None] = []
         for i in range(len(accepted) + 1):
             span = _trim_span(store, starts[i], bounds[i + 1])
-            if span is None or _word_count(store.slice(span)) < _MIN_FRAGMENT_WORDS:
+            # the fragment right of a shared-part cut borrows the written-once
+            # beginning: discontiguous anchors, both pieces verbatim
+            prefix_span: Span | None = None
+            if i > 0 and accepted[i - 1][1] == "shared_part":
+                end = shared_prefix_end[accepted[i - 1][0].question_id]
+                prefix_span = _trim_span(store, sentence.span.start, end)
+            own_text = store.slice(span) if span is not None else ""
+            display = (
+                f"{store.slice(prefix_span)} {own_text}"
+                if prefix_span is not None and span is not None
+                else own_text
+            )
+            if span is None or _word_count(display) < _MIN_FRAGMENT_WORDS:
                 fragment_nodes.append(None)
                 notes.append(f"{sentence.sentence_id}: fragment {i} too small; kept inside neighbours")
                 continue
@@ -232,10 +359,10 @@ def build_tree_from_cuts(
                     origin="answer",
                     sentence_id=sentence.sentence_id,
                     kind=NodeKind.FACT,
-                    anchor_spans=[span],
+                    anchor_spans=[prefix_span, span] if prefix_span is not None else [span],
                     inherited_spans=[sentence.span],  # judge always sees the original sentence
                     parent_id=sentence_node.node_id,
-                    display_text=store.slice(span),
+                    display_text=display,
                     status=NodeStatus.CHECKED,
                 )
             )
@@ -251,6 +378,23 @@ def build_tree_from_cuts(
                 _attach_diagnostics(store, sentence_node, kept_whole, notes)
             continue
         units.extend(made)
+
+        # every surviving shared-part cut gets a recombination fidelity check:
+        # the assembled claim is the one sentence the answer never wrote
+        for i, (candidate, kind) in enumerate(accepted):
+            if kind != "shared_part":
+                continue
+            left_node, right_node = fragment_nodes[i], fragment_nodes[i + 1]
+            if left_node is None or right_node is None:
+                continue
+            shared_checks.append(
+                RecombCheck(
+                    question_id=f"recomb::{candidate.question_id}",
+                    cut_question_id=candidate.question_id,
+                    region_text=store.answer[starts[i] : bounds[i + 2]].strip(),
+                    claim_texts=[left_node.display_text, right_node.display_text],
+                )
+            )
 
         # keep_whole markers inside a fragment become that fragment's diagnostics
         for candidate in kept_whole:
@@ -283,7 +427,7 @@ def build_tree_from_cuts(
             )
             units.append(relation)
 
-    return JevProposalOutcome(tree=tree, units=units, notes=notes)
+    return JevProposalOutcome(tree=tree, units=units, notes=notes, shared_checks=shared_checks)
 
 
 async def propose_with_jev(
@@ -291,6 +435,7 @@ async def propose_with_jev(
     store: TextStore,
     *,
     min_prob: float,
+    recomb_min_prob: float,
     max_per_request: int,
     max_parallel: int,
 ) -> JevProposalOutcome:
@@ -304,4 +449,25 @@ async def propose_with_jev(
             max_per_request=max_per_request,
             max_parallel=max_parallel,
         )
-    return build_tree_from_cuts(store, candidates, answers, min_prob=min_prob)
+    outcome = build_tree_from_cuts(store, candidates, answers, min_prob=min_prob)
+    if not outcome.shared_checks:
+        return outcome
+    # recombination round: only fires when a shared-part cut was accepted; the
+    # check sees the answer only, like everything else in decomposition
+    recomb = await ask_batched(
+        decider,
+        build_answer_state(store),
+        [recomb_question(c) for c in outcome.shared_checks],
+        max_per_request=max_per_request,
+        max_parallel=max_parallel,
+    )
+    rejected = {
+        check.cut_question_id
+        for check in outcome.shared_checks
+        if ((recomb.get(check.question_id) or Answer("")).yes_prob or 0.0) < recomb_min_prob
+    }
+    if not rejected:
+        return outcome
+    return build_tree_from_cuts(
+        store, candidates, answers, min_prob=min_prob, rejected_shared=rejected
+    )

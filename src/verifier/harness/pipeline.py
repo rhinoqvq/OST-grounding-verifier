@@ -79,7 +79,9 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
     # round 1: propose the structure (answer only) ----------------------------
     # proposer "llm": generative model proposes units, Jev checks them (round 2)
     # proposer "jev": code proposes cut points, Jev classifies them; fragments
-    #                 are verbatim, so there is no fidelity round to run
+    #                 are verbatim, so no fidelity round — except the one
+    #                 assembling operation (shared-part cuts), which carries its
+    #                 own recombination check inside propose_with_jev
     non_claim_spans: list = []
     if settings.proposer == "jev":
         r = trace.start_round("1-propose-jev")
@@ -87,6 +89,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             deps.decider,
             store,
             min_prob=settings.jev_cut_min_prob,
+            recomb_min_prob=settings.fidelity_min_prob,
             max_per_request=settings.max_questions_per_request,
             max_parallel=settings.max_parallel_requests,
         )

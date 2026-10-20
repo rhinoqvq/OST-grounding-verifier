@@ -7,7 +7,12 @@ from verifier.models.decider import Answer
 from verifier.output.schemas import Verdict, VerifyRequest
 from verifier.rag.source import TextStore
 from verifier.rag.tree import NodeKind
-from verifier.semantics.propose_jev import build_tree_from_cuts, find_candidates
+from verifier.semantics.propose_jev import (
+    build_tree_from_cuts,
+    cut_question,
+    find_candidates,
+    propose_with_jev,
+)
 
 ANSWER = (
     "The backup failed because the disk was full. "
@@ -159,6 +164,136 @@ async def test_grounded_conditional_stays_supported():
         make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
     )
     assert response.claims[0].verdict is Verdict.SUPPORTED
+
+
+C20_ANSWER = "Production accepts protocol V1 and protocol V2."
+C20_PASSAGES = [
+    "Production traffic is routed exclusively to release Azure.",
+    "Release Azure rejects protocol V1 and accepts protocol V2.",
+]
+
+
+def test_every_regex_match_is_a_candidate():
+    """No word-count filter before Jev: the noun-coordination 'and' whose right
+    side is only two words still becomes a candidate (the cut decision is
+    Jev's, not code's)."""
+    store = TextStore.from_request(C20_ANSWER, ["(src)"])
+    assert [c.connective for c in find_candidates(store)] == ["and"]
+
+
+def test_and_question_offers_shared_part_options():
+    store = TextStore.from_request(C20_ANSWER, ["(src)"])
+    q = cut_question(store, find_candidates(store)[0])
+    share = {k: v for k, v in q.options.items() if k.startswith("share_")}
+    assert set(share) == {"share_10", "share_18", "share_27"}
+    assert 'reads: "Production accepts protocol V2."' in share["share_18"]
+    # 'because' offers none (not a coordination); 'or' offers none either —
+    # splitting a disjunction would assert both sides, which asserts neither
+    for text in ("The backup failed because the disk was full.", DISJ_ANSWER):
+        store2 = TextStore.from_request(text, ["(src)"])
+        q2 = cut_question(store2, find_candidates(store2)[0])
+        assert not any(k.startswith("share_") for k in q2.options)
+
+
+def test_shared_part_cut_builds_discontiguous_fact():
+    store = TextStore.from_request(C20_ANSWER, ["(src)"])
+    candidates = find_candidates(store)
+    cand = candidates[0]
+    probs = {"share_18": 0.9, "not_boundary": 0.1}
+    answers = {cand.question_id: Answer(cand.question_id, choice="share_18", probabilities=probs)}
+    outcome = build_tree_from_cuts(store, candidates, answers, min_prob=0.6)
+    facts = [u for u in outcome.units if u.kind is NodeKind.FACT]
+    assert [f.display_text for f in facts] == [
+        "Production accepts protocol V1",
+        "Production accepts protocol V2.",
+    ]
+    assert [store.slice(sp) for sp in facts[1].anchor_spans] == [
+        "Production accepts",
+        "protocol V2.",
+    ], "right fragment carries the written-once beginning as a second verbatim span"
+    assert not any(u.kind is NodeKind.RELATION for u in outcome.units), (
+        "conjunction is truth-functional: the conjuncts say it all, no relation node"
+    )
+    assert len(outcome.shared_checks) == 1
+    check = outcome.shared_checks[0]
+    assert check.region_text == C20_ANSWER
+    assert check.claim_texts == [f.display_text for f in facts]
+
+
+def test_share_mass_sum_rule():
+    """Adjacent prefixes split the mass: 0.35+0.30 share vs 0.35 not_boundary
+    still cuts (family sum beats the rival reading), prefix by argmax."""
+    store = TextStore.from_request(C20_ANSWER, ["(src)"])
+    cand = find_candidates(store)[0]
+    probs = {"share_18": 0.35, "share_27": 0.30, "not_boundary": 0.35}
+    answers = {cand.question_id: Answer(cand.question_id, choice="not_boundary", probabilities=probs)}
+    outcome = build_tree_from_cuts(store, [cand], answers, min_prob=0.6)
+    facts = [u for u in outcome.units if u.kind is NodeKind.FACT]
+    assert len(facts) == 2 and facts[1].display_text == "Production accepts protocol V2."
+
+
+def test_family_majority_accepts_c20_run0_distribution():
+    """Anchored to a live Jev run on c20 (2026-10-21): shares 0.47+0.02+0.01 +
+    two_facts 0.01 = 0.51 edges out not_boundary 0.49. The family majority
+    nominates the cut; the recombination gate is the absolute check."""
+    store = TextStore.from_request(C20_ANSWER, ["(src)"])
+    cand = find_candidates(store)[0]
+    probs = {"share_18": 0.47, "share_10": 0.02, "share_27": 0.01,
+             "two_facts": 0.01, "not_boundary": 0.49}
+    answers = {cand.question_id: Answer(cand.question_id, choice="not_boundary", probabilities=probs)}
+    outcome = build_tree_from_cuts(store, [cand], answers, min_prob=0.6)
+    facts = [u for u in outcome.units if u.kind is NodeKind.FACT]
+    assert [f.display_text for f in facts] == [
+        "Production accepts protocol V1",
+        "Production accepts protocol V2.",
+    ]
+
+
+async def test_recombination_failure_undoes_shared_cut():
+    """The assembled claim is the one sentence the answer never wrote, so it
+    carries a fidelity check; failing it rebuilds without the cut."""
+    store = TextStore.from_request(C20_ANSWER, ["(src)"])
+    cand = find_candidates(store)[0]
+    probs = {"share_18": 0.9, "not_boundary": 0.1}
+    script = {
+        cand.question_id: Answer(cand.question_id, choice="share_18", probabilities=probs),
+        f"recomb::{cand.question_id}": Answer(f"recomb::{cand.question_id}", yes_prob=0.2),
+    }
+    outcome = await propose_with_jev(
+        scripted_decider(script), store,
+        min_prob=0.6, recomb_min_prob=0.6, max_per_request=50, max_parallel=2,
+    )
+    assert outcome.units == [], "failed recombination undoes the cut (whole sentence)"
+    assert any("recombination check failed" in n for n in outcome.notes)
+
+
+async def test_pipeline_splits_shared_coordination():
+    """c20 end-to-end: one merged sentence becomes two claims with opposite
+    verdicts, the assembled claim judged and cited like any other."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    store = TextStore.from_request(C20_ANSWER, C20_PASSAGES)
+    cand = find_candidates(store)[0]
+    probs = {"share_18": 0.9, "not_boundary": 0.1}
+    script = {
+        cand.question_id: Answer(cand.question_id, choice="share_18", probabilities=probs),
+        # recomb:: passes via the conftest default (0.9)
+        "v::frag::A.S0::0": verdict_answer("v::frag::A.S0::0", "contradicted"),
+        "r::frag::A.S0::0::P1.S0": Answer("r::frag::A.S0::0::P1.S0", yes_prob=0.9),
+        "v::frag::A.S0::1": verdict_answer("v::frag::A.S0::1", "supported"),
+        "r::frag::A.S0::1::P1.S0": Answer("r::frag::A.S0::1::P1.S0", yes_prob=0.9),
+    }
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=C20_PASSAGES, generated_answer=C20_ANSWER),
+        make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
+    )
+    assert [c.claim_text for c in response.claims] == [
+        "Production accepts protocol V1",
+        "Production accepts protocol V2.",
+    ]
+    assert [c.verdict for c in response.claims] == [Verdict.CONTRADICTED, Verdict.SUPPORTED]
+    assert response.claims[1].citations, "assembled claim still gets verbatim citations"
 
 
 def test_embed_prior_rescues_linking_premise(wal_store):
