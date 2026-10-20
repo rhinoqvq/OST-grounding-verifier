@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # decision thresholds (tuned on the dev set; defaults are starting points)
     verdict_min_prob: float = 0.55     # top verdict option below this -> UNSUPPORTED
     relevance_min_prob: float = 0.60   # source sentence counts as evidence above this
+    evidence_floor_prob: float = 0.30  # rank-fallback evidence must at least reach this
     fidelity_min_prob: float = 0.60    # decomposition unit accepted above this
     max_evidence_sentences: int = 4
     max_candidate_sentences: int = 60  # lexical prefilter above this many source sentences

@@ -157,6 +157,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 candidates[unit.node_id],
                 verdict_min_prob=settings.verdict_min_prob,
                 relevance_min_prob=settings.relevance_min_prob,
+                evidence_floor_prob=settings.evidence_floor_prob,
                 max_evidence=settings.max_evidence_sentences,
             )
         # relation claims inherit the most severe verdict of their members
@@ -204,6 +205,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                     recheck_candidates[sentence_node.node_id],
                     verdict_min_prob=settings.verdict_min_prob,
                     relevance_min_prob=settings.relevance_min_prob,
+                    evidence_floor_prob=settings.evidence_floor_prob,
                     max_evidence=settings.max_evidence_sentences,
                 )
                 override, notes = apply_parent_recheck(sentence_judgment, groups[sid], judgments)

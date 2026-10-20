@@ -156,3 +156,19 @@ async def test_parent_recheck_overrides_split(wal_request, wal_proposal, wal_dec
     assert len(response.claims) == 3  # u2+u3 merged back into the sentence unit
     merged = next(c for c in response.claims if c.claim_text.startswith("Alongside"))
     assert merged.verdict is Verdict.UNSUPPORTED
+
+
+async def test_definite_verdict_with_lukewarm_evidence_uses_rank_fallback(wal_request, wal_proposal):
+    """A confident verdict whose best relevance score sits between the floor
+    (0.30) and the bar (0.60) keeps the verdict, citing the best-ranked
+    sentence, flagged for evaluation."""
+    script = {
+        "v::u1": verdict_answer("v::u1", "contradicted"),
+        "r::u1::P0.S2": Answer("r::u1::P0.S2", yes_prob=0.55),
+    }
+    response, _ = await run_verification(
+        wal_request, make_deps(FakeLLM(proposal=wal_proposal), scripted_decider(script))
+    )
+    claim = response.claims[0]
+    assert claim.verdict is Verdict.CONTRADICTED
+    assert claim.citations[0].quote.startswith("However, WAL does not work")

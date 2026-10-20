@@ -37,6 +37,7 @@ class LLMProviderConfig:
     api: Literal["responses", "chat"] = "responses"
     schema_mode: Literal["json_schema", "json_object"] = "json_schema"
     extra_body: dict[str, Any] | None = None    # e.g. {"enable_thinking": False} for qwen
+    temperature: float | None = 0.0             # decomposition should be as deterministic as possible
 
 
 class LLMUsage:
@@ -81,8 +82,9 @@ class StructuredLLM:
     async def _fetch_once(self, messages: list[dict[str, str]], schema: type[SchemaT]) -> dict[str, Any]:
         cfg = self.config
         client = self._get_client()
+        temperature = {} if cfg.temperature is None else {"temperature": cfg.temperature}
         if cfg.api == "responses":
-            response = await client.responses.parse(model=cfg.model, input=messages, text_format=schema)  # type: ignore[arg-type]
+            response = await client.responses.parse(model=cfg.model, input=messages, text_format=schema, **temperature)  # type: ignore[arg-type]
             parsed = response.output_parsed
             text = parsed.model_dump_json() if parsed is not None else (response.output_text or "")
             usage = getattr(response, "usage", None)
@@ -93,6 +95,7 @@ class StructuredLLM:
                 messages=messages,  # type: ignore[arg-type]
                 response_format=schema,
                 extra_body=cfg.extra_body,
+                **temperature,
             )
             message = response.choices[0].message
             text = message.parsed.model_dump_json() if message.parsed is not None else (message.content or "")
@@ -109,6 +112,7 @@ class StructuredLLM:
                 messages=[schema_hint, *messages],  # type: ignore[arg-type]
                 response_format={"type": "json_object"},
                 extra_body=cfg.extra_body,
+                **temperature,
             )
             text = response.choices[0].message.content or ""
         usage = getattr(response, "usage", None)
@@ -123,6 +127,7 @@ class StructuredLLM:
             "model": cfg.model,
             "api": cfg.api,
             "schema_mode": cfg.schema_mode,
+            "temperature": cfg.temperature,
         }
 
         async def fetch() -> dict[str, Any]:

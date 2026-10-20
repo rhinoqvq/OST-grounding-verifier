@@ -54,8 +54,9 @@ def relevance_question(store: TextStore, unit: Node, sentence: Sentence) -> YesN
         question_id=f"r::{unit.node_id}::{sentence.sentence_id}",
         instructions=(
             f"Source sentence [{sentence.sentence_id}] reads: \"{sentence.text}\"\n"
-            f"Is it relevant evidence — supporting OR conflicting, alone or combined with other "
-            f"sentences — for judging this claim?\n{describe_unit(store, unit)}"
+            "Would a careful fact-checker quote this sentence as evidence when explaining why the "
+            "claim below is supported or contradicted? Merely being about the same topic is not "
+            f"evidence; the sentence must bear on whether the claim holds.\n{describe_unit(store, unit)}"
         ),
     )
 
@@ -109,6 +110,7 @@ def decide_verdict(
     *,
     verdict_min_prob: float,
     relevance_min_prob: float,
+    evidence_floor_prob: float,
     max_evidence: int,
 ) -> UnitJudgment:
     judgment = UnitJudgment(node_id=unit.node_id, node_version=unit.version, verdict=Verdict.UNSUPPORTED)
@@ -119,13 +121,16 @@ def decide_verdict(
     judgment.probabilities = dict(answer.probabilities)
     judgment.confidence = answer.confidence
 
-    scored = []
-    for sentence in candidates:
-        rel = answers.get(f"r::{unit.node_id}::{sentence.sentence_id}")
-        if rel is not None and (rel.yes_prob or 0.0) >= relevance_min_prob:
-            scored.append((rel.yes_prob or 0.0, sentence.sentence_id))
-    scored.sort(key=lambda t: -t[0])
-    judgment.evidence_sentence_ids = [sid for _, sid in scored[:max_evidence]]
+    ranked = sorted(
+        (
+            ((answers.get(f"r::{unit.node_id}::{s.sentence_id}") or Answer("")).yes_prob or 0.0, s.sentence_id)
+            for s in candidates
+        ),
+        key=lambda t: -t[0],
+    )
+    judgment.evidence_sentence_ids = [
+        sid for p, sid in ranked[:max_evidence] if p >= relevance_min_prob
+    ]
 
     top_label = max(answer.probabilities, key=answer.probabilities.get, default=None)
     top_prob = answer.probabilities.get(top_label, 0.0) if top_label else 0.0
@@ -137,10 +142,18 @@ def decide_verdict(
 
     verdict = _LABEL_TO_VERDICT[top_label]
     if verdict is not Verdict.UNSUPPORTED and not judgment.evidence_sentence_ids:
-        # a supported/contradicted verdict with zero relevant sentences cannot
-        # honor the citation contract; downgrade rather than invent a citation
-        judgment.verdict = Verdict.UNSUPPORTED
-        judgment.flags.append(f"no_evidence_for_{verdict.value.lower()}")
-        return judgment
+        # Definite verdict but no sentence cleared the relevance bar. The
+        # relevance probe is a separate, weaker signal than the verdict itself,
+        # so before throwing a confident verdict away, accept the best-ranked
+        # sentence if it is at least plausible (above the floor); flag it so
+        # evaluation can count how often this path fires and how it performs.
+        if ranked and ranked[0][0] >= evidence_floor_prob:
+            judgment.evidence_sentence_ids = [ranked[0][1]]
+            judgment.flags.append(f"evidence_rank_fallback(p={ranked[0][0]:.2f})")
+        else:
+            # nothing even plausibly citable: no basis for a definite verdict
+            judgment.verdict = Verdict.UNSUPPORTED
+            judgment.flags.append(f"no_evidence_for_{verdict.value.lower()}")
+            return judgment
     judgment.verdict = verdict
     return judgment
