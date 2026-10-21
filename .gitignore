@@ -24,3 +24,6 @@ var/
 .idea/
 Thumbs.db
 .DS_Store
+
+# evaluation scripts & anything test-set related: kept local until submission packaging
+eval/

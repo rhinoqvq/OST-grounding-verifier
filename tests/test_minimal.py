@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from conftest import ANSWER, PASSAGE_0, PASSAGE_1
 from verifier.harness.config import Settings
-from verifier.harness.minimal import (
+from verifier.methods.minimal_llm.verifier import (
     MinimalCitation,
     MinimalClaim,
     MinimalOutput,

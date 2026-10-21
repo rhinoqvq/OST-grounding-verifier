@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from conftest import ANSWER, PASSAGE_0, PASSAGE_1
-from verifier.harness.baseline import run_baseline
+from verifier.methods.baseline import run_baseline
 from verifier.harness.config import Settings
 from verifier.harness.pipeline import Dependencies, run_request
 from verifier.output.schemas import Verdict, VerifyRequest

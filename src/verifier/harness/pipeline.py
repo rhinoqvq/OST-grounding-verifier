@@ -73,11 +73,11 @@ async def run_request(request: VerifyRequest, deps: Dependencies) -> tuple[Verif
     if method == "optimized":
         return await run_verification(request, deps)
     if method == "minimal_llm":
-        from verifier.harness.minimal import run_minimal_llm
+        from verifier.methods.minimal_llm import run_minimal_llm
 
         return await run_minimal_llm(request, deps)
     if method == "baseline":
-        from verifier.harness.baseline import run_baseline
+        from verifier.methods.baseline import run_baseline
 
         return await run_baseline(request, deps)
     raise NotImplementedError(f"method {method!r} is not implemented yet")
