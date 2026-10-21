@@ -5,11 +5,18 @@ import pytest
 
 from conftest import ANSWER, PASSAGE_0, PASSAGE_1, FakeLLM, scripted_decider, verdict_answer
 from verifier.harness.config import Settings
-from verifier.harness.context import estimate_tokens
+from verifier.harness.context import build_answer_state, estimate_tokens
 from verifier.harness.pipeline import Dependencies
 from verifier.methods.optimized.judge.treemap import decide_fact_mapping, decide_relation_mapping, fact_mapping_plan
 from verifier.methods.optimized.pipeline import run_verification
-from verifier.methods.optimized.semantics.propose_jev import _LINK_RELATION, cut_question, find_candidates
+from verifier.methods.optimized.semantics.propose_jev import (
+    _LINK_RELATION,
+    RecombCheck,
+    cut_question,
+    find_candidates,
+    non_claim_question,
+    recomb_question,
+)
 from verifier.methods.optimized.semantics.source_tree import SourceTree, SourceUnit, build_source_tree
 from verifier.models.decider import MAX_CHOICE_OPTIONS, Answer, ChoiceQuestion
 from verifier.output.schemas import Verdict, VerifyRequest
@@ -107,6 +114,42 @@ async def test_source_sentence_splits_into_fragments_and_a_cause_relation():
     assert relation.member_ids == ["P0.S0.f0", "P0.S0.f1"]
     fragment = store.sentence_by_id("P0.S0.f1")
     assert fragment.text in passage and fragment.text.startswith("memory is exhausted")
+
+
+async def test_the_source_tree_never_calls_a_passage_the_answer():
+    passage = "The service restarts every night because memory is exhausted by the batch jobs."
+    decider = scripted_decider()
+    await build_source_tree(decider, TextStore.from_request("x", [passage]), Settings(_env_file=None))
+    assert decider.seen
+    for state, questions in decider.seen:
+        assert state.startswith("The source passage being decomposed (the answer is deliberately not shown):")
+        for q in questions:
+            assert q.instructions.startswith("Source sentence ["), q.question_id
+            assert "Based on the passages" not in q.instructions
+
+
+def test_answer_side_decomposition_wording_is_unchanged(wal_store):
+    assert build_answer_state(wal_store).splitlines()[0] == (
+        "The answer being decomposed (sources are deliberately not shown):"
+    )
+    sentence = wal_store.answer_sentences[0]
+    assert non_claim_question(sentence).instructions == (
+        f'Answer sentence [{sentence.sentence_id}]: "{sentence.text}"\n'
+        "Does this sentence make a checkable statement of its own — or is it pure "
+        "meta-discourse addressed to the reader: a greeting, thanks, an offer to "
+        "help further, a question to the reader, or a pure header/transition that "
+        "only announces other content ('Here are the steps:')?\n"
+        "Careful: a sentence that asserts ANY fact counts as a statement, including "
+        "one wrapped in framing ('Based on the passages, the cost is X'), and a "
+        "remark about what the passages do or do not say IS a checkable statement "
+        "about the sources — not meta-discourse."
+    )
+    candidate = find_candidates(wal_store)[0]
+    assert cut_question(wal_store, candidate).instructions.startswith(
+        f'Answer sentence [{candidate.sentence_id}]: "'
+    )
+    check = RecombCheck("recomb::c", "c", "A and B", ["A", "B"])
+    assert recomb_question(check).instructions.startswith('This part of the answer reads: "A and B"\n')
 
 
 def _unit(node_id: str, kind=NodeKind.FACT, relation_type=None, members=None) -> Node:

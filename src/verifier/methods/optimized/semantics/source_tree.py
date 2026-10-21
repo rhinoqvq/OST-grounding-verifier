@@ -1,10 +1,11 @@
-"""Source-side semantic tree: the answer's decomposition, unchanged, run on the
-source.
+"""Source-side semantic tree: the answer's decomposition run on the source.
 
 Each passage (a window of whole sentences when the passage is long) goes
 through the same steps as the answer — cut points, cut questions, relation
 reading, recombination check, coverage check — with that passage alone as the
-state. The resulting nodes are mapped back onto the passage: fragments become
+state. Questions, options and thresholds are the answer's; only the wording
+names the text a source passage (SOURCE_VOICE), never "the answer". The
+resulting nodes are mapped back onto the passage: fragments become
 citable source units below sentence level, relations keep their type and
 sides, sentence ids become the passage's own.
 """
@@ -19,7 +20,7 @@ from verifier.harness.config import Settings
 from verifier.models.decider import Answer, Decider, Question
 from verifier.rag.source import Span, TextStore
 from verifier.rag.tree import Node, NodeKind, RelationType
-from verifier.methods.optimized.semantics.propose_jev import propose_with_jev
+from verifier.methods.optimized.semantics.propose_jev import SOURCE_VOICE, propose_with_jev
 from verifier.methods.optimized.semantics.select import select_units
 
 # A window's text rides along in every question of its decomposition round;
@@ -106,6 +107,7 @@ async def _build_window(
         max_per_request=settings.max_questions_per_request,
         max_parallel=settings.max_parallel_requests,
         nc_min_prob=settings.nc_min_prob,
+        voice=SOURCE_VOICE,
     )
     selection = select_units(wstore, outcome.tree, outcome.units, set(), outcome.non_claim_spans)
 

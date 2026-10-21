@@ -32,7 +32,7 @@ import re
 from dataclasses import dataclass, field
 
 from verifier.harness.batching import ask_batched
-from verifier.harness.context import build_answer_state
+from verifier.harness.context import ANSWER_STATE_TITLE, build_answer_state
 from verifier.models.decider import Answer, ChoiceQuestion, Decider, YesNoQuestion
 from verifier.rag.source import Sentence, Span, TextStore
 from verifier.rag.tree import Node, NodeKind, NodeStatus, RelationType, SemanticTree
@@ -110,6 +110,43 @@ _LINK_RELATION = {
 
 
 @dataclass(frozen=True)
+class Voice:
+    """Whose text is being decomposed. The source tree runs this same
+    decomposition on each passage (source_tree.py): the questions, options and
+    thresholds are shared, only the words naming the text differ, so Jev is
+    never told that a passage is the answer."""
+
+    state_title: str
+    sentence: str      # label in front of the quoted sentence
+    part: str          # opens the recombination question
+    links: str         # opens a relation node's display text
+    nc_caution: str    # closes the meta-discourse question
+
+
+ANSWER_VOICE = Voice(
+    state_title=ANSWER_STATE_TITLE,
+    sentence="Answer sentence",
+    part="This part of the answer",
+    links="The answer links these",
+    nc_caution=(
+        "Careful: a sentence that asserts ANY fact counts as a statement, including "
+        "one wrapped in framing ('Based on the passages, the cost is X'), and a "
+        "remark about what the passages do or do not say IS a checkable statement "
+        "about the sources — not meta-discourse."
+    ),
+)
+# the answer-only examples (framing about 'the passages') do not apply to a
+# passage itself; the definition and the options stay the same
+SOURCE_VOICE = Voice(
+    state_title="The source passage being decomposed (the answer is deliberately not shown):",
+    sentence="Source sentence",
+    part="This part of the source",
+    links="The source links these",
+    nc_caution="Careful: a sentence that asserts ANY fact counts as a statement.",
+)
+
+
+@dataclass(frozen=True)
 class CutCandidate:
     question_id: str
     sentence_id: str
@@ -184,13 +221,13 @@ def _share_options(store: TextStore, sentence: Sentence, candidate: CutCandidate
     return options
 
 
-def cut_question(store: TextStore, candidate: CutCandidate) -> ChoiceQuestion:
+def cut_question(store: TextStore, candidate: CutCandidate, voice: Voice = ANSWER_VOICE) -> ChoiceQuestion:
     sentence = store.sentence_by_id(candidate.sentence_id)
     right = store.answer[candidate.marker_end : sentence.span.end].strip()
     if candidate.lead_start is not None:
         left = store.answer[candidate.lead_end : candidate.marker_start].strip()
         instructions = (
-            f"Answer sentence [{candidate.sentence_id}]: \"{sentence.text}\"\n"
+            f"{voice.sentence} [{candidate.sentence_id}]: \"{sentence.text}\"\n"
             f"The sentence opens with '{candidate.connective}', linking its first clause to the rest.\n"
             f"Candidate split at the comma:\nLEFT: \"{left}\"\nRIGHT: \"{right}\"\n"
             "Classify what this leading connective does in this sentence."
@@ -198,7 +235,7 @@ def cut_question(store: TextStore, candidate: CutCandidate) -> ChoiceQuestion:
     else:
         left = store.answer[sentence.span.start : candidate.marker_start].strip()
         instructions = (
-            f"Answer sentence [{candidate.sentence_id}]: \"{sentence.text}\"\n"
+            f"{voice.sentence} [{candidate.sentence_id}]: \"{sentence.text}\"\n"
             f"Candidate split at the marker '{candidate.connective}':\n"
             f"LEFT: \"{left}\"\nRIGHT: \"{right}\"\n"
             "Classify what this marker does in this sentence."
@@ -223,12 +260,12 @@ class RecombCheck:
     claim_texts: list[str]
 
 
-def recomb_question(check: RecombCheck) -> YesNoQuestion:
+def recomb_question(check: RecombCheck, voice: Voice = ANSWER_VOICE) -> YesNoQuestion:
     numbered = "\n".join(f'{i + 1}. "{t}"' for i, t in enumerate(check.claim_texts))
     return YesNoQuestion(
         question_id=check.question_id,
         instructions=(
-            f'This part of the answer reads: "{check.region_text}"\n'
+            f'{voice.part} reads: "{check.region_text}"\n'
             f"It was split into separate claims, carrying the shared beginning over:\n{numbered}\n"
             "Do these claims TOGETHER assert exactly what that part asserts — nothing added, "
             "nothing lost, no change of meaning? Watch for collective readings that break when "
@@ -246,22 +283,19 @@ class JevProposalOutcome:
     non_claim_spans: list[Span] = field(default_factory=list)
 
 
-def non_claim_question(sentence: Sentence) -> ChoiceQuestion:
+def non_claim_question(sentence: Sentence, voice: Voice = ANSWER_VOICE) -> ChoiceQuestion:
     """Meta-discourse gate (unit eligibility, upstream of all judging): a
     sentence that asserts no fact of its own must not become a claim. The
     definition is deliberately narrow — anything that asserts a fact stays."""
     return ChoiceQuestion(
         question_id=f"nc::{sentence.sentence_id}",
         instructions=(
-            f'Answer sentence [{sentence.sentence_id}]: "{sentence.text}"\n'
+            f'{voice.sentence} [{sentence.sentence_id}]: "{sentence.text}"\n'
             "Does this sentence make a checkable statement of its own — or is it pure "
             "meta-discourse addressed to the reader: a greeting, thanks, an offer to "
             "help further, a question to the reader, or a pure header/transition that "
             "only announces other content ('Here are the steps:')?\n"
-            "Careful: a sentence that asserts ANY fact counts as a statement, including "
-            "one wrapped in framing ('Based on the passages, the cost is X'), and a "
-            "remark about what the passages do or do not say IS a checkable statement "
-            "about the sources — not meta-discourse."
+            + voice.nc_caution
         ),
         options={
             "factual_claim": (
@@ -361,6 +395,7 @@ def build_tree_from_cuts(
     *,
     min_prob: float,
     rejected_shared: set[str] | None = None,
+    voice: Voice = ANSWER_VOICE,
 ) -> JevProposalOutcome:
     tree = SemanticTree(store=store)
     notes: list[str] = []
@@ -568,7 +603,7 @@ def build_tree_from_cuts(
                     member_ids=[left.node_id, right.node_id],
                     parent_id=sentence_node.node_id,
                     display_text=(
-                        f'The answer links these as {_LINK_RELATION[choice].value} '
+                        f'{voice.links} as {_LINK_RELATION[choice].value} '
                         f'("{candidate.connective}"): "{left.display_text}" / "{right.display_text}"'
                     ),
                     status=NodeStatus.CHECKED,
@@ -596,21 +631,22 @@ async def propose_with_jev(
     max_per_request: int,
     max_parallel: int,
     nc_min_prob: float = 0.80,
+    voice: Voice = ANSWER_VOICE,
 ) -> JevProposalOutcome:
     candidates = find_candidates(store)
-    questions = [cut_question(store, c) for c in candidates]
+    questions = [cut_question(store, c, voice) for c in candidates]
     # unit eligibility rides the same round: one nc question per sentence
-    questions += [non_claim_question(s) for s in store.answer_sentences]
+    questions += [non_claim_question(s, voice) for s in store.answer_sentences]
     answers: dict[str, Answer] = {}
     if questions:
         answers = await ask_batched(
             decider,
-            build_answer_state(store),
+            build_answer_state(store, voice.state_title),
             questions,
             max_per_request=max_per_request,
             max_parallel=max_parallel,
         )
-    outcome = build_tree_from_cuts(store, candidates, answers, min_prob=min_prob)
+    outcome = build_tree_from_cuts(store, candidates, answers, min_prob=min_prob, voice=voice)
     for sentence in store.answer_sentences:
         answer = answers.get(f"nc::{sentence.sentence_id}")
         p = (answer.probabilities or {}).get("meta_discourse", 0.0) if answer else 0.0
@@ -625,8 +661,8 @@ async def propose_with_jev(
     # check sees the answer only, like everything else in decomposition
     recomb = await ask_batched(
         decider,
-        build_answer_state(store),
-        [recomb_question(c) for c in outcome.shared_checks],
+        build_answer_state(store, voice.state_title),
+        [recomb_question(c, voice) for c in outcome.shared_checks],
         max_per_request=max_per_request,
         max_parallel=max_parallel,
     )
@@ -638,7 +674,7 @@ async def propose_with_jev(
     if not rejected:
         return outcome
     rebuilt = build_tree_from_cuts(
-        store, candidates, answers, min_prob=min_prob, rejected_shared=rejected
+        store, candidates, answers, min_prob=min_prob, rejected_shared=rejected, voice=voice
     )
     # the eligibility decision rides the first outcome; carry it over
     rebuilt.non_claim_spans = outcome.non_claim_spans

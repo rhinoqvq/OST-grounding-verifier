@@ -39,9 +39,14 @@ def build_answer_token_view(store: TextStore) -> str:
     return " ".join(f"{t.index}:{t.text}" for t in store.answer_tokens)
 
 
-def build_answer_state(store: TextStore) -> str:
-    """State for fidelity checks: the answer only, with sentence ids."""
-    lines = ["The answer being decomposed (sources are deliberately not shown):"]
+ANSWER_STATE_TITLE = "The answer being decomposed (sources are deliberately not shown):"
+
+
+def build_answer_state(store: TextStore, title: str = ANSWER_STATE_TITLE) -> str:
+    """State for decomposition and fidelity checks: the text being decomposed
+    alone, with sentence ids. `title` names that text (a source passage when
+    the source tree runs the same decomposition)."""
+    lines = [title]
     lines += [f"[{s.sentence_id}] {s.text}" for s in store.answer_sentences]
     return "\n".join(lines)
 
