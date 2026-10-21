@@ -112,6 +112,11 @@ def render_reasoning(unit: Node, judgment: UnitJudgment, *, context_empty: bool 
             "rather than the explicit opposite of this claim, so per the strict rule it is "
             "reported as UNSUPPORTED."
         )
+    if any(f.startswith("llm_rescue(") for f in flags):
+        return (
+            "The primary judge was uncertain, so a second model re-checked the claim and "
+            f"supplied a verbatim supporting quote that code verified in the source ({evidence})."
+        )
     if any(f.startswith("low_confidence") for f in flags):
         return (
             f"The judge's probability distribution over verdicts was too flat to trust{p_text}; "

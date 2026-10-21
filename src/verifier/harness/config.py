@@ -28,6 +28,17 @@ class Settings(BaseSettings):
     jev_cut_min_prob: float = 0.60  # jev proposer: accept a cut above this probability
     # (cut-vote averaging removed 2026-10-22: measured no flip reduction on
     # the boundary-riding candidates it targeted; see design log)
+    # meta-discourse exclusion (jev path): a sentence is dropped from the
+    # claims only when Jev is confident it asserts no fact of its own. A
+    # false exclusion hides content from verification (danger direction),
+    # hence the deliberately high bar.
+    nc_min_prob: float = 0.80
+    # second-opinion rescue for flat UNSUPPORTED facts: "off" | "llm".
+    # A DIFFERENT judge (the generative model) re-checks what the calibrated
+    # judge left flat; an upgrade to S requires a verbatim quote that code
+    # verifies inside the cited sentence. Same-judge stacking is correlated
+    # (measured, n02), which is why this arm exists at all.
+    flat_escalation: str = "off"
     llm_provider: str = "openai"  # openai | qwen (which generative model proposes structure)
     openai_model: str = "gpt-6-astra"
     qwen_model: str = "qwen-plus"

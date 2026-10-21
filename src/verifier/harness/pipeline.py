@@ -26,6 +26,7 @@ from verifier.harness.context import (
 from verifier.harness.errors import MalformedModelOutput
 from verifier.harness.trace import Trace
 from verifier.judge.aggregate import apply_parent_recheck, relation_verdict, sentences_needing_recheck
+from verifier.judge.escalate import escalate_flat
 from verifier.judge.entail import (
     UnitJudgment,
     apply_grounding_gate,
@@ -124,7 +125,9 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             recomb_min_prob=settings.fidelity_min_prob,
             max_per_request=settings.max_questions_per_request,
             max_parallel=settings.max_parallel_requests,
+            nc_min_prob=settings.nc_min_prob,
         )
+        non_claim_spans = jev_outcome.non_claim_spans
         tree = jev_outcome.tree
         outcome = CheckOutcome(
             accepted_units=jev_outcome.units, fallback_sentence_ids=set(), notes=jev_outcome.notes
@@ -520,6 +523,28 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                         grounding_min_prob=settings.grounding_min_prob, store=store,
                     )
                 trace.note(f"member rescue: {member_id} <- {unit.node_id} ({sid})")
+
+        # flat-U battle (K2, different judge): facts still flat after every
+        # cheaper rescue go to the generative model for a second opinion; an
+        # upgrade needs a code-verified verbatim quote (see judge/escalate.py)
+        if settings.flat_escalation == "llm":
+            still_flat = [
+                u for u in fact_units
+                if judgments[u.node_id].verdict is Verdict.UNSUPPORTED
+                and any(f.startswith("low_confidence") for f in judgments[u.node_id].flags)
+            ]
+            if still_flat:
+                upgrades = await asyncio.gather(
+                    *(escalate_flat(deps.llm, store, u, judgments[u.node_id]) for u in still_flat)
+                )
+                for u, upgraded in zip(still_flat, upgrades):
+                    if upgraded:
+                        # B04 discipline: an upgraded S re-satisfies grounding
+                        apply_grounding_gate(
+                            u, judgments[u.node_id], answers,
+                            grounding_min_prob=settings.grounding_min_prob, store=store,
+                        )
+                trace.note(f"llm escalation: {sum(upgrades)}/{len(still_flat)} flats rescued")
 
         # relation claims inherit the most severe verdict of their members
         for unit in units:

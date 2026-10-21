@@ -243,6 +243,37 @@ class JevProposalOutcome:
     units: list[Node]
     notes: list[str]
     shared_checks: list[RecombCheck] = field(default_factory=list)
+    non_claim_spans: list[Span] = field(default_factory=list)
+
+
+def non_claim_question(sentence: Sentence) -> ChoiceQuestion:
+    """Meta-discourse gate (unit eligibility, upstream of all judging): a
+    sentence that asserts no fact of its own must not become a claim. The
+    definition is deliberately narrow — anything that asserts a fact stays."""
+    return ChoiceQuestion(
+        question_id=f"nc::{sentence.sentence_id}",
+        instructions=(
+            f'Answer sentence [{sentence.sentence_id}]: "{sentence.text}"\n'
+            "Does this sentence make a checkable statement of its own — or is it pure "
+            "meta-discourse addressed to the reader: a greeting, thanks, an offer to "
+            "help further, a question to the reader, or a pure header/transition that "
+            "only announces other content ('Here are the steps:')?\n"
+            "Careful: a sentence that asserts ANY fact counts as a statement, including "
+            "one wrapped in framing ('Based on the passages, the cost is X'), and a "
+            "remark about what the passages do or do not say IS a checkable statement "
+            "about the sources — not meta-discourse."
+        ),
+        options={
+            "factual_claim": (
+                "The sentence asserts at least one checkable thing — about the subject "
+                "matter or about what the sources say."
+            ),
+            "meta_discourse": (
+                "The sentence asserts nothing checkable: greeting, offer of help, "
+                "question to the reader, or a pure header/transition."
+            ),
+        },
+    )
 
 
 def _containing_unit(units: list[Node], position: int) -> Node | None:
@@ -564,11 +595,14 @@ async def propose_with_jev(
     recomb_min_prob: float,
     max_per_request: int,
     max_parallel: int,
+    nc_min_prob: float = 0.80,
 ) -> JevProposalOutcome:
     candidates = find_candidates(store)
+    questions = [cut_question(store, c) for c in candidates]
+    # unit eligibility rides the same round: one nc question per sentence
+    questions += [non_claim_question(s) for s in store.answer_sentences]
     answers: dict[str, Answer] = {}
-    if candidates:
-        questions = [cut_question(store, c) for c in candidates]
+    if questions:
         answers = await ask_batched(
             decider,
             build_answer_state(store),
@@ -577,6 +611,14 @@ async def propose_with_jev(
             max_parallel=max_parallel,
         )
     outcome = build_tree_from_cuts(store, candidates, answers, min_prob=min_prob)
+    for sentence in store.answer_sentences:
+        answer = answers.get(f"nc::{sentence.sentence_id}")
+        p = (answer.probabilities or {}).get("meta_discourse", 0.0) if answer else 0.0
+        if p >= nc_min_prob:
+            outcome.non_claim_spans.append(sentence.span)
+            outcome.notes.append(
+                f"nc::{sentence.sentence_id}: meta-discourse (p={p:.2f}); excluded from claims"
+            )
     if not outcome.shared_checks:
         return outcome
     # recombination round: only fires when a shared-part cut was accepted; the
@@ -595,6 +637,10 @@ async def propose_with_jev(
     }
     if not rejected:
         return outcome
-    return build_tree_from_cuts(
+    rebuilt = build_tree_from_cuts(
         store, candidates, answers, min_prob=min_prob, rejected_shared=rejected
     )
+    # the eligibility decision rides the first outcome; carry it over
+    rebuilt.non_claim_spans = outcome.non_claim_spans
+    rebuilt.notes.extend(n for n in outcome.notes if n.startswith("nc::"))
+    return rebuilt

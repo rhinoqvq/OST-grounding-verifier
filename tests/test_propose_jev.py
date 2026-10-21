@@ -1107,3 +1107,89 @@ async def test_bridge_rescue_regated_for_grounding():
     )
     claim = response.claims[0]
     assert claim.verdict is Verdict.UNSUPPORTED
+
+
+async def test_meta_discourse_sentence_is_excluded():
+    """nc gate: a pure greeting/offer sentence is dropped from the claims at
+    the high bar (0.80); below the bar, or a factual sentence, stays. A false
+    exclusion hides content (danger direction), hence the bar."""
+    from test_pipeline import make_deps
+    from verifier.harness.pipeline import run_verification
+
+    answer = "I hope this helps with your setup! The cache stores query results."
+    passages = ["The cache stores query results."]
+
+    def nc(sid, meta_p):
+        return Answer(f"nc::{sid}", choice="meta_discourse" if meta_p >= 0.5 else "factual_claim",
+                      probabilities={"factual_claim": 1 - meta_p, "meta_discourse": meta_p})
+
+    script = {
+        "nc::A.S0": nc("A.S0", 0.92),  # greeting: excluded
+        "v::sent::A.S1": verdict_answer("v::sent::A.S1", "supported"),
+        "r::sent::A.S1::P0.S0": Answer("r::sent::A.S1::P0.S0", yes_prob=0.9),
+    }
+    response, trace = await run_verification(
+        VerifyRequest(context_passages=passages, generated_answer=answer),
+        make_deps(FakeLLM(), scripted_decider(script), proposer="jev"),
+    )
+    assert len(response.claims) == 1
+    assert response.claims[0].claim_text == "The cache stores query results."
+
+    # below the bar: both sentences stay
+    script2 = dict(script)
+    script2["nc::A.S0"] = nc("A.S0", 0.6)
+    script2["v::sent::A.S0"] = verdict_answer("v::sent::A.S0", "not_in_context")
+    response, _ = await run_verification(
+        VerifyRequest(context_passages=passages, generated_answer=answer),
+        make_deps(FakeLLM(), scripted_decider(script2), proposer="jev"),
+    )
+    assert len(response.claims) == 2
+
+
+async def test_llm_escalation_requires_verbatim_witness():
+    """Flat-U escalation: a second-judge 'supported' upgrades only with a
+    verbatim quote verified inside the cited sentence; a fabricated quote or a
+    declined answer leaves the flat U untouched."""
+    from verifier.judge.entail import UnitJudgment
+    from verifier.judge.escalate import EscalationAnswer, escalate_flat
+    from verifier.rag.tree import Node, NodeKind, NodeStatus
+
+    passages = ["The exporter writes metrics to a local file every minute."]
+    store = TextStore.from_request("The exporter writes metrics every minute.", passages)
+    sentence = store.answer_sentences[0]
+    unit = Node(node_id="sent::A.S0", origin="answer", sentence_id=sentence.sentence_id,
+                kind=NodeKind.SENTENCE, anchor_spans=[sentence.span],
+                display_text=sentence.text, status=NodeStatus.CHECKED)
+
+    class FakeEscalationLLM:
+        def __init__(self, answer):
+            self.answer = answer
+
+        async def generate_structured(self, messages, schema):
+            assert schema is EscalationAnswer
+            return self.answer
+
+    def flat_judgment():
+        return UnitJudgment(node_id=unit.node_id, node_version=1,
+                            verdict=Verdict.UNSUPPORTED, flags=["low_confidence(p=0.5)"])
+
+    j = flat_judgment()
+    ok = await escalate_flat(
+        FakeEscalationLLM(EscalationAnswer(verdict="supported", sentence_id="P0.S0",
+                                           quote="writes metrics to a local file")),
+        store, unit, j)
+    assert ok and j.verdict is Verdict.SUPPORTED and j.evidence_sentence_ids == ["P0.S0"]
+    assert any(f.startswith("llm_rescue(") for f in j.flags)
+
+    j = flat_judgment()
+    ok = await escalate_flat(
+        FakeEscalationLLM(EscalationAnswer(verdict="supported", sentence_id="P0.S0",
+                                           quote="writes metrics to the cloud nightly")),
+        store, unit, j)
+    assert not ok and j.verdict is Verdict.UNSUPPORTED
+    assert any(f.startswith("llm_rescue_no_witness") for f in j.flags)
+
+    j = flat_judgment()
+    ok = await escalate_flat(
+        FakeEscalationLLM(EscalationAnswer(verdict="not_established")), store, unit, j)
+    assert not ok and j.verdict is Verdict.UNSUPPORTED

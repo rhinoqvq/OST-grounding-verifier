@@ -103,6 +103,10 @@ def scripted_decider(script: dict[str, Answer] | None = None) -> FakeDecider:
 
     def default(question) -> Answer:
         qid = question.question_id
+        if qid.startswith("nc::") and isinstance(question, ChoiceQuestion):
+            # default: every sentence is a factual claim (exclusion is opt-in)
+            probs = {"factual_claim": 0.9, "meta_discourse": 0.1}
+            return Answer(qid, choice="factual_claim", probabilities=probs, confidence=0.9)
         if qid.startswith("g::"):
             return Answer(qid, yes_prob=0.9)
         if qid.startswith("recomb::"):
