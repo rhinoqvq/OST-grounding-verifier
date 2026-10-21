@@ -1193,3 +1193,16 @@ async def test_llm_escalation_requires_verbatim_witness():
     ok = await escalate_flat(
         FakeEscalationLLM(EscalationAnswer(verdict="not_established")), store, unit, j)
     assert not ok and j.verdict is Verdict.UNSUPPORTED
+
+
+def test_lexicon_conditional_words_can_generate_candidates():
+    """Subtraction audit R4 obligation: a word with the 'conditional' role must
+    also carry a candidate-generating role (cut/lead/inversion) — otherwise
+    adding it to the scope guard is a silent no-op (the n05 failure mode)."""
+    from verifier.methods.optimized.semantics.lexicon import _LEXICON
+
+    for word, roles in _LEXICON.items():
+        if "conditional" in roles:
+            assert roles & {"cut", "lead", "inversion"}, (
+                f"'{word}' is conditional but no candidate generator can see it"
+            )

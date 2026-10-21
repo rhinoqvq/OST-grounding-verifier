@@ -23,7 +23,12 @@ from verifier.harness.context import (
 )
 from verifier.harness.errors import MalformedModelOutput
 from verifier.harness.trace import Trace
-from verifier.methods.optimized.judge.aggregate import apply_parent_recheck, relation_verdict, sentences_needing_recheck
+from verifier.methods.optimized.judge.aggregate import (
+    apply_parent_recheck,
+    most_severe,
+    relation_verdict,
+    sentences_needing_recheck,
+)
 from verifier.methods.optimized.judge.escalate import escalate_flat
 from verifier.methods.optimized.judge.entail import (
     UnitJudgment,
@@ -55,6 +60,18 @@ from verifier.methods.optimized.semantics.select import make_sentence_unit, sele
 
 
 from verifier.harness.pipeline import Dependencies, _save
+
+
+def _admit_upgrade(unit, judgment, answers, settings, store, trace: Trace, label: str) -> None:
+    """The one admission point for every K2 upgrade (subtraction audit R6:
+    rescue RULES stay separate, the submission obligations live once). Every
+    upgraded verdict re-satisfies the grounding obligation here (round-2 audit
+    B04) and leaves its decision note; no rescue may bypass this door."""
+    apply_grounding_gate(
+        unit, judgment, answers,
+        grounding_min_prob=settings.grounding_min_prob, store=store,
+    )
+    trace.note(f"{label}: {unit.node_id} -> {judgment.verdict.value}")
 
 
 async def run_verification(request: VerifyRequest, deps: Dependencies) -> tuple[VerifyResponse, Trace]:
@@ -318,15 +335,26 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 )
             for unit in relation_units:
                 if unit.relation_type is RelationType.CONTRAST:
+                    # R5 (subtraction audit): no placeholder own-verdict. A
+                    # contrast is truth-functional, so its verdict IS the
+                    # members' most severe — derived here instead of writing a
+                    # neutral S for the merge loop to overwrite. Label-equal by
+                    # the bottom-element identity (S is minimal in the severity
+                    # lattice), but no placeholder now poses as a judged S.
+                    # Evidence keeps the merge loop's semantics: U cites
+                    # nothing, S/C cite the member union.
+                    member_js = [judgments[m] for m in unit.member_ids if m in judgments]
+                    verdict = most_severe([j.verdict for j in member_js])
                     evidence: list[str] = []
-                    for member_id in unit.member_ids:
-                        for sid in (judgments.get(member_id) or UnitJudgment("", 0, Verdict.UNSUPPORTED)).evidence_sentence_ids:
-                            if sid not in evidence:
-                                evidence.append(sid)
+                    if verdict is not Verdict.UNSUPPORTED:
+                        for j in member_js:
+                            for sid in j.evidence_sentence_ids:
+                                if sid not in evidence:
+                                    evidence.append(sid)
                     judgments[unit.node_id] = UnitJudgment(
                         node_id=unit.node_id,
                         node_version=unit.version,
-                        verdict=Verdict.SUPPORTED,  # neutral; member merge decides
+                        verdict=verdict,
                         evidence_sentence_ids=evidence,
                         flags=["contrast_truth_functional"],
                     )
@@ -451,13 +479,8 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 if rescued is not None:
                     rescued.flags = [*judgments[unit.node_id].flags, *rescued.flags]
                     judgments[unit.node_id] = rescued
-                    # round-2 audit B04: an upgraded S must re-satisfy the
-                    # grounding obligation — the gate never saw this unit as S
-                    apply_grounding_gate(
-                        unit, judgments[unit.node_id], answers,
-                        grounding_min_prob=settings.grounding_min_prob, store=store,
-                    )
-                    trace.note(f"bridge rescue: {unit.node_id} -> {judgments[unit.node_id].verdict.value}")
+                    _admit_upgrade(unit, judgments[unit.node_id], answers, settings,
+                                   store, trace, "bridge rescue")
 
         # member rescue (K2): a staged-matched CAUSE/SEQUENCE relation carries
         # a constructive witness (the link sentence + both side checks) that
@@ -489,14 +512,12 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 member.evidence_sentence_ids = list(own.evidence_sentence_ids)
                 sid = own.evidence_sentence_ids[0] if own.evidence_sentence_ids else "?"
                 member.flags.append(f"member_rescue({sid})")
-                # round-2 audit B04: same re-gating obligation as bridge
                 member_node = tree.nodes.get(member_id)
                 if member_node is not None:
-                    apply_grounding_gate(
-                        member_node, member, answers,
-                        grounding_min_prob=settings.grounding_min_prob, store=store,
-                    )
-                trace.note(f"member rescue: {member_id} <- {unit.node_id} ({sid})")
+                    _admit_upgrade(member_node, member, answers, settings, store,
+                                   trace, f"member rescue <- {unit.node_id} ({sid})")
+                else:
+                    trace.note(f"member rescue <- {unit.node_id} ({sid}): {member_id} (no node)")
 
         # flat-U battle (K2, different judge): facts still flat after every
         # cheaper rescue go to the generative model for a second opinion; an
@@ -513,11 +534,8 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 )
                 for u, upgraded in zip(still_flat, upgrades):
                     if upgraded:
-                        # B04 discipline: an upgraded S re-satisfies grounding
-                        apply_grounding_gate(
-                            u, judgments[u.node_id], answers,
-                            grounding_min_prob=settings.grounding_min_prob, store=store,
-                        )
+                        _admit_upgrade(u, judgments[u.node_id], answers, settings,
+                                       store, trace, "llm escalation")
                 trace.note(f"llm escalation: {sum(upgrades)}/{len(still_flat)} flats rescued")
 
         # relation claims inherit the most severe verdict of their members
