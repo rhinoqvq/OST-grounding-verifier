@@ -51,13 +51,15 @@ class Settings(BaseSettings):
     jev_model: str = "jev-1.13.0"
     jev_expected_served: str = "jev-1.13.0"
 
-    # input limits (chars; checked before any model call). The whole context
-    # rides along in every Jev request, whose ceiling is about 32k tokens; 100k
-    # chars is about 21k tokens, leaving room for the questions of one request.
+    # input limits (chars; checked before any model call). A source larger than
+    # one Jev request (about 32k tokens) is never sent whole: the source tree is
+    # built in windows and judge states are narrowed to max_state_tokens, so
+    # these bound cost and latency, not request size. Source-tree requests grow
+    # with the passage count (one window per passage), hence the passage cap.
     max_answer_chars: int = 8_000
-    max_passage_chars: int = 100_000
-    max_passages: int = 100
-    max_total_context_chars: int = 100_000
+    max_passage_chars: int = 500_000
+    max_passages: int = 1_000
+    max_total_context_chars: int = 500_000
 
     # decision thresholds (tuned on the dev set; defaults are starting points)
     verdict_min_prob: float = 0.55     # top verdict option below this -> UNSUPPORTED

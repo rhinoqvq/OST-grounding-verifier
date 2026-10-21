@@ -70,11 +70,14 @@ def test_chunks_split_when_the_token_budget_would_be_exceeded():
     assert sum(len(c) for c in chunks) == 6
 
 
-def test_context_up_to_100k_chars_is_accepted_and_beyond_is_refused():
+def test_context_up_to_500k_chars_and_1000_passages_is_accepted_and_beyond_is_refused():
     settings = Settings()
-    check_input_limits("answer", ["x" * 50_000, "y" * 50_000], settings)
-    check_input_limits("answer", ["p"] * 100, settings)
+    check_input_limits("answer", ["x" * 250_000, "y" * 250_000], settings)
+    check_input_limits("answer", ["x" * 500_000], settings)
+    check_input_limits("answer", ["p"] * 1_000, settings)
     with pytest.raises(InputTooLarge):
-        check_input_limits("answer", ["x" * 50_000, "y" * 50_001], settings)
+        check_input_limits("answer", ["x" * 250_000, "y" * 250_001], settings)
     with pytest.raises(InputTooLarge):
-        check_input_limits("answer", ["p"] * 101, settings)
+        check_input_limits("answer", ["x" * 500_001], settings)
+    with pytest.raises(InputTooLarge):
+        check_input_limits("answer", ["p"] * 1_001, settings)
