@@ -57,7 +57,23 @@ _PROTECT_PATTERNS = [
 # Trade-off: a real sentence ending in a bare small number ("version 2. It...")
 # gets merged with the next one; in technical how-to text, inline step lists
 # are far more common than that, so we protect the marker.
-_STEP_MARKER = re.compile(r"(?<![\w.,])\d{1,2}[.)]\s")
+_STEP_MARKER = re.compile(r"(?<![\w.,])\d{1,2}[.)][ \t]")
+
+# Opening brackets/quotes that spaCy leaves dangling at the end of the previous
+# sentence ("...item. (" + "Passage 1) ...").
+_OPENERS = "([{“‘"
+# A short bracketed note right after a sentence end belongs to that sentence:
+# answers cite sources this way ("...item. (Passage 1)").
+_TRAILER = re.compile(r"[(\[][^()\[\]\n]{1,60}[)\]][.,;:]?")
+# ...except a bare enumerator, which opens the next item ("(2) pour water").
+_ENUMERATOR = re.compile(r"\(\s*(?:\d{1,2}|[A-Za-z])\s*\)")
+_PARAGRAPH_BREAK = re.compile(r"\n[ \t]*\n\s*(?=\S)")
+_LIST_ITEM = re.compile(r"(?m)^([ \t]*)(?:\d{1,2}[.)]|[-*•])[ \t]+(?=\S)")
+
+
+def _closes_open_paren(text: str, pos: int) -> bool:
+    line = text[text.rfind("\n", 0, pos) + 1 : pos]
+    return line.count("(") > line.count(")")
 
 
 def protect_special_spans(text: str) -> list[tuple[int, int]]:
@@ -66,9 +82,39 @@ def protect_special_spans(text: str) -> list[tuple[int, int]]:
     for pat in _PROTECT_PATTERNS:
         ranges.extend(m.span() for m in pat.finditer(text))
     # A step marker protects itself plus the following char, so "1." never
-    # becomes a sentence of its own.
-    ranges.extend((m.start(), m.end() + 1) for m in _STEP_MARKER.finditer(text))
+    # becomes a sentence of its own. "1)" closing "(Passage 1)" is a citation,
+    # not a marker.
+    for m in _STEP_MARKER.finditer(text):
+        if m.group()[-2] == ")" and _closes_open_paren(text, m.start()):
+            continue
+        ranges.append((m.start(), m.end() + 1))
     return sorted(ranges)
+
+
+def _model_boundaries(text: str) -> set[int]:
+    """spaCy sentence starts, with brackets kept whole and trailing bracketed
+    notes kept on the sentence they follow."""
+    out: set[int] = set()
+    for b in [s.start_char for s in _nlp()(text).sents][1:]:
+        m = b
+        while m > 0 and text[m - 1].isspace():
+            m -= 1
+        if m > 0 and text[m - 1] in _OPENERS:
+            b = m - 1
+        trailer = _TRAILER.match(text, b)
+        if trailer and not _ENUMERATOR.fullmatch(trailer.group().rstrip(".,;:")):
+            b = trailer.end()
+            while b < len(text) and text[b].isspace():
+                b += 1
+        out.add(b)
+    return out
+
+
+def _layout_boundaries(text: str) -> set[int]:
+    """Paragraph breaks and line-initial list markers always start a sentence."""
+    out = {m.end() for m in _PARAGRAPH_BREAK.finditer(text)}
+    out |= {m.start() + len(m.group(1)) for m in _LIST_ITEM.finditer(text)}
+    return out
 
 
 @lru_cache(maxsize=1)
@@ -87,17 +133,18 @@ def _in_protected(pos: int, ranges: list[tuple[int, int]]) -> bool:
 def segment(doc_id: str, text: str) -> list[Span]:
     """Split into sentence spans (char offsets into the original text).
 
-    spaCy's rule-based sentencizer proposes boundaries; boundaries that fall
-    inside a protected span are merged away. Whitespace-only pieces are
-    dropped; leading/trailing whitespace is trimmed from each span.
+    spaCy's rule-based sentencizer proposes boundaries, paragraph breaks and
+    list items add their own; boundaries that fall inside a protected span are
+    merged away. Whitespace-only pieces are dropped; leading/trailing
+    whitespace is trimmed from each span.
     """
     if not text.strip():
         return []
     protected = protect_special_spans(text)
-    doc = _nlp()(text)
-    # Candidate boundaries: sentence start offsets except position 0.
-    bounds = [s.start_char for s in doc.sents][1:]
-    bounds = [b for b in bounds if not _in_protected(b, protected)]
+    candidates = _model_boundaries(text) | _layout_boundaries(text)
+    bounds = sorted(
+        b for b in candidates if 0 < b < len(text) and not _in_protected(b, protected)
+    )
     starts = [0, *bounds]
     ends = [*bounds, len(text)]
     spans: list[Span] = []

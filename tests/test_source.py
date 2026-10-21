@@ -29,6 +29,62 @@ def test_formula_and_filenames_survive():
     assert "=WORKDAY" in text[spans[0].start : spans[0].end]
 
 
+def _pieces(text: str) -> list[str]:
+    return [text[s.start : s.end] for s in segment("answer", text)]
+
+
+def test_list_items_keep_their_trailing_citation():
+    text = (
+        "Based on the provided passages, an UPDescription is:\n\n"
+        "1. A barcode symbology used for tracking. (Passage 1)\n"
+        "2. A process involving DD Form 2624 (a military form). (Passage 2)\n"
+        "3. A barcode partner. (Passage 3)\n\n"
+        "Unable to answer based on given passages."
+    )
+    assert _pieces(text) == [
+        "Based on the provided passages, an UPDescription is:",
+        "1. A barcode symbology used for tracking. (Passage 1)",
+        "2. A process involving DD Form 2624 (a military form). (Passage 2)",
+        "3. A barcode partner. (Passage 3)",
+        "Unable to answer based on given passages.",
+    ]
+
+
+def test_inline_citation_stays_with_its_sentence():
+    assert _pieces("It rained. (Passage 2) Then it stopped.") == [
+        "It rained. (Passage 2)",
+        "Then it stopped.",
+    ]
+
+
+def test_parenthesized_enumerator_opens_the_next_item():
+    assert _pieces("Do this: (1) open the lid. (2) pour water.") == [
+        "Do this: (1) open the lid.",
+        "(2) pour water.",
+    ]
+
+
+def test_paragraph_breaks_and_list_markers_split():
+    assert _pieces("To grill a steak, follow these steps:\n1. Preheat.\n2. Cook\n3. Rest") == [
+        "To grill a steak, follow these steps:",
+        "1. Preheat.",
+        "2. Cook",
+        "3. Rest",
+    ]
+    assert _pieces("The name Teresa means:\n\n* In Greek, harvester\n* In Spanish, reaper") == [
+        "The name Teresa means:",
+        "* In Greek, harvester",
+        "* In Spanish, reaper",
+    ]
+
+
+def test_single_line_break_inside_a_sentence_does_not_split():
+    assert _pieces("Prices rose 3.5\npercent last year. That hurt.") == [
+        "Prices rose 3.5\npercent last year.",
+        "That hurt.",
+    ]
+
+
 def test_slice_is_verbatim(wal_store: TextStore):
     for sentence in [*wal_store.answer_sentences, *wal_store.all_source_sentences()]:
         assert wal_store.slice(sentence.span) == sentence.text
