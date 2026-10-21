@@ -56,7 +56,11 @@ def build_source_state(store: TextStore, sentences: list[Sentence] | None = None
     last_doc = None
     for s in chosen:
         if s.span.doc != last_doc:
-            lines.append(f"--- passage {store.passage_index_of(s.span.doc)} ---")
+            # Labels count from 1 because answers do ("passage 3" = third passage);
+            # with 0-based labels the judge read correct citations as wrong and
+            # off-by-one citations as right, and a translation note did not help.
+            # Sentence ids and API citation indexes stay 0-based.
+            lines.append(f"--- passage {store.passage_index_of(s.span.doc) + 1} ---")
             last_doc = s.span.doc
         lines.append(f"[{s.sentence_id}] {s.text}")
     return "\n".join(lines)
