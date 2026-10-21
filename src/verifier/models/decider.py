@@ -11,6 +11,10 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 
+# Jev rejects a choice question with more options than this (422).
+MAX_CHOICE_OPTIONS = 255
+
+
 @dataclass(frozen=True)
 class ChoiceQuestion:
     question_id: str

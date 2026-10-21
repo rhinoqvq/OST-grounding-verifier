@@ -39,6 +39,16 @@ def lexical_scores(unit_text: str, sentences: list[Sentence]) -> list[float]:
     return scores
 
 
+def top_by_overlap(text: str, sentences: list[Sentence], k: int) -> list[Sentence]:
+    """The k sentences sharing the most terms with `text`, in source order."""
+    scored = sorted(
+        zip(lexical_scores(text, sentences), range(len(sentences)), sentences),
+        key=lambda t: (-t[0], t[1]),
+    )
+    keep = sorted(scored[:k], key=lambda t: t[1])
+    return [s for _, _, s in keep]
+
+
 def candidate_sentences(
     store: TextStore,
     unit: Node,
@@ -50,9 +60,4 @@ def candidate_sentences(
     sentences = store.all_source_sentences()
     if len(sentences) <= max_candidates:
         return sentences
-    scored = sorted(
-        zip(lexical_scores(unit_text, sentences), range(len(sentences)), sentences),
-        key=lambda t: (-t[0], t[1]),
-    )
-    keep = sorted(scored[:max_candidates], key=lambda t: t[1])
-    return [s for _, _, s in keep]
+    return top_by_overlap(unit_text, sentences, max_candidates)

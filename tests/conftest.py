@@ -6,6 +6,8 @@ exactly the behavior each test needs, so failures point at our logic.
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from verifier.models.decider import Answer, ChoiceQuestion, FakeDecider, YesNoQuestion
@@ -103,6 +105,16 @@ def scripted_decider(script: dict[str, Answer] | None = None) -> FakeDecider:
 
     def default(question) -> Answer:
         qid = question.question_id
+        if "|" in qid:
+            # source-tree decomposition: same defaults as the answer side
+            base = default(dataclasses.replace(question, question_id=qid.split("|", 1)[1]))
+            return dataclasses.replace(base, question_id=qid)
+        if qid.startswith("m::") and isinstance(question, ChoiceQuestion):
+            # default: no source node maps, the whole-source judge decides
+            return Answer(qid, choice="not_in_context",
+                          probabilities={"supported": 0.05, "contradicted": 0.05,
+                                         "not_in_context": 0.90},
+                          confidence=0.9)
         if qid.startswith("nc::") and isinstance(question, ChoiceQuestion):
             # default: every sentence is a factual claim (exclusion is opt-in)
             probs = {"factual_claim": 0.9, "meta_discourse": 0.1}

@@ -51,11 +51,13 @@ class Settings(BaseSettings):
     jev_model: str = "jev-1.13.0"
     jev_expected_served: str = "jev-1.13.0"
 
-    # input limits (chars; checked before any model call)
+    # input limits (chars; checked before any model call). The whole context
+    # rides along in every Jev request, whose ceiling is about 32k tokens; 100k
+    # chars is about 21k tokens, leaving room for the questions of one request.
     max_answer_chars: int = 8_000
-    max_passage_chars: int = 8_000
-    max_passages: int = 20
-    max_total_context_chars: int = 40_000
+    max_passage_chars: int = 100_000
+    max_passages: int = 100
+    max_total_context_chars: int = 100_000
 
     # decision thresholds (tuned on the dev set; defaults are starting points)
     verdict_min_prob: float = 0.55     # top verdict option below this -> UNSUPPORTED
@@ -76,6 +78,12 @@ class Settings(BaseSettings):
     fidelity_min_prob: float = 0.60    # decomposition unit accepted above this
     max_evidence_sentences: int = 4
     max_candidate_sentences: int = 60  # lexical prefilter above this many source sentences
+    # two-tree check: the source gets the answer's decomposition and answer
+    # nodes are first mapped onto source nodes; unmapped ones fall back to the
+    # whole-source judge
+    source_tree: bool = True
+    tree_map_leaves: int = 4           # source leaves tried per answer fact (plus their sentences)
+    max_state_tokens: int = 26_000     # a state above this is narrowed to the relevant sentences
 
     # batching / retries
     max_questions_per_request: int = 48

@@ -179,6 +179,9 @@ class TextStore:
     answer_sentences: list[Sentence] = field(init=False)
     passage_sentences: list[list[Sentence]] = field(init=False)
     answer_tokens: list[Token] = field(init=False)
+    # citable source-tree nodes below sentence level (fragments, relations),
+    # sliced verbatim like sentences; registered after the source tree is built
+    source_units: dict[str, Sentence] = field(init=False)
 
     ANSWER_DOC = "answer"
 
@@ -197,6 +200,7 @@ class TextStore:
                 ]
             )
         self.answer_tokens = tokenize(self.ANSWER_DOC, self.answer)
+        self.source_units = {}
 
     @classmethod
     def from_request(cls, answer: str, passages: list[str]) -> "TextStore":
@@ -227,7 +231,16 @@ class TextStore:
     def all_source_sentences(self) -> list[Sentence]:
         return [s for per_passage in self.passage_sentences for s in per_passage]
 
+    def register_source_unit(self, unit_id: str, span: Span) -> Sentence:
+        if not span.doc.startswith("context:"):
+            raise ValueError(f"{span} is not in a context passage")
+        unit = Sentence(unit_id, span, self.slice(span))
+        self.source_units[unit_id] = unit
+        return unit
+
     def sentence_by_id(self, sentence_id: str) -> Sentence:
+        if sentence_id in self.source_units:
+            return self.source_units[sentence_id]
         pool = (
             self.answer_sentences
             if sentence_id.startswith("A.")

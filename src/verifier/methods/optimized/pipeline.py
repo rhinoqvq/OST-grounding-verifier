@@ -20,6 +20,7 @@ from verifier.harness.context import (
     build_answer_state,
     build_source_state,
     check_input_limits,
+    estimate_tokens,
 )
 from verifier.harness.errors import MalformedModelOutput
 from verifier.harness.trace import Trace
@@ -41,22 +42,34 @@ from verifier.methods.optimized.judge.entail import (
     decide_relation_verdict,
     decide_verdict,
     discharge_question,
+    grounding_question,
     judge_questions,
     opposition_question,
     relation_link_question,
     relation_stage2_questions,
     staged_link_choice,
+    verbatim_in_source,
+)
+from verifier.methods.optimized.judge.treemap import (
+    decide_fact_mapping,
+    decide_relation_mapping,
+    fact_mapping_plan,
+    isomorphic,
+    passage_state,
+    presence_question,
+    relation_mapping_plan,
 )
 from verifier.output.render import to_response
 from verifier.output.schemas import Verdict, VerifyRequest, VerifyResponse
 from verifier.rag import store as rag_store
-from verifier.rag.retrieve import candidate_sentences
+from verifier.rag.retrieve import candidate_sentences, top_by_overlap
 from verifier.rag.source import TextStore
-from verifier.rag.tree import NodeKind, RelationType, SemanticTree
+from verifier.rag.tree import Node, NodeKind, RelationType, SemanticTree
 from verifier.methods.optimized.semantics.check import CheckOutcome, apply_check_results, check_questions
 from verifier.methods.optimized.semantics.propose import Proposal, propose_structure, proposal_to_tree
 from verifier.methods.optimized.semantics.propose_jev import propose_with_jev
 from verifier.methods.optimized.semantics.select import make_sentence_unit, select_units
+from verifier.methods.optimized.semantics.source_tree import SourceTree, build_source_tree
 
 
 from verifier.harness.pipeline import Dependencies, _save
@@ -72,6 +85,110 @@ def _admit_upgrade(unit, judgment, answers, settings, store, trace: Trace, label
         grounding_min_prob=settings.grounding_min_prob, store=store,
     )
     trace.note(f"{label}: {unit.node_id} -> {judgment.verdict.value}")
+
+
+def _bounded_source_state(store: TextStore, units: list[Node], settings: Settings) -> str:
+    """The whole source when it fits the decider's request budget; otherwise
+    the sentences most relevant to the units, the largest such set that fits."""
+    state = build_source_state(store)
+    if estimate_tokens(state) <= settings.max_state_tokens:
+        return state
+    sentences = store.all_source_sentences()
+    texts = [u.display_text or " ".join(store.slice(sp) for sp in u.anchor_spans) for u in units]
+    for k in (40, 20, 10, 5, 2):
+        keep = {s.sentence_id for t in texts for s in top_by_overlap(t, sentences, k)}
+        state = build_source_state(store, [s for s in sentences if s.sentence_id in keep])
+        if estimate_tokens(state) <= settings.max_state_tokens:
+            break
+    return state
+
+
+async def _map_onto_source(
+    deps: Dependencies,
+    store: TextStore,
+    tree: SemanticTree,
+    source_tree: SourceTree,
+    fact_units: list[Node],
+    relation_units: list[Node],
+    source_state: str,
+) -> dict[str, UnitJudgment]:
+    """Two-tree check: answer nodes that map onto source nodes are SUPPORTED
+    here; the rest are left to the whole-source judge."""
+    settings = deps.settings
+    fact_plan = fact_mapping_plan(store, source_tree, fact_units, leaves_per_unit=settings.tree_map_leaves)
+    member_text = {nid: node.display_text or "" for nid, node in tree.nodes.items()}
+    relation_plan = relation_mapping_plan(store, source_tree, relation_units, member_text)
+    by_passage: dict[int, tuple[set[str], list]] = {}
+    for passage, items in fact_plan.items():
+        focus, questions = by_passage.setdefault(passage, (set(), []))
+        for question, sentence_id in items:
+            focus.add(sentence_id)
+            questions.append(question)
+    for rel, questions in relation_plan.values():
+        focus, passage_questions = by_passage.setdefault(rel.passage, (set(), []))
+        focus.add(rel.sentence_id)
+        passage_questions.extend(questions)
+
+    async def ask(passage: int, focus: set[str], questions: list) -> dict:
+        return await ask_batched(
+            deps.decider,
+            passage_state(store, passage, focus, settings.max_state_tokens),
+            questions,
+            max_per_request=settings.max_questions_per_request,
+            max_parallel=settings.max_parallel_requests,
+        )
+
+    answers: dict = {}
+    for part in await asyncio.gather(*(ask(p, f, q) for p, (f, q) in by_passage.items())):
+        answers.update(part)
+
+    mapped: dict[str, UnitJudgment] = {}
+    for unit in fact_units:
+        judgment = decide_fact_mapping(unit, answers, min_prob=settings.verdict_min_prob)
+        if judgment is not None:
+            mapped[unit.node_id] = judgment
+    for unit in relation_units:
+        if unit.node_id in relation_plan:
+            judgment = decide_relation_mapping(
+                unit, relation_plan[unit.node_id][0], answers, min_prob=settings.verdict_min_prob
+            )
+            if judgment is not None:
+                mapped[unit.node_id] = judgment
+
+    # every mapped fact owes the grounding obligation against the whole source:
+    # per diagnostic part where it has them, as one part otherwise; a failed
+    # check withdraws the mapping and the whole-source judge decides
+    gated = [u for u in fact_units if u.node_id in mapped]
+    if gated:
+        questions = []
+        for u in gated:
+            if u.diagnostic_spans:
+                questions += [grounding_question(store, u, i) for i in range(len(u.diagnostic_spans))]
+            else:
+                questions.append(presence_question(store, u))
+        g_answers = await ask_batched(
+            deps.decider,
+            source_state,
+            questions,
+            max_per_request=settings.max_questions_per_request,
+            max_parallel=settings.max_parallel_requests,
+        )
+        for unit in gated:
+            if unit.diagnostic_spans:
+                apply_grounding_gate(
+                    unit, mapped[unit.node_id], g_answers,
+                    grounding_min_prob=settings.grounding_min_prob, store=store,
+                )
+                grounded = mapped[unit.node_id].verdict is Verdict.SUPPORTED
+            else:
+                answer = g_answers.get(f"g::{unit.node_id}::whole")
+                p = answer.yes_prob if answer is not None and answer.yes_prob is not None else 0.0
+                grounded = p >= settings.grounding_min_prob or verbatim_in_source(
+                    store, " ".join(store.slice(sp) for sp in unit.anchor_spans)
+                )
+            if not grounded:
+                del mapped[unit.node_id]
+    return mapped
 
 
 async def run_verification(request: VerifyRequest, deps: Dependencies) -> tuple[VerifyResponse, Trace]:
@@ -99,6 +216,25 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
     if not store.answer_sentences:
         trace.note("answer empty or whitespace: no claims")
         return VerifyResponse(claims=[])
+
+    # the source tree depends on the source alone: it is built while the
+    # answer is being decomposed
+    source_tree_task = (
+        asyncio.create_task(build_source_tree(deps.decider, store, settings))
+        if settings.source_tree and store.all_source_sentences()
+        else None
+    )
+    try:
+        return await _judge(store, deps, trace, source_tree_task)
+    finally:
+        if source_tree_task is not None and not source_tree_task.done():
+            source_tree_task.cancel()
+
+
+async def _judge(
+    store: TextStore, deps: Dependencies, trace: Trace, source_tree_task: asyncio.Task | None
+) -> VerifyResponse:
+    settings = deps.settings
 
     # round 1: propose the structure (answer only) ----------------------------
     # proposer "llm": generative model proposes units, Jev checks them (round 2)
@@ -196,15 +332,28 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
         staged_relations = [
             u for u in relation_units if u.relation_type is not RelationType.CONTRAST
         ]
+        source_state = _bounded_source_state(store, units, settings)
+        if source_tree_task is not None:
+            source_tree = await source_tree_task
+            mapped = await _map_onto_source(
+                deps, store, tree, source_tree, fact_units, staged_relations, source_state
+            )
+            judgments.update(mapped)
+            trace.note(
+                f"source tree: {len(source_tree.leaves())} leaves, {len(source_tree.relations())} "
+                f"relations; mapped {len(mapped)}/{len(fact_units) + len(staged_relations)} units"
+            )
+        judged_facts = [u for u in fact_units if u.node_id not in judgments]
+        open_relations = [u for u in staged_relations if u.node_id not in judgments]
         candidates = {
             u.node_id: candidate_sentences(
                 store, u, u.display_text or store.slice(u.anchor_spans[0]),
                 max_candidates=settings.max_candidate_sentences,
             )
-            for u in fact_units
+            for u in judged_facts
         }
-        questions = judge_questions(store, fact_units, candidates)
-        questions += [relation_link_question(store, u) for u in staged_relations]
+        questions = judge_questions(store, judged_facts, candidates)
+        questions += [relation_link_question(store, u) for u in open_relations]
 
         # hybrid evidence selector: embedding ranking as a prior. It is gated:
         # v1/v2 already handle most cases without it, so the prior only runs
@@ -242,7 +391,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
 
         ask = ask_batched(
             deps.decider,
-            build_source_state(store),
+            source_state,
             questions,
             max_per_request=settings.max_questions_per_request,
             max_parallel=settings.max_parallel_requests,
@@ -253,7 +402,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
         else:
             answers = await ask
 
-        for unit in fact_units:
+        for unit in judged_facts:
             judgments[unit.node_id] = decide_verdict(
                 unit,
                 answers,
@@ -277,7 +426,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
         # extra request; code composes the verdict
         if relation_units:
             stage2: list = []
-            for unit in staged_relations:
+            for unit in open_relations:
                 sid, _status = staged_link_choice(
                     answers.get(f"rel1::{unit.node_id}"), min_prob=settings.verdict_min_prob
                 )
@@ -298,7 +447,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 answers.update(
                     await ask_batched(
                         deps.decider,
-                        build_source_state(store),
+                        source_state,
                         stage2,
                         max_per_request=settings.max_questions_per_request,
                         max_parallel=settings.max_parallel_requests,
@@ -310,7 +459,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             # rel7 for every found link (a side match may lean on an alias
             # stated elsewhere — the citation must carry that premise)
             extra: list = []
-            for unit in staged_relations:
+            for unit in open_relations:
                 sid, _status = staged_link_choice(
                     answers.get(f"rel1::{unit.node_id}"), min_prob=settings.verdict_min_prob
                 )
@@ -328,7 +477,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             if extra:
                 answers.update(
                     await ask_batched(
-                        deps.decider, build_source_state(store), extra,
+                        deps.decider, source_state, extra,
                         max_per_request=settings.max_questions_per_request,
                         max_parallel=settings.max_parallel_requests,
                     )
@@ -358,7 +507,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                         evidence_sentence_ids=evidence,
                         flags=["contrast_truth_functional"],
                     )
-                else:
+                elif unit in open_relations:
                     judgments[unit.node_id] = decide_relation_verdict(
                         unit, answers, min_prob=settings.verdict_min_prob
                     )
@@ -376,7 +525,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                     and claim_words >= settings.embed_thin_min_words
                 )
 
-            thin_units = [u for u in fact_units if _thin(u)]
+            thin_units = [u for u in judged_facts if _thin(u)]
             if thin_units:
                 rescue_ranked = await embed_rank(thin_units)
                 for unit in thin_units:
@@ -414,7 +563,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
         if c_units:
             answers.update(
                 await ask_batched(
-                    deps.decider, build_source_state(store),
+                    deps.decider, source_state,
                     [opposition_question(store, u, judgments[u.node_id]) for u in c_units],
                     max_per_request=settings.max_questions_per_request,
                     max_parallel=settings.max_parallel_requests,
@@ -441,7 +590,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
                 find_qs += bridge_find_questions(store, unit)
             answers.update(
                 await ask_batched(
-                    deps.decider, build_source_state(store), find_qs,
+                    deps.decider, source_state, find_qs,
                     max_per_request=settings.max_questions_per_request,
                     max_parallel=settings.max_parallel_requests,
                 )
@@ -467,7 +616,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             if check_qs:
                 answers.update(
                     await ask_batched(
-                        deps.decider, build_source_state(store), check_qs,
+                        deps.decider, source_state, check_qs,
                         max_per_request=settings.max_questions_per_request,
                         max_parallel=settings.max_parallel_requests,
                     )
@@ -563,6 +712,10 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
     # round 4: whole-sentence recheck (the one unreliable direction) ----------
     if not context_empty:
         groups = sentences_needing_recheck(units, judgments)
+        preserved = [sid for sid, group in groups.items() if isomorphic(group, judgments, store)]
+        for sid in preserved:
+            del groups[sid]
+            trace.note(f"{sid}: every unit mapped into one source sentence; recheck skipped")
         if groups:
             r = trace.start_round("4-parent-recheck")
             sentence_units = {
@@ -578,7 +731,7 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
             questions = judge_questions(store, list(sentence_units.values()), recheck_candidates)
             answers = await ask_batched(
                 deps.decider,
-                build_source_state(store),
+                source_state,
                 questions,
                 max_per_request=settings.max_questions_per_request,
                 max_parallel=settings.max_parallel_requests,

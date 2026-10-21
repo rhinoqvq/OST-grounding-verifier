@@ -17,11 +17,35 @@ import re
 from dataclasses import dataclass, field
 
 from verifier.harness.context import describe_unit
-from verifier.models.decider import Answer, ChoiceQuestion, Question, YesNoQuestion
+from verifier.models.decider import MAX_CHOICE_OPTIONS, Answer, ChoiceQuestion, Question, YesNoQuestion
 from verifier.output.schemas import Verdict
+from verifier.rag.retrieve import top_by_overlap
 from verifier.rag.source import Sentence, TextStore
 from verifier.rag.tree import Node, RelationType
 from verifier.methods.optimized.semantics.lexicon import words_with
+
+# Pick-a-sentence questions list every source sentence while the source is
+# within the original service limit; beyond it the list is cut to the
+# sentences sharing the most terms with what is being looked for, so a
+# question stays under the decider's option cap and request token budget.
+_FULL_OPTION_CHARS = 40_000
+_NARROW_OPTIONS = 60
+
+
+def sentence_options(
+    store: TextStore, focus_text: str, *, exclude: str | None = None, reserved: int = 1
+) -> dict[str, str]:
+    sentences = [s for s in store.all_source_sentences() if s.sentence_id != exclude]
+    fits = (
+        len(sentences) + reserved <= MAX_CHOICE_OPTIONS
+        and sum(len(s.text) for s in sentences) <= _FULL_OPTION_CHARS
+    )
+    chosen = sentences if fits else top_by_overlap(focus_text, sentences, _NARROW_OPTIONS)
+    return {s.sentence_id: f'"{s.text}"' for s in chosen}
+
+
+def _unit_text(store: TextStore, unit: Node) -> str:
+    return unit.display_text or " ".join(store.slice(sp) for sp in unit.anchor_spans)
 
 VERDICT_OPTIONS = {
     "supported": (
@@ -127,9 +151,7 @@ def relation_link_question(store: TextStore, unit: Node) -> ChoiceQuestion:
     in ANY direction or polarity (an opposite link still counts here; stage 2
     sorts compatibility out)."""
     kind = _LINK_KIND.get(unit.relation_type.value, "link")
-    options = {
-        s.sentence_id: f'"{s.text}"' for s in store.all_source_sentences()
-    }
+    options = sentence_options(store, _unit_text(store, unit))
     options["no_such_link"] = (
         "No source sentence states a link of this kind between contents like these; "
         "sentences that merely mention the parts separately do not count."
@@ -267,11 +289,9 @@ def discharge_question(store: TextStore, unit: Node, link_sentence: Sentence) ->
     when ANOTHER sentence establishes that the condition actually holds
     (modus ponens with citable premises: F->Q plus F |= Q). Asked only when
     rel5 said the link sentence does not assert the link in its own voice."""
-    options = {
-        s.sentence_id: f'"{s.text}"'
-        for s in store.all_source_sentences()
-        if s.sentence_id != link_sentence.sentence_id
-    }
+    options = sentence_options(
+        store, f"{link_sentence.text} {_unit_text(store, unit)}", exclude=link_sentence.sentence_id
+    )
     options["no_discharge"] = (
         "No other source sentence establishes, as plain fact, that the condition holds."
     )
@@ -296,11 +316,9 @@ def aux_premise_question(store: TextStore, unit: Node, link_sentence: Sentence) 
     """B07 (round-2 audit): a side match may silently lean on an alias or
     identity stated elsewhere; the citation must carry that premise or the
     returned evidence does not entail the claim on its own."""
-    options = {
-        s.sentence_id: f'"{s.text}"'
-        for s in store.all_source_sentences()
-        if s.sentence_id != link_sentence.sentence_id
-    }
+    options = sentence_options(
+        store, f"{link_sentence.text} {_unit_text(store, unit)}", exclude=link_sentence.sentence_id
+    )
     options["none_needed"] = (
         "That sentence alone connects to the claim's terms; no other sentence is needed."
     )
@@ -398,7 +416,7 @@ def decide_opposition_filter(
 
 def bridge_find_questions(store: TextStore, unit: Node) -> list[Question]:
     """Round A: locate the bridge sentence and the property sentence."""
-    sentence_options = {s.sentence_id: f'"{s.text}"' for s in store.all_source_sentences()}
+    options = sentence_options(store, _unit_text(store, unit))
     return [
         ChoiceQuestion(
             question_id=f"br1::{unit.node_id}",
@@ -410,7 +428,7 @@ def bridge_find_questions(store: TextStore, unit: Node) -> list[Question]:
                 "no sentence states such a connection, choose no_connection."
             ),
             options={
-                **sentence_options,
+                **options,
                 "no_connection": "No source sentence connects the claim's subject to another entity.",
             },
         ),
@@ -424,7 +442,7 @@ def bridge_find_questions(store: TextStore, unit: Node) -> list[Question]:
                 "If none does, choose no_property."
             ),
             options={
-                **sentence_options,
+                **options,
                 "no_property": (
                     "No source sentence states the asserted property or its opposite."
                 ),
