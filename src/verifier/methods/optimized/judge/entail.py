@@ -29,7 +29,10 @@ VERDICT_OPTIONS = {
         "source sentences alone. Combining several source sentences is fine. Paraphrase is fine. "
         "A claim asserted outright is NOT supported by content the source states only under an "
         "'if'/'when' condition or inside reported speech — but a claim that ITSELF states that "
-        "same condition or attribution is judged as a whole and can be supported."
+        "same condition or attribution is judged as a whole and can be supported. "
+        "A necessary-condition statement ('X only if Y', 'only when') says the outcome REQUIRES "
+        "the condition — it never states that the outcome occurs, so the condition holding does "
+        "not make the outcome supported."
     ),
     "contradicted": (
         "The source explicitly states something that cannot be true together with the claim "
@@ -249,7 +252,10 @@ def relation_stage2_questions(
                 "not merely inside an 'if'/'when'/'unless' condition, inside reported or "
                 "attributed speech ('according to', 'claims', 'the brochure says'), in a "
                 "question, or under a negation of the connection? Answer no if the "
-                "connection only appears under such a wrapper."
+                "connection only appears under such a wrapper. Also answer no if the "
+                "sentence states the connection only as a necessary condition "
+                "('L only if F', 'only when'): saying the outcome requires the condition "
+                "is not asserting that the condition brings the outcome about."
             ),
         )
     )
@@ -277,7 +283,10 @@ def discharge_question(store: TextStore, unit: Node, link_sentence: Sentence) ->
             "Which OTHER source sentence establishes, as plain fact, that that condition "
             "actually holds (the 'if'/'when' antecedent is satisfied)? Pick the sentence "
             "that asserts it outright; if none does — or the wrapper is reported speech or "
-            "a negation rather than a condition — choose no_discharge."
+            "a negation rather than a condition — choose no_discharge. A necessary "
+            "condition ('only if', 'only when') cannot be discharged this way: the outcome "
+            "requiring the condition does not mean the condition brings the outcome about, "
+            "so choose no_discharge for such sentences."
         ),
         options=options,
     )
