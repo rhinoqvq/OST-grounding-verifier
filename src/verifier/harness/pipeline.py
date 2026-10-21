@@ -6,8 +6,10 @@ verifier.methods.{baseline,minimal_llm,optimized}.
 from __future__ import annotations
 
 import sqlite3
+import uuid
 from dataclasses import dataclass
 
+from verifier.harness import runctx
 from verifier.harness.config import Settings
 from verifier.harness.trace import Trace
 from verifier.models.decider import Decider
@@ -27,20 +29,24 @@ class Dependencies:
 
 async def run_request(request: VerifyRequest, deps: Dependencies) -> tuple[VerifyResponse, Trace]:
     """Route the request to the configured method (GV_METHOD)."""
-    method = deps.settings.method
-    if method == "optimized":
-        from verifier.methods.optimized.pipeline import run_verification
+    token = runctx.CURRENT_RUN_ID.set(uuid.uuid4().hex)
+    try:
+        method = deps.settings.method
+        if method == "optimized":
+            from verifier.methods.optimized.pipeline import run_verification
 
-        return await run_verification(request, deps)
-    if method == "minimal_llm":
-        from verifier.methods.minimal_llm import run_minimal_llm
+            return await run_verification(request, deps)
+        if method == "minimal_llm":
+            from verifier.methods.minimal_llm import run_minimal_llm
 
-        return await run_minimal_llm(request, deps)
-    if method == "baseline":
-        from verifier.methods.baseline import run_baseline
+            return await run_minimal_llm(request, deps)
+        if method == "baseline":
+            from verifier.methods.baseline import run_baseline
 
-        return await run_baseline(request, deps)
-    raise NotImplementedError(f"method {method!r} is not implemented yet")
+            return await run_baseline(request, deps)
+        raise NotImplementedError(f"method {method!r} is not implemented yet")
+    finally:
+        runctx.CURRENT_RUN_ID.reset(token)
 
 
 # -- persistence ---------------------------------------------------------------

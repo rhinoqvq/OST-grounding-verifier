@@ -67,6 +67,7 @@ def build_dependencies(settings: Settings) -> Dependencies:
         cache=cache,
         attempts=settings.upstream_attempts,
         timeout=settings.jev_timeout_s,
+        expected_served=settings.jev_expected_served,
     )
     embedder = None
     if settings.evidence_selector == "hybrid":

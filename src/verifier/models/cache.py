@@ -16,6 +16,7 @@ import time
 from typing import Any, Awaitable, Callable
 
 from verifier.harness.errors import ReplayMiss
+from verifier.harness.runctx import CURRENT_RUN_ID
 
 
 class ModelCallCache:
@@ -53,7 +54,9 @@ class ModelCallCache:
         latency_ms: float | None = None,
     ) -> None:
         self.conn.execute(
-            "INSERT OR REPLACE INTO model_calls VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO model_calls "
+            "(cache_key, provider, model, request_json, response_json, usage_json, "
+            "latency_ms, created, run_id) VALUES (?,?,?,?,?,?,?,?,?)",
             (
                 cache_key,
                 provider,
@@ -63,6 +66,7 @@ class ModelCallCache:
                 json.dumps(usage, ensure_ascii=False, default=str) if usage is not None else None,
                 latency_ms,
                 time.time(),
+                CURRENT_RUN_ID.get(),
             ),
         )
         self.conn.commit()

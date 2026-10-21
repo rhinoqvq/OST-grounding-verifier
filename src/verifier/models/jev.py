@@ -39,15 +39,31 @@ def from_jev_answer(question_id: str, raw: dict[str, Any]) -> Answer:
 class JevDecider:
     name = "jev"
 
-    def __init__(self, *, api_key: str | None, model: str, cache: ModelCallCache, attempts: int = 3, timeout: float = 30.0):
+    def __init__(self, *, api_key: str | None, model: str, cache: ModelCallCache, attempts: int = 3, timeout: float = 30.0, expected_served: str | None = None):
         self.api_key = api_key
         self.model = model
         self.cache = cache
         self.attempts = attempts
         self.timeout = timeout
+        self.expected_served = expected_served
+        self.served_drift: str | None = None
         self.usage = DeciderUsage()
         self.reported_model: str | None = None
         self._client = None
+
+    def _check_served(self, served: str | None) -> None:
+        """Drift sentinel: the upstream alias ('jev-latest') can start serving
+        a different model without any change on our side; that must surface as
+        a warning on the first drifted call, never pass silently."""
+        if not served or not self.expected_served or served == self.expected_served:
+            return
+        if self.served_drift is None:
+            import logging
+
+            logging.getLogger("verifier.jev").warning(
+                "served model drift: expected %s, got %s", self.expected_served, served
+            )
+        self.served_drift = served
 
     def _get_client(self):
         if self._client is None:
@@ -111,6 +127,7 @@ class JevDecider:
             raise classify_upstream_error(exc, "jev") from exc
 
         self.reported_model = result.get("model") or self.reported_model
+        self._check_served(result.get("model"))
         usage = result.get("usage") or {}
         self.usage.add(
             DeciderUsage(

@@ -16,6 +16,8 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from verifier.harness.runctx import CURRENT_RUN_ID
+
 from verifier.rag.tree import SemanticTree
 
 _SCHEMA = """
@@ -54,7 +56,8 @@ CREATE TABLE IF NOT EXISTS model_calls (
     response_json TEXT NOT NULL,
     usage_json TEXT,
     latency_ms REAL,
-    created REAL NOT NULL
+    created REAL NOT NULL,
+    run_id TEXT
 );
 """
 
@@ -70,6 +73,12 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
 
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(_SCHEMA)
+    # migration (2026-10-22 traceability audit): stamp every model call with
+    # the run that made it. Older databases predate the column; replaying them
+    # stays valid — the column is attribution metadata, not part of the key.
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(model_calls)")}
+    if "run_id" not in columns:
+        conn.execute("ALTER TABLE model_calls ADD COLUMN run_id TEXT")
     conn.commit()
 
 
@@ -83,7 +92,8 @@ def save_run(
     judgments: list[dict[str, Any]],
     trace: dict[str, Any],
 ) -> str:
-    run_id = uuid.uuid4().hex
+    # reuse the request-scoped id so model_calls.run_id joins to this row
+    run_id = CURRENT_RUN_ID.get() or uuid.uuid4().hex
     conn.execute(
         "INSERT INTO runs VALUES (?,?,?,?,?,?)",
         (

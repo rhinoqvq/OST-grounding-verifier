@@ -44,7 +44,12 @@ class Settings(BaseSettings):
     qwen_model: str = "qwen-plus"
     qwen_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     qwen_schema_mode: str = "json_schema"  # json_schema (Max/Plus/Flash) | json_object (older)
-    jev_model: str = "jev-latest"
+    # pinned (2026-10-22 traceability audit): every recorded run jev3..jev20 and
+    # all external tracks were served by exactly this version, and the API
+    # accepts it as a requested id — so reproducibility no longer rides on the
+    # 'jev-latest' alias. The sentinel below still cross-checks every response.
+    jev_model: str = "jev-1.13.0"
+    jev_expected_served: str = "jev-1.13.0"
 
     # input limits (chars; checked before any model call)
     max_answer_chars: int = 8_000
