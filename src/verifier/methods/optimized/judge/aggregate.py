@@ -9,7 +9,7 @@ Directional soundness (the whole design rests on this):
 
 from __future__ import annotations
 
-from verifier.judge.entail import UnitJudgment
+from verifier.methods.optimized.judge.entail import UnitJudgment
 from verifier.output.schemas import Verdict
 from verifier.rag.tree import Node, NodeKind
 

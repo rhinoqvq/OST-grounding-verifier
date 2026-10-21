@@ -21,7 +21,7 @@ from verifier.models.decider import Answer, ChoiceQuestion, Question, YesNoQuest
 from verifier.output.schemas import Verdict
 from verifier.rag.source import Sentence, TextStore
 from verifier.rag.tree import Node, RelationType
-from verifier.semantics.lexicon import words_with
+from verifier.methods.optimized.semantics.lexicon import words_with
 
 VERDICT_OPTIONS = {
     "supported": (

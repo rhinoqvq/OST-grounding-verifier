@@ -10,7 +10,7 @@ import pytest
 
 from verifier.models.decider import Answer, ChoiceQuestion, FakeDecider, YesNoQuestion
 from verifier.rag.source import TextStore
-from verifier.semantics.propose import Proposal, ProposedUnit, TokenRange
+from verifier.methods.optimized.semantics.propose import Proposal, ProposedUnit, TokenRange
 
 PASSAGE_0 = (
     "Beginning with version 3.7.0, Write-Ahead Log (WAL) mode is available. "

@@ -5,7 +5,8 @@ import pytest
 from conftest import ANSWER, PASSAGE_0, PASSAGE_1, FakeLLM, scripted_decider, verdict_answer
 from verifier.harness.config import Settings
 from verifier.harness.errors import InputTooLarge, MalformedModelOutput, UpstreamError
-from verifier.harness.pipeline import Dependencies, run_verification
+from verifier.harness.pipeline import Dependencies
+from verifier.methods.optimized.pipeline import run_verification
 from verifier.models.decider import Answer
 from verifier.output.schemas import Verdict, VerifyRequest
 
@@ -82,7 +83,7 @@ async def test_empty_context_everything_unsupported(wal_proposal):
 
 
 async def test_non_claim_only_answer(wal_decider):
-    from verifier.semantics.propose import Proposal, TokenRange
+    from verifier.methods.optimized.semantics.propose import Proposal, TokenRange
 
     request = VerifyRequest(context_passages=[PASSAGE_0], generated_answer="Hope this helps!")
     llm = FakeLLM(proposal=Proposal(units=[], non_claim_token_ranges=[TokenRange(first=0, last=2)]))

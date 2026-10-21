@@ -1,8 +1,8 @@
 from verifier.rag.source import TextStore
 from verifier.rag.tree import NodeKind
-from verifier.semantics.check import apply_check_results
-from verifier.semantics.propose import Proposal, ProposedUnit, TokenRange, proposal_to_tree
-from verifier.semantics.select import coverage_gaps, is_entirely_non_claim, select_units
+from verifier.methods.optimized.semantics.check import apply_check_results
+from verifier.methods.optimized.semantics.propose import Proposal, ProposedUnit, TokenRange, proposal_to_tree
+from verifier.methods.optimized.semantics.select import coverage_gaps, is_entirely_non_claim, select_units
 
 from conftest import scripted_decider, token_range_for
 from verifier.models.decider import Answer
@@ -81,7 +81,7 @@ async def test_failed_fidelity_falls_back_to_sentence(wal_store, wal_proposal):
         }
     )
     from verifier.harness.batching import ask_batched
-    from verifier.semantics.check import check_questions
+    from verifier.methods.optimized.semantics.check import check_questions
 
     answers = await ask_batched(
         decider, "state", check_questions(wal_store, tree), max_per_request=50, max_parallel=2

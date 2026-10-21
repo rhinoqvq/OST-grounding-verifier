@@ -7,7 +7,7 @@ from verifier.models.decider import Answer
 from verifier.output.schemas import Verdict, VerifyRequest
 from verifier.rag.source import TextStore
 from verifier.rag.tree import NodeKind
-from verifier.semantics.propose_jev import (
+from verifier.methods.optimized.semantics.propose_jev import (
     build_tree_from_cuts,
     cut_question,
     find_candidates,
@@ -80,7 +80,7 @@ async def test_pipeline_with_jev_proposer(wal_decider, wal_proposal):
     called, and the NFS claim must still come out CONTRADICTED."""
     from conftest import ANSWER as WAL_ANSWER, PASSAGE_0, PASSAGE_1
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     store = TextStore.from_request(WAL_ANSWER, [])
     cut_script = {}
@@ -118,7 +118,7 @@ async def test_ungrounded_disjunct_caps_supported_at_unsupported():
     """Kept-whole disjunction with a fabricated disjunct: block verdict says
     SUPPORTED, but the grounding check on the invented part caps it at U."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     store = TextStore.from_request(DISJ_ANSWER, [DISJ_PASSAGE])
     candidates = find_candidates(store)
@@ -145,7 +145,7 @@ async def test_grounded_conditional_stays_supported():
     """Kept-whole conditional fully present in the source: both parts grounded,
     block verdict SUPPORTED survives the gate."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     answer = "The server accepts incoming requests if the recovery procedure succeeds completely."
     passage = "The server accepts incoming requests if the recovery procedure succeeds completely."
@@ -271,7 +271,7 @@ async def test_pipeline_splits_shared_coordination():
     """c20 end-to-end: one merged sentence becomes two claims with opposite
     verdicts, the assembled claim judged and cited like any other."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     store = TextStore.from_request(C20_ANSWER, C20_PASSAGES)
     cand = find_candidates(store)[0]
@@ -348,7 +348,7 @@ def test_staged_relation_composition():
     'different' side (sibling trigger, widening) -> U; both sides 'matches'
     -> S with the link sentence cited; an 'opposite' side (same aspect,
     inverted value) -> C; no stated link -> U."""
-    from verifier.judge.entail import decide_relation_verdict
+    from verifier.methods.optimized.judge.entail import decide_relation_verdict
 
     store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
     rel = _staged_relation(store)
@@ -395,7 +395,7 @@ async def test_pipeline_staged_relation_end_to_end():
     sentence, stage 2's left-side check kills the sibling-trigger transfer,
     the relation claim comes out U (not C) while both fragments stay S."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
     cand = find_candidates(store)[0]
@@ -430,7 +430,7 @@ async def test_contrast_relation_is_truth_functional():
     contradicted member propagates up WITH its evidence (the contract refuses a
     CONTRADICTED claim that cites nothing)."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     answer = "The scheduler retries hourly but alerts the on-call engineer."
     passages = ["The scheduler retries hourly. It never alerts anyone."]
@@ -476,7 +476,7 @@ async def test_bridge_rescue_composes_two_hop_support():
     """c20-V2 shape: the ordinary verdict is flat; the rescue finds the bridge
     and property sentences and composes SUPPORTED with both cited."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     uid = "sent::A.S0"
     script = {
@@ -502,7 +502,7 @@ async def test_bridge_rescue_gates_hold():
     UNSUPPORTED untouched; a confident ordinary verdict never triggers the
     rescue at all."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     uid = "sent::A.S0"
     # partial bridge: br2 says the coverage is not complete
@@ -549,7 +549,7 @@ async def test_bridge_rescue_gates_hold():
 def test_embed_prior_rescues_linking_premise(wal_store):
     """A linking premise with probe 0.4 (< 0.6 bar) joins the evidence when the
     embedding prior ranks it top-2 and it clears the 0.25 floor."""
-    from verifier.judge.entail import decide_verdict
+    from verifier.methods.optimized.judge.entail import decide_verdict
     from verifier.rag.tree import Node, NodeKind, NodeStatus
     from verifier.rag.source import Span
 
@@ -598,7 +598,7 @@ async def test_pre_trigger_fires_only_on_multi_passage(wal_decider, wal_proposal
     two passages -> embedding runs (concurrently with the judge round)."""
     from conftest import ANSWER, PASSAGE_0, PASSAGE_1, FakeLLM
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     # two passages: pre-trigger fires
     deps = make_deps(FakeLLM(proposal=wal_proposal), wal_decider, proposer="jev",
@@ -633,7 +633,7 @@ async def test_thin_evidence_rescue_runs_embedding(wal_decider):
     the rescue path fires one embedding call and restores the evidence."""
     from conftest import FakeLLM, scripted_decider, verdict_answer
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
     from verifier.models.decider import Answer
 
     passage = "The uploader keeps retrying failed chunks until every chunk succeeds."
@@ -690,7 +690,7 @@ def test_sequence_relation_order_composition():
     """Sequence is asymmetric: matching sides alone cannot tell 'A then B'
     from 'B then A' (measured: an inverted order composed S, mathprobe m09).
     The order stage decides: inverted -> C, unstated -> U, same order -> S."""
-    from verifier.judge.entail import decide_relation_verdict, relation_stage2_questions
+    from verifier.methods.optimized.judge.entail import decide_relation_verdict, relation_stage2_questions
 
     answer = "The fix was deployed, then the servers were restarted."
     passages = ["The servers were restarted first, and only then was the fix deployed."]
@@ -750,7 +750,7 @@ async def test_bridge_binding_gate_blocks_third_entity_property():
     subjects by design — only the binding premise (br5) stops a property stated
     about an unrelated third entity from transferring. br5 low -> flat U stands."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     passages = [
         "Acme is also known as Acme Global in overseas filings.",
@@ -784,7 +784,7 @@ def test_coverage_check_ignores_whole_sentence_inherited_spans():
     context (the inherited span used to blind the check for good)."""
     from verifier.rag.source import Span
     from verifier.rag.tree import Node, NodeStatus, SemanticTree
-    from verifier.semantics.select import select_units
+    from verifier.methods.optimized.semantics.select import select_units
 
     answer = "The migration started in June and ran for seventeen weeks."
     store = TextStore.from_request(answer, ["(src)"])
@@ -808,7 +808,7 @@ def test_grounding_gate_verbatim_witness():
     """Fix (1): a diagnostic part whose text is verbatim present in a source
     passage must not be capped on a low probe score (presence is a decidable
     string property); absent content still caps (m10 stays capped)."""
-    from verifier.judge.entail import UnitJudgment, apply_grounding_gate
+    from verifier.methods.optimized.judge.entail import UnitJudgment, apply_grounding_gate
     from verifier.rag.source import Span
     from verifier.rag.tree import Node, NodeStatus
 
@@ -849,7 +849,7 @@ async def test_member_rescue_on_staged_matched_relation():
     the link sentence as evidence (witness-bearing judgment beats the
     witness-free one), so the merge is no longer dragged to U."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
     cand = find_candidates(store)[0]
@@ -896,7 +896,7 @@ async def test_opposition_filter_demotes_non_opposite_c():
     entity is demoted to U (R1: explicit opposite only); a genuine opposite
     (conftest default) keeps its C."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     passages = ["The regulator fined BetaCorp for the data breach."]
     answer = "The regulator fined Acme for the data breach."
@@ -959,7 +959,7 @@ def test_staged_link_assertedness_gate():
     """P-assert (second self-audit n02): a link the source states only inside a
     condition or reported speech composes neither S nor C — the relation stays
     UNSUPPORTED with the unasserted flag. An asserted link (default) passes."""
-    from verifier.judge.entail import decide_relation_verdict
+    from verifier.methods.optimized.judge.entail import decide_relation_verdict
 
     store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
     rel = _staged_relation(store)
@@ -990,7 +990,7 @@ def test_witness_matches_within_single_sentence_only():
     """Phantom match (second self-audit n04, deterministic): normalization must
     not erase sentence boundaries — cross-sentence assembled content gets no
     witness, real single-sentence presence still does."""
-    from verifier.judge.entail import verbatim_in_source
+    from verifier.methods.optimized.judge.entail import verbatim_in_source
 
     store = TextStore.from_request(
         "x", ["The system alerts on-call staff when errors occur. "
@@ -1022,7 +1022,7 @@ def test_inverted_conditional_triggers_scope_guard():
 def test_witness_preserves_signs_and_comparators():
     """Round-2 audit B05: the witness normalization keeps a digit-attached sign
     and comparison operators, while a hyphen between letters stays punctuation."""
-    from verifier.judge.entail import verbatim_in_source
+    from verifier.methods.optimized.judge.entail import verbatim_in_source
 
     s1 = TextStore.from_request("x", ["The single recorded temperature for sample T7 is exactly -5 C."])
     assert verbatim_in_source(s1, "is exactly -5 C")
@@ -1039,7 +1039,7 @@ def test_staged_discharge_and_aux_evidence():
     """Round-2 audit B03/B07: a condition-wrapped link composes S when another
     sentence discharges the condition (both cited); an alias premise named by
     rel7 joins the evidence; without a discharge the gate still fails closed."""
-    from verifier.judge.entail import decide_relation_verdict
+    from verifier.methods.optimized.judge.entail import decide_relation_verdict
 
     store = TextStore.from_request(STAGED_ANSWER, STAGED_PASSAGES)
     rel = _staged_relation(store)
@@ -1080,7 +1080,7 @@ async def test_bridge_rescue_regated_for_grounding():
     bridge rescue upgrades to S must pass the grounding gate again — the
     rescued S is capped back to U, with both flags kept."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     passages = [
         "All production traffic is routed exclusively to the Helios cluster.",
@@ -1114,7 +1114,7 @@ async def test_meta_discourse_sentence_is_excluded():
     the high bar (0.80); below the bar, or a factual sentence, stays. A false
     exclusion hides content (danger direction), hence the bar."""
     from test_pipeline import make_deps
-    from verifier.harness.pipeline import run_verification
+    from verifier.methods.optimized.pipeline import run_verification
 
     answer = "I hope this helps with your setup! The cache stores query results."
     passages = ["The cache stores query results."]
@@ -1150,8 +1150,8 @@ async def test_llm_escalation_requires_verbatim_witness():
     """Flat-U escalation: a second-judge 'supported' upgrades only with a
     verbatim quote verified inside the cited sentence; a fabricated quote or a
     declined answer leaves the flat U untouched."""
-    from verifier.judge.entail import UnitJudgment
-    from verifier.judge.escalate import EscalationAnswer, escalate_flat
+    from verifier.methods.optimized.judge.entail import UnitJudgment
+    from verifier.methods.optimized.judge.escalate import EscalationAnswer, escalate_flat
     from verifier.rag.tree import Node, NodeKind, NodeStatus
 
     passages = ["The exporter writes metrics to a local file every minute."]

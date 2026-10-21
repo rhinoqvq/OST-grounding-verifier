@@ -36,7 +36,7 @@ from verifier.harness.context import build_answer_state
 from verifier.models.decider import Answer, ChoiceQuestion, Decider, YesNoQuestion
 from verifier.rag.source import Sentence, Span, TextStore
 from verifier.rag.tree import Node, NodeKind, NodeStatus, RelationType, SemanticTree
-from verifier.semantics.lexicon import words_with
+from verifier.methods.optimized.semantics.lexicon import words_with
 
 # every connective list is a projection of the one lexicon (semantics/lexicon.py)
 _CONNECTIVES = words_with("cut")

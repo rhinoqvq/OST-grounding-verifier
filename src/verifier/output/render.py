@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from verifier.judge.entail import UnitJudgment
+from verifier.methods.optimized.judge.entail import UnitJudgment
 from verifier.output.citations import citations_for_unit
 from verifier.output.contract import ContractReport, DraftClaim, enforce_contract
 from verifier.output.reasoning import render_reasoning

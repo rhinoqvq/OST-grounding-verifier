@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import BaseModel
 
 from verifier.harness.context import describe_unit
-from verifier.judge.entail import UnitJudgment, _normalized_tokens
+from verifier.methods.optimized.judge.entail import UnitJudgment, _normalized_tokens
 from verifier.output.schemas import Verdict
 from verifier.rag.source import TextStore
 from verifier.rag.tree import Node

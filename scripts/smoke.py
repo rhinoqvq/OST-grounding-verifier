@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from pydantic import BaseModel
 
 from verifier.harness.config import Settings
-from verifier.harness.pipeline import run_verification
+from verifier.methods.optimized.pipeline import run_verification
 from verifier.output.schemas import VerifyRequest
 from verifier.service import build_dependencies
 
