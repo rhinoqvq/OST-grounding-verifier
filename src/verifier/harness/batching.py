@@ -9,13 +9,22 @@ concurrently).
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from verifier.harness.context import estimate_tokens
 from verifier.models.decider import Answer, ChoiceQuestion, Decider, Question
 
+log = logging.getLogger(__name__)
+
 # Jev refuses a request above about 32k tokens (state plus every question in
 # it); the estimate is tiktoken, so keep headroom for the tokenizer gap.
 DEFAULT_REQUEST_TOKEN_BUDGET = 28_000
+# Jev also refuses a single question above a size of its own (max_tokens_exceeded on
+# one ~20k-token question while 20 questions totalling ~17k went through; TRIVIA+ valid,
+# 2026-10-23: a source "sentence" of thousands of characters, a table with no full stop,
+# repeated in every option of a cut question). Such a question is not sent and gets no
+# answer: every optimized caller reads answers with .get and falls back (a cut not taken).
+MAX_QUESTION_TOKENS = 12_000
 
 
 def question_tokens(question: Question) -> int:
@@ -56,6 +65,11 @@ async def ask_batched(
     max_parallel: int,
     max_tokens: int = DEFAULT_REQUEST_TOKEN_BUDGET,
 ) -> dict[str, Answer]:
+    oversized = [q for q in questions if question_tokens(q) > MAX_QUESTION_TOKENS]
+    if oversized:
+        log.warning("not asking %d oversized question(s): %s", len(oversized),
+                    ", ".join(q.question_id for q in oversized[:5]))
+        questions = [q for q in questions if question_tokens(q) <= MAX_QUESTION_TOKENS]
     if not questions:
         return {}
     chunks = plan_chunks(state, questions, max_per_request=max_per_request, max_tokens=max_tokens)

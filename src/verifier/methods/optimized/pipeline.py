@@ -24,7 +24,7 @@ from verifier.harness.context import (
     check_input_limits,
     estimate_tokens,
 )
-from verifier.harness.errors import MalformedModelOutput
+from verifier.harness.errors import MalformedModelOutput, UpstreamError
 from verifier.harness.trace import Trace
 from verifier.methods.optimized.judge.aggregate import (
     apply_parent_recheck,
@@ -341,8 +341,14 @@ async def _judge(
             u for u in relation_units if u.relation_type is not RelationType.CONTRAST
         ]
         source_state = _bounded_source_state(store, units, settings)
+        source_tree = None
         if source_tree_task is not None:
-            source_tree = await source_tree_task
+            try:
+                source_tree = await source_tree_task
+            except UpstreamError as exc:
+                # the source tree is an aid: without it every unit goes to the whole-source judge
+                trace.note(f"source tree failed ({type(exc).__name__}); units judged against the whole source")
+        if source_tree is not None:
             mapped = await _map_onto_source(
                 deps, store, tree, source_tree, fact_units, staged_relations, source_state
             )

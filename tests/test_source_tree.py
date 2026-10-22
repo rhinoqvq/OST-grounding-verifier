@@ -65,6 +65,25 @@ async def test_a_mapped_fact_failing_the_presence_check_goes_to_the_whole_source
     assert response.claims[2].verdict is Verdict.UNSUPPORTED  # the scripted whole-source default
 
 
+async def test_a_failed_source_tree_falls_back_to_the_whole_source_judge(wal_request, wal_proposal, monkeypatch):
+    """TRIVIA+ valid, 2026-10-23: a source tree request refused by Jev failed the whole
+    answer. The tree is an aid: without it every unit is judged against the whole source."""
+    from verifier.harness.errors import UpstreamError
+    from verifier.methods.optimized import pipeline
+
+    async def refused(*_args, **_kwargs):
+        raise UpstreamError("jev", "fatal", False, ValueError("max_tokens_exceeded"))
+
+    monkeypatch.setattr(pipeline, "build_source_tree", refused)
+    decider = scripted_decider({"v::u1": verdict_answer("v::u1", "contradicted"),
+                                "r::u1::P0.S2": Answer("r::u1::P0.S2", yes_prob=0.95)})
+    response, trace = await run_verification(wal_request, make_deps(FakeLLM(wal_proposal), decider))
+    assert len(response.claims) == 4
+    assert "v::u3" in asked(decider)  # judged against the whole source, not mapped
+    assert not any(q.startswith("m::") for q in asked(decider))
+    assert any("source tree failed" in n for n in trace.as_dict()["notes"])
+
+
 def test_claims_about_the_passages_are_never_mapped():
     store = TextStore.from_request("Passage 1 says the sky is blue. The sky is blue.", ["The sky is blue."])
     leaf = SourceUnit("P0.S0", NodeKind.SENTENCE, 0, "P0.S0", store.passage_sentences[0][0].span, "The sky is blue.")
