@@ -13,7 +13,8 @@ class Settings(BaseSettings):
 
     # which of the assignment's three methods serves POST /verify
     # minimal_jev: method 2's single request with the judge model in place of the LLM (ablation)
-    method: Literal["optimized", "minimal_llm", "baseline", "minimal_jev"] = "optimized"
+    # minimal_jev_plus: minimal_jev plus the optimized method's meta-discourse gate and way of asking
+    method: Literal["optimized", "minimal_llm", "baseline", "minimal_jev", "minimal_jev_plus"] = "optimized"
     # method 1 (baseline): claims whose best source sentence covers less than
     # this IDF-weighted share of their content words become UNSUPPORTED.
     # Deliberately an untuned round default; retune on the eval dev split.

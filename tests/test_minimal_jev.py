@@ -100,3 +100,64 @@ def test_large_source_is_narrowed_by_overlap_and_kept_in_order():
     assert any("network filesystem" in s.text for s in kept)
     order = [store.all_source_sentences().index(s) for s in kept]
     assert order == sorted(order)
+
+
+# --- J+ (minimal_jev_plus): the optimized method's meta-discourse gate and way of asking ---
+
+def plus_deps(decider) -> Dependencies:
+    settings = Settings(_env_file=None, method="minimal_jev_plus", typesafe_api_key="t")
+    return Dependencies(settings=settings, llm=ForbiddenLLM(), decider=decider, conn=None)
+
+
+def nc(sid: str, meta: float) -> Answer:
+    label = "meta_discourse" if meta >= 0.5 else "factual_claim"
+    return Answer(f"nc::{sid}", choice=label,
+                  probabilities={"meta_discourse": meta, "factual_claim": 1 - meta}, confidence=max(meta, 1 - meta))
+
+
+def dist(qid: str, **probs: float) -> Answer:
+    top = max(probs, key=probs.get)
+    return Answer(qid, choice=top, probabilities=dict(probs), confidence=probs[top])
+
+
+async def test_plus_gates_meta_discourse_and_asks_the_optimized_way():
+    decider = FakeDecider({
+        "nc::A.S0": nc("A.S0", 0.9), "nc::A.S1": nc("A.S1", 0.05), "nc::A.S2": nc("A.S2", 0.05),
+        "v0": dist("v0", supported=0.9, contradicted=0.05, not_in_context=0.05), "e0": choice("e0", "P0.S2"),
+        # a lean to S below the 0.55 bar stays S
+        "v1": dist("v1", supported=0.5, contradicted=0.2, not_in_context=0.3), "e1": choice("e1", "P1.S0"),
+        # a lean to C below the bar is U
+        "v2": dist("v2", supported=0.2, contradicted=0.5, not_in_context=0.3), "e2": choice("e2", "P0.S2"),
+    })
+    response, trace = await run_request(wal_request(), plus_deps(decider))
+    assert decider.usage.calls == 2  # the answer-only nc request and the judge request
+    store = TextStore.from_request(ANSWER, [PASSAGE_0, PASSAGE_1])
+    texts = [s.text for s in store.answer_sentences]
+    assert [c.claim_text for c in response.claims] == texts[1:]  # the gated sentence yields no claim
+    assert [c.verdict for c in response.claims] == [Verdict.SUPPORTED, Verdict.UNSUPPORTED]
+    judge = next(qs for _, qs in decider.seen if any(q.question_id == "v0" for q in qs))
+    v0 = next(q for q in judge if q.question_id == "v0")
+    assert set(v0.options) == {"supported", "contradicted", "not_in_context"}
+    assert "never against outside knowledge" in v0.instructions
+    nc_request = next(qs for _, qs in decider.seen if any(q.question_id.startswith("nc::") for q in qs))
+    assert {q.question_id for q in nc_request} == {"nc::A.S0", "nc::A.S1", "nc::A.S2"}
+
+
+async def test_plus_definite_verdict_without_evidence_is_unsupported():
+    decider = FakeDecider({
+        "nc::A.S0": nc("A.S0", 0.0), "nc::A.S1": nc("A.S1", 0.0), "nc::A.S2": nc("A.S2", 0.0),
+        "v0": dist("v0", supported=0.9, contradicted=0.05, not_in_context=0.05), "e0": choice("e0", NO_EVIDENCE),
+        "v1": dist("v1", supported=0.1, contradicted=0.8, not_in_context=0.1), "e1": choice("e1", NO_EVIDENCE),
+        "v2": dist("v2", supported=0.1, contradicted=0.1, not_in_context=0.8), "e2": choice("e2", NO_EVIDENCE),
+    })
+    response, _ = await run_request(wal_request(), plus_deps(decider))
+    assert [c.verdict for c in response.claims] == [Verdict.UNSUPPORTED] * 3
+    assert all(c.citations == [] for c in response.claims)
+
+
+async def test_minimal_jev_keeps_its_own_wording():
+    decider = wal_decider()
+    await run_request(wal_request(), make_deps(decider))
+    _, questions = decider.seen[0]
+    v0 = next(q for q in questions if q.question_id == "v0")
+    assert set(v0.options) == {"SUPPORTED", "CONTRADICTED", "UNSUPPORTED"}

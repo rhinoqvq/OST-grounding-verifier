@@ -48,6 +48,10 @@ async def run_request(request: VerifyRequest, deps: Dependencies) -> tuple[Verif
             from verifier.methods.minimal_jev import run_minimal_jev
 
             return await run_minimal_jev(request, deps)
+        if method == "minimal_jev_plus":
+            from verifier.methods.minimal_jev import run_minimal_jev
+
+            return await run_minimal_jev(request, deps, plus=True)
         raise NotImplementedError(f"method {method!r} is not implemented yet")
     finally:
         runctx.CURRENT_RUN_ID.reset(token)
