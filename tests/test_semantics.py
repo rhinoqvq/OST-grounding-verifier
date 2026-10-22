@@ -138,3 +138,42 @@ def test_short_answers_are_claims_by_content_not_length():
     # meta-discourse coverage still decides first
     (sentence,) = TextStore.from_request("63%", []).answer_sentences
     assert is_entirely_non_claim(sentence, [sentence.span], whole_answer=True)
+
+
+def test_letters_and_digits_of_any_script_are_content():
+    """sa2: a word in any script is content, so a non-Latin answer is a claim; the
+    function-word list stays English only, and content-free sentences are still
+    skipped."""
+    from verifier.rag.source import Span
+    from verifier.rag.tree import SemanticTree
+
+    for text in ("北京", "東京", "Москва", "Да", "3", "80%", "Paris", "No."):
+        store = TextStore.from_request(text, [])
+        (sentence,) = store.answer_sentences
+        assert not is_entirely_non_claim(sentence, [], whole_answer=True), text
+        units = select_units(store, SemanticTree(store=store), [], set(), []).units
+        assert [u.node_id for u in units] == ["sent::A.S0"], text
+
+    for text in ("is:", '"', "--", "。", "——"):
+        (sentence,) = TextStore.from_request(text, []).answer_sentences
+        assert is_entirely_non_claim(sentence, [], whole_answer=True), text
+    for text in ("4.)", "3.", "3. -"):
+        (sentence,) = TextStore.from_request(text, []).answer_sentences
+        assert is_entirely_non_claim(sentence, [], whole_answer=False), text
+
+    # several scripts in one answer, and numbered non-Latin list items
+    for text, n in (
+        ("Paris is the capital. 北京是中国的首都。 東京は日本の首都です。 Москва — столица России.", 4),
+        ("1. 北京\n2. 東京", 2),
+    ):
+        store = TextStore.from_request(text, [])
+        assert len(store.answer_sentences) == n
+        units = select_units(store, SemanticTree(store=store), [], set(), []).units
+        assert len(units) == n, text
+
+    # content left uncovered by the units is found in any script
+    store = TextStore.from_request("北京是中国的首都，也是中国的政治文化中心和交通枢纽。", [])
+    (sentence,) = store.answer_sentences
+    head = Span(sentence.span.doc, sentence.span.start, sentence.span.start + 3)
+    assert coverage_gaps(store, sentence, [head], [])
+    assert not coverage_gaps(store, sentence, [sentence.span], [])

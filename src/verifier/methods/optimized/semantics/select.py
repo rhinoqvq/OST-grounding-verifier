@@ -15,8 +15,9 @@ from dataclasses import dataclass
 from verifier.rag.source import Sentence, Span, TextStore, strip_list_marker
 from verifier.rag.tree import Node, NodeKind, NodeStatus, SemanticTree
 
-_CONTENT_CHAR = re.compile(r"[A-Za-z0-9]")
-_WORD = re.compile(r"[a-z0-9]+")
+# a letter or digit in any script ("北京", "Москва" are content as much as "Paris")
+_CONTENT_CHAR = re.compile(r"[^\W_]")
+_WORD = re.compile(r"[^\W_]+")
 
 # words that assert nothing on their own (the baseline's function-word list; yes/no
 # and negations are not in it): a sentence of only these, like a dangling "is:"
@@ -75,8 +76,8 @@ def is_entirely_non_claim(
 ) -> bool:
     """True when the sentence asserts nothing outside its meta-discourse spans: no
     word or number is left, only function words are, or (in an answer of several
-    sentences) only a list enumerator. Length is not the test: a bare "3", "80%" or
-    "Paris" answer is a claim."""
+    sentences) only a list enumerator. Length is not the test: a bare "3", "80%",
+    "Paris" or "北京" answer is a claim. The function words are English only."""
     mask = _covered_mask(sentence, non_claim_spans)
     rest = "".join(" " if covered else c for c, covered in zip(sentence.text, mask))
     rest = strip_list_marker(rest.strip())
