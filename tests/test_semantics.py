@@ -114,3 +114,27 @@ def test_entirely_non_claim_sentence(wal_store):
     span = store.answer_sentences[1].span
     assert is_entirely_non_claim(store.answer_sentences[1], [span])
     assert not is_entirely_non_claim(store.answer_sentences[0], [span])
+
+
+def test_short_answers_are_claims_by_content_not_length():
+    """sa1: a bare value or name is a claim however short; a sentence with no
+    content word (punctuation, a dangling "is:", a lone list enumerator next to
+    other sentences) is not."""
+    from verifier.rag.tree import SemanticTree
+
+    for text in ("3", "80%", "Paris", "No.", "1964", "3."):
+        store = TextStore.from_request(text, [])
+        (sentence,) = store.answer_sentences
+        assert not is_entirely_non_claim(sentence, [], whole_answer=True), text
+        units = select_units(store, SemanticTree(store=store), [], set(), []).units
+        assert [u.node_id for u in units] == ["sent::A.S0"], text
+
+    for text in ("is:", '"', "--"):
+        (sentence,) = TextStore.from_request(text, []).answer_sentences
+        assert is_entirely_non_claim(sentence, [], whole_answer=True), text
+    for text in ("4.)", "3.", "3. -"):
+        (sentence,) = TextStore.from_request(text, []).answer_sentences
+        assert is_entirely_non_claim(sentence, [], whole_answer=False), text
+    # meta-discourse coverage still decides first
+    (sentence,) = TextStore.from_request("63%", []).answer_sentences
+    assert is_entirely_non_claim(sentence, [sentence.span], whole_answer=True)

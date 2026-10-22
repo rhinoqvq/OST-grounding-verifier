@@ -12,10 +12,23 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from verifier.rag.source import Sentence, Span, TextStore
+from verifier.rag.source import Sentence, Span, TextStore, strip_list_marker
 from verifier.rag.tree import Node, NodeKind, NodeStatus, SemanticTree
 
 _CONTENT_CHAR = re.compile(r"[A-Za-z0-9]")
+_WORD = re.compile(r"[a-z0-9]+")
+
+# words that assert nothing on their own (the baseline's function-word list; yes/no
+# and negations are not in it): a sentence of only these, like a dangling "is:"
+# before a list, is not a claim
+_FUNCTION_WORDS = frozenset(
+    "a an the and or but if then else when while of in on at to from by for with "
+    "as is are was were be been being it its this that these those there here "
+    "he she they them his her their we you your i us our".split()
+)
+
+# a list enumerator the segmenter left on its own ("3.", "4.)")
+_LONE_ENUMERATOR = re.compile(r"\d{1,2}[.)]+")
 
 # an uncovered run of content this long means the decomposition missed something
 _GAP_CHAR_LIMIT = 12
@@ -57,10 +70,19 @@ def coverage_gaps(
     return gaps
 
 
-def is_entirely_non_claim(sentence: Sentence, non_claim_spans: list[Span]) -> bool:
+def is_entirely_non_claim(
+    sentence: Sentence, non_claim_spans: list[Span], *, whole_answer: bool = False
+) -> bool:
+    """True when the sentence asserts nothing outside its meta-discourse spans: no
+    word or number is left, only function words are, or (in an answer of several
+    sentences) only a list enumerator. Length is not the test: a bare "3", "80%" or
+    "Paris" answer is a claim."""
     mask = _covered_mask(sentence, non_claim_spans)
-    uncovered = [c for c, covered in zip(sentence.text, mask) if not covered]
-    return len(_CONTENT_CHAR.findall("".join(uncovered))) < 3
+    rest = "".join(" " if covered else c for c, covered in zip(sentence.text, mask))
+    rest = strip_list_marker(rest.strip())
+    if not whole_answer and _LONE_ENUMERATOR.fullmatch(rest.strip()):
+        return True
+    return all(w in _FUNCTION_WORDS for w in _WORD.findall(rest.lower()))
 
 
 @dataclass
@@ -101,7 +123,9 @@ def select_units(
     final: list[Node] = []
     for sentence in store.answer_sentences:
         sid = sentence.sentence_id
-        if is_entirely_non_claim(sentence, non_claim_spans):
+        if is_entirely_non_claim(
+            sentence, non_claim_spans, whole_answer=len(store.answer_sentences) == 1
+        ):
             notes.append(f"{sid}: non-claim; skipped")
             continue
         units = by_sentence.get(sid, [])
