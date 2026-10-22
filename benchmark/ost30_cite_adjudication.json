@@ -1,0 +1,111 @@
+{
+ "_doc": "Correct S/C verdicts whose citations do not overlap the gold citation (plus OST30-15#4, whose gold citation is the known flaw): does the system's own citation support the claim? Read by score_ost30.py for the evidence-checked accuracy. Rulings cover every run on sha256 dade47db...1bba (a key is ruled on the citations each run produced). status: confirmed (by the user) | proposed (awaiting the user's ruling). A missing entry counts as not supported.",
+ "baseline": {
+  "OST30-15#4": {
+   "ok": true,
+   "status": "proposed",
+   "why": "cites 'Baldwin retired in 1937 and was succeeded by Neville Chamberlain.'"
+  },
+  "OST30-23#1": {
+   "ok": true,
+   "status": "proposed",
+   "why": "'his age of death (120 years, according to Deuteronomy 34:7)' covers Deuteronomy + 120"
+  },
+  "OST30-26#1": {
+   "ok": true,
+   "status": "proposed",
+   "why": "partial: 'became the capital of independent Ukraine in 1991' gives independence in 1991, not 'after the dissolution of the Soviet Union'"
+  },
+  "OST30-26#2": {
+   "ok": true,
+   "status": "proposed",
+   "why": "'It now remains the capital of Ukraine, independent since 1991' covers capital since 1991"
+  }
+ },
+ "minimal_llm": {
+  "OST30-15#4": {
+   "ok": true,
+   "status": "proposed",
+   "why": "cites 'Baldwin retired in 1937 and was succeeded by Neville Chamberlain.'"
+  },
+  "OST30-26#2": {
+   "ok": true,
+   "status": "proposed",
+   "why": "'is now ... the capital of Ukraine' + 'It now remains the capital of Ukraine, independent since 1991' cover capital since 1991"
+  },
+  "OST30-13#1": {
+   "ok": true,
+   "status": "proposed",
+   "why": "partial: 'In 1863, he issued the Emancipation Proclamation, which declared the slaves ... free' lacks January 1 (gold citation has it)"
+  },
+  "OST30-13#2": {
+   "ok": true,
+   "status": "proposed",
+   "why": "cites the 'in rebellion' freedom clause and 'receive them into the armed service' — covers both halves"
+  },
+  "OST30-23#1": {
+   "ok": true,
+   "status": "proposed",
+   "why": "'his age of death (120 years, according to Deuteronomy 34:7)' covers Deuteronomy + 120"
+  }
+ },
+ "optimized": {
+  "OST30-15#4": {
+   "ok": true,
+   "status": "proposed",
+   "why": "cites 'Baldwin retired in 1937 and was succeeded by Neville Chamberlain.'"
+  },
+  "OST30-21#1": {
+   "ok": true,
+   "status": "proposed",
+   "why": "partial: four subsidy examples cover 'subsidies in several ways' but not the 'weapon of war' framing (the gold citation covers only that framing)"
+  },
+  "OST30-23#1": {
+   "ok": true,
+   "status": "proposed",
+   "why": "'his age of death (120 years, according to Deuteronomy 34:7)' covers Deuteronomy + 120"
+  },
+  "OST30-23#2": {
+   "ok": true,
+   "status": "proposed",
+   "why": "'went up Mount Nebo, looked over the Promised Land ... and died' covers the claim"
+  },
+  "OST30-26#2": {
+   "ok": true,
+   "status": "proposed",
+   "why": "'It now remains the capital of Ukraine, independent since 1991' covers capital since 1991"
+  },
+  "OST30-07#1": {
+   "ok": true,
+   "status": "proposed",
+   "why": "C: cites the 1908 Hyperion stories, Betrachtung, A Country Doctor (1919) and the 1924 essay — published during his lifetime"
+  }
+ },
+ "minimal_llm_sol": {
+  "OST30-12#2": {
+   "ok": true,
+   "status": "proposed",
+   "why": "cites 'publish their works by reciting them at popular festivals' + Lucian: read the Histories to the assembled spectators - covers both parts"
+  },
+  "OST30-15#4": {
+   "ok": true,
+   "status": "proposed",
+   "why": "cites 'Baldwin retired in 1937 and was succeeded by Neville Chamberlain.'"
+  },
+  "OST30-23#1": {
+   "ok": true,
+   "status": "proposed",
+   "why": "'his age of death (120 years, according to Deuteronomy 34:7)' covers Deuteronomy + 120"
+  },
+  "OST30-29#2": {
+   "ok": true,
+   "status": "proposed",
+   "why": "'Deuteronomy 10:6, where Aaron died at Moserah and was buried' covers the claim"
+  },
+  "OST30-30#2": {
+   "ok": true,
+   "status": "proposed",
+   "why": "C: 'Deuteronomy 10:6, where Aaron died at Moserah' contradicts 'wilderness of Zin'"
+  }
+ }
+}

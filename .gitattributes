@@ -3,3 +3,6 @@
 *.md text eol=lf
 *.toml text eol=lf
 *.lock text eol=lf
+# the frozen evaluation set is hashed byte-for-byte: never convert its line endings
+benchmark/ost30.jsonl -text
+benchmark/ost30.sha256 text eol=lf
