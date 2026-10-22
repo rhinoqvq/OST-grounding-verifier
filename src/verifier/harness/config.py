@@ -116,10 +116,13 @@ class Settings(BaseSettings):
     guard_scope: Literal["structural", "all"] = "structural"
     parent_recheck: bool = True
     # two-stage judging: the guard's whole-sentence call runs before round 3; a sentence it
-    # supports with evidence is S for all of its units, which cite that evidence sentence
-    # ("inherit_sentence"); every other sentence gets the full judgment
+    # supports with evidence is S for all of its units; every other sentence gets the full
+    # judgment. citation_policy for those settled units: "inherit" cites the call's evidence
+    # sentence; "probe" asks each atomic claim which candidate states it (the call's sentence
+    # and the two overlapping most), falling back to the inherited one below the bar
     two_stage: bool = False
-    two_stage_citation: Literal["inherit_sentence"] = "inherit_sentence"
+    citation_policy: Literal["inherit", "probe"] = "inherit"
+    citation_probe_min_prob: float = 0.50
     max_state_tokens: int = 26_000     # a state above this is narrowed to the relevant sentences
 
     # batching / retries

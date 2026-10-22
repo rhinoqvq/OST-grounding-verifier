@@ -125,3 +125,43 @@ async def test_two_stage_off_keeps_rc1_behaviour(wal_request, wal_proposal, wal_
         wal_request, deps_with(wal_decider, FakeLLM(wal_proposal), sentence_guard=False))
     assert "2.8-stage1-sentence-call" not in [r["name"] for r in trace.as_dict()["rounds"]]
     assert contract_violations(wal_request, response) == []
+
+
+async def test_citation_probe_replaces_inherited_citations_or_falls_back(wal_request, wal_proposal):
+    """citation_policy=probe: u1 (A.S0) picks the inherited sentence again, u2 (A.S1) picks
+    another candidate, u3 (A.S1) answers none and keeps the inherited sentence. One request
+    for all of them; verdicts stay S; the contract holds."""
+    from verifier.methods.optimized.judge.citation_probe import citation_candidates
+
+    store = TextStore.from_request(wal_request.generated_answer, wal_request.context_passages)
+    cands = citation_candidates(store, store.sentence_by_id("A.S1"), "P1.S0")
+    other = cands[-1].sentence_id
+    assert 1 <= len(cands) <= 3 and cands[0].sentence_id == "P1.S0" and other != "P1.S0"
+
+    def pick(qid, label):
+        return Answer(qid, choice=label, probabilities={label: 0.9}, confidence=0.9)
+
+    script = {**sentence_call(0, "SUPPORTED", "P0.S2"), **sentence_call(1, "SUPPORTED", "P1.S0"),
+              **sentence_call(2, "UNSUPPORTED", None),
+              "cite::u1": pick("cite::u1", "P0.S2"), "cite::u2": pick("cite::u2", other),
+              "cite::u3": pick("cite::u3", "none")}
+    decider = scripted_decider(script)
+    response, trace = await run_verification(
+        wal_request, deps_with(decider, FakeLLM(wal_proposal), two_stage=True, guard_scope="all",
+                               parent_recheck=False, citation_policy="probe"))
+    rounds = {r["name"]: r["detail"] for r in trace.as_dict()["rounds"]}
+    assert rounds["2.9-citation-probe"]["questions"] == 3
+    assert rounds["2.9-citation-probe"]["selected"] == 2 and rounds["2.9-citation-probe"]["fallback"] == 1
+    assert rounds["2.8-stage1-sentence-call"]["atomic_claims_by_sentence"] == {"A.S0": 1, "A.S1": 2}
+    requests = [[q.question_id for q in qs] for _, qs in decider.seen if any(q.question_id.startswith("cite::") for q in qs)]
+    assert len(requests) == 1
+    by_text = {c.claim_text: c for c in response.claims}
+    quote = lambda sid: store.sentence_by_id(sid).text  # noqa: E731
+    u1 = next(c for t, c in by_text.items() if t.startswith("SQLite WAL mode allows"))
+    u2 = next(c for t, c in by_text.items() if t.startswith("Alongside the main database file"))
+    u3 = next(c for t, c in by_text.items() if "checkpoints" in t)
+    assert [c.quote for c in u1.citations] == [quote("P0.S2")]
+    assert [c.quote for c in u2.citations] == [quote(other)]
+    assert [c.quote for c in u3.citations] == [quote("P1.S0")]
+    assert all(c.verdict is S for c in (u1, u2, u3))
+    assert contract_violations(wal_request, response) == []

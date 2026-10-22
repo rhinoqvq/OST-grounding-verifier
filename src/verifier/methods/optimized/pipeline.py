@@ -34,6 +34,7 @@ from verifier.methods.optimized.judge.aggregate import (
 )
 from verifier.methods.minimal_jev.verifier import judge_sentences
 from verifier.methods.optimized.judge.escalate import escalate_flat
+from verifier.methods.optimized.judge.citation_probe import probe_citations
 from verifier.methods.optimized.judge.guard import apply_sentence_guard
 from verifier.methods.optimized.judge.entail import (
     UnitJudgment,
@@ -352,8 +353,26 @@ async def _judge(
                         flags=["two_stage_sentence_supported", "inherited_citation"],
                     )
                     settled.add(unit.node_id)
+            atomic = [u for u in units if u.node_id in settled and u.kind is not NodeKind.RELATION]
+            per_sentence: dict[str, int] = {}
+            for u in atomic:
+                per_sentence[u.sentence_id] = per_sentence.get(u.sentence_id, 0) + 1
             trace.end_round(r, **info, settled_units=len(settled),
-                            supported_sentences=sum(c.supported for c in calls))
+                            supported_sentences=sum(c.supported for c in calls),
+                            atomic_claims_by_sentence=per_sentence)
+            if settings.citation_policy == "probe" and atomic:
+                r = trace.start_round("2.9-citation-probe")
+                chosen, probe_info = await probe_citations(
+                    deps, store, units, {u.node_id: judgments[u.node_id].evidence_sentence_ids[0] for u in atomic}
+                )
+                for u in atomic:
+                    judgment = judgments[u.node_id]
+                    if u.node_id in chosen:
+                        judgment.evidence_sentence_ids = [chosen[u.node_id]]
+                        judgment.flags.append("citation_selected")
+                    else:
+                        judgment.flags.append("citation_fallback")
+                trace.end_round(r, **probe_info, fallback=len(atomic) - len(chosen))
         pending = [u for u in units if u.node_id not in settled]
         r = trace.start_round("3-judge")
         # relation units skip the generic verdict/relevance path: their check is
