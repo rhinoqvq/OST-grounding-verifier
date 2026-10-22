@@ -150,12 +150,16 @@ async def test_a_lean_to_supported_below_the_bar_stays_supported(wal_request, wa
                         probabilities={"supported": 0.4, "contradicted": 0.3, "not_in_context": 0.3}),
         "r::u1::P0.S2": Answer("r::u1::P0.S2", yes_prob=0.9),
     }
+    decider = scripted_decider(lean_s)
     response, trace = await run_verification(
-        wal_request, make_deps(FakeLLM(proposal=wal_proposal), scripted_decider(lean_s))
+        wal_request, make_deps(FakeLLM(proposal=wal_proposal), decider)
     )
     claim = response.claims[0]
     assert claim.verdict is Verdict.SUPPORTED
     assert claim.citations and claim.citations[0].index == 0
+    # a kept S is not a flat verdict: no "too flat" reasoning, no bridge rescue questions
+    assert "too flat" not in claim.reasoning
+    assert not any(q.question_id.startswith("br1::") for _, qs in decider.seen for q in qs)
     lean_u = {
         "v::u1": Answer("v::u1", choice="not_in_context",
                         probabilities={"supported": 0.3, "contradicted": 0.2, "not_in_context": 0.5}),

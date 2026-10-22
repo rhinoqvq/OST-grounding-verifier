@@ -117,7 +117,7 @@ def render_reasoning(unit: Node, judgment: UnitJudgment, *, context_empty: bool 
             "The primary judge was uncertain, so a second model re-checked the claim and "
             f"supplied a verbatim supporting quote that code verified in the source ({evidence})."
         )
-    if any(f.startswith("low_confidence") for f in flags):
+    if any(f.startswith("low_confidence(") for f in flags):
         return (
             f"The judge's probability distribution over verdicts was too flat to trust{p_text}; "
             "per policy an uncertain claim is reported as UNSUPPORTED rather than guessed."

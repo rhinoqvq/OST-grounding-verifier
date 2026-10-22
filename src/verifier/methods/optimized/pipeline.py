@@ -590,9 +590,13 @@ async def _judge(
         # The hop is decomposed into single-hop questions; the rescue can only
         # turn a flat UNSUPPORTED into a composed S or C with both sentences
         # cited — confident ordinary verdicts are never touched.
+        # A lean to S kept under the bar (low_confidence_kept_supported) is a candidate only
+        # once it has lost its single-sentence evidence and become U; while it stays S it is
+        # not flat and is left alone.
         flat_units = [
             u for u in fact_units
-            if any(f.startswith("low_confidence") for f in judgments[u.node_id].flags)
+            if judgments[u.node_id].verdict is Verdict.UNSUPPORTED
+            and any(f.startswith("low_confidence") for f in judgments[u.node_id].flags)
         ]
         if flat_units:
             find_qs: list = []
