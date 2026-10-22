@@ -111,6 +111,15 @@ class Settings(BaseSettings):
     # sentence stays one unit; the cut questions are still asked, keep-whole
     # diagnostics stay on the sentence, the source side is unchanged
     whole_sentences: bool = False
+    # rc2 candidate (off = rc1). guard_scope "all": the sentence guard also releases a plain
+    # whole-sentence U/C and a parent-recheck override when the single call says S with evidence
+    guard_scope: Literal["structural", "all"] = "structural"
+    parent_recheck: bool = True
+    # two-stage judging: the guard's whole-sentence call runs before round 3; a sentence it
+    # supports with evidence is S for all of its units, which cite that evidence sentence
+    # ("inherit_sentence"); every other sentence gets the full judgment
+    two_stage: bool = False
+    two_stage_citation: Literal["inherit_sentence"] = "inherit_sentence"
     max_state_tokens: int = 26_000     # a state above this is narrowed to the relevant sentences
 
     # batching / retries

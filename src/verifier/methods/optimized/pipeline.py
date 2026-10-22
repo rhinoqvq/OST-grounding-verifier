@@ -320,6 +320,8 @@ async def _judge(
     # round 3: verdicts + evidence (sources) ----------------------------------
     context_empty = not store.all_source_sentences()
     judgments: dict[str, UnitJudgment] = {}
+    stage_calls = None   # two-stage: the whole-sentence call, asked before round 3
+    settled: set[str] = set()
     if context_empty:
         trace.note("context empty: every claim UNSUPPORTED by definition")
         for unit in units:
@@ -330,18 +332,41 @@ async def _judge(
                 flags=["context_empty"],
             )
     else:
+        if settings.two_stage:
+            # stage 1: the whole-sentence call (the guard's request). A sentence it supports
+            # with evidence is settled for every unit in it, which cites that evidence
+            # sentence; the other sentences get the full judgment below
+            r = trace.start_round("2.8-stage1-sentence-call")
+            calls, info = await judge_sentences(store, deps)
+            stage_calls = {s.sentence_id: c for s, c in zip(store.answer_sentences, calls)}
+            for unit in units:
+                call = stage_calls.get(unit.sentence_id)
+                if call is not None and call.supported:
+                    judgments[unit.node_id] = UnitJudgment(
+                        node_id=unit.node_id,
+                        node_version=unit.version,
+                        verdict=Verdict.SUPPORTED,
+                        probabilities={"supported": call.prob},
+                        confidence=call.prob,
+                        evidence_sentence_ids=[call.evidence],
+                        flags=["two_stage_sentence_supported", "inherited_citation"],
+                    )
+                    settled.add(unit.node_id)
+            trace.end_round(r, **info, settled_units=len(settled),
+                            supported_sentences=sum(c.supported for c in calls))
+        pending = [u for u in units if u.node_id not in settled]
         r = trace.start_round("3-judge")
         # relation units skip the generic verdict/relevance path: their check is
         # staged (find the stated link, then match sides and polarity), because
         # one bounded question cannot carry that multi-hop chain
-        fact_units = [u for u in units if u.kind is not NodeKind.RELATION]
-        relation_units = [u for u in units if u.kind is NodeKind.RELATION]
+        fact_units = [u for u in pending if u.kind is not NodeKind.RELATION]
+        relation_units = [u for u in pending if u.kind is NodeKind.RELATION]
         # CONTRAST asserts no mechanism of its own ('but' ~ 'and' plus rhetoric),
         # so it skips the staged check and aggregates its members instead
         staged_relations = [
             u for u in relation_units if u.relation_type is not RelationType.CONTRAST
         ]
-        source_state = _bounded_source_state(store, units, settings)
+        source_state = _bounded_source_state(store, pending or units, settings)
         source_tree = None
         if source_tree_task is not None:
             try:
@@ -413,7 +438,7 @@ async def _judge(
         )
         embed_ranked: dict[str, list[str]] = {}
         if pre_trigger:
-            answers, embed_ranked = await asyncio.gather(ask, embed_rank(units))
+            answers, embed_ranked = await asyncio.gather(ask, embed_rank(pending))
         else:
             answers = await ask
 
@@ -731,8 +756,10 @@ async def _judge(
                         verdicts={u.node_id: judgments[u.node_id].verdict.value for u in units})
 
     # round 4: whole-sentence recheck (the one unreliable direction) ----------
-    if not context_empty:
+    if not context_empty and settings.parent_recheck:
         groups = sentences_needing_recheck(units, judgments)
+        # a sentence the two-stage call settled is S already: nothing to recheck
+        groups = {sid: g for sid, g in groups.items() if not all(u.node_id in settled for u in g)}
         preserved = [sid for sid, group in groups.items() if isomorphic(group, judgments, store)]
         for sid in preserved:
             del groups[sid]
@@ -787,10 +814,13 @@ async def _judge(
     # round 4b: whole-sentence guard ------------------------------------------
     if settings.sentence_guard and not context_empty:
         r = trace.start_round("4b-sentence-guard")
-        calls, info = await judge_sentences(store, deps)
-        released = apply_sentence_guard(
-            units, judgments, {s.sentence_id: c for s, c in zip(store.answer_sentences, calls)}
-        )
+        if stage_calls is not None:
+            # two-stage: the same call, already asked; expected to release nothing
+            calls_by_sentence, info = stage_calls, {"reused_stage1_call": True}
+        else:
+            calls, info = await judge_sentences(store, deps)
+            calls_by_sentence = {s.sentence_id: c for s, c in zip(store.answer_sentences, calls)}
+        released = apply_sentence_guard(units, judgments, calls_by_sentence, scope=settings.guard_scope)
         trace.end_round(r, **info, released=released)
 
     # round 5: deterministic output -------------------------------------------
