@@ -652,7 +652,13 @@ _WITNESS_LEAD_WORDS = frozenset(words_with("strippable"))
 # match their unhyphenated spelling). Round-2 audit B05: stripping ALL symbols
 # made +5/-5 and x<=10/x>=10 normalize to the same string (proven on this very
 # function), so a phantom witness could suppress a justified cap.
-_WITNESS_TOKEN_RE = re.compile(r"[a-z0-9]+(?:\.[0-9]+)?|[+\-](?=\d)|<=|>=|[<>=]")
+# Words are letters and digits of any script. Chinese and Japanese are written
+# without spaces, so there each Han or kana character is a token of its own: the
+# part "北京" is then present in the source sentence "北京是中国的首都".
+_UNSPACED = "\u3040-\u30ff\u31f0-\u31ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f"
+_WITNESS_TOKEN_RE = re.compile(
+    rf"[{_UNSPACED}]|[^\W_{_UNSPACED}]+(?:\.[0-9]+)?|[+\-](?=\d)|<=|>=|[<>=]"
+)
 
 
 def _normalized_tokens(text: str) -> str:
@@ -671,6 +677,10 @@ def verbatim_in_source(store: TextStore, part_text: str) -> bool:
     "8. Click Apply" is present when a source sentence says "Click Apply"."""
     norm = _normalized_tokens(strip_framing(strip_list_marker(part_text)))
     tokens = norm.split()
+    if not tokens:
+        # nothing left to compare (punctuation only): no witness, the cap stands.
+        # An empty part matched every source sentence with no word in it
+        return False
     alt = ""
     if tokens and tokens[0] in _WITNESS_LEAD_WORDS and len(tokens) > 1:
         alt = " " + " ".join(tokens[1:]) + " "

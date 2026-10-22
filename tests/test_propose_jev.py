@@ -1344,3 +1344,39 @@ def test_lexicon_conditional_words_can_generate_candidates():
             assert roles & {"cut", "lead", "inversion"}, (
                 f"'{word}' is conditional but no candidate generator can see it"
             )
+
+
+def test_witness_compares_words_of_any_script():
+    """sa3: the witness compares every word of the part in any script. A part in
+    another script got no token at all and matched any source sentence that had
+    none either (a phantom witness); a mixed part must match as a whole; a part
+    with no word is no witness."""
+    from verifier.methods.optimized.judge.entail import verbatim_in_source
+
+    store = TextStore.from_request(
+        "x",
+        [
+            "北京是中国的首都。",
+            "Москва — столица России.",
+            "東京は日本の首都です。",
+            "The 2008 Olympics drew record crowds.",
+            "* * *",
+        ],
+    )
+    assert verbatim_in_source(store, "北京是中国的首都")
+    assert verbatim_in_source(store, "北京")
+    assert not verbatim_in_source(store, "上海是中国的首都")
+    assert verbatim_in_source(store, "Москва — столица России")
+    assert not verbatim_in_source(store, "Москва — столица Франции")
+    assert verbatim_in_source(store, "Москва")
+    assert not verbatim_in_source(store, "Париж")  # no token once: it matched the "* * *" line
+    assert verbatim_in_source(store, "日本の首都")
+    assert not verbatim_in_source(store, "大阪は日本の首都です")
+    # mixed: both halves have to sit in one sentence
+    assert not verbatim_in_source(store, "北京 2008")
+    assert verbatim_in_source(
+        TextStore.from_request("x", ["北京2008年举办了奥运会。"]), "北京 2008"
+    )
+    # nothing to compare is no witness, even next to a source line with no word
+    assert not verbatim_in_source(store, "——")
+    assert not verbatim_in_source(store, "")
