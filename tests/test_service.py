@@ -8,7 +8,9 @@ from verifier.service import create_app
 
 
 def make_client(llm, decider, **overrides) -> TestClient:
-    settings = Settings(_env_file=None, openai_api_key="t", typesafe_api_key="t", **overrides)
+    # scripted proposals: the llm proposer entry
+    settings = Settings(_env_file=None, openai_api_key="t", typesafe_api_key="t",
+                        **{"proposer": "llm", **overrides})
     deps = Dependencies(settings=settings, llm=llm, decider=decider, conn=None)
     app = create_app(settings, dependencies=deps)
     return TestClient(app, raise_server_exceptions=False)
@@ -113,3 +115,13 @@ def test_llm_provider_selection():
 
     with _pytest.raises(ValueError):
         llm_config(Settings(_env_file=None, llm_provider="nope"))
+
+    # the reported method-2 configuration: gpt-6.1-sol, no temperature parameter
+    assert openai_cfg.model == "gpt-6.1-sol" and openai_cfg.temperature is None
+    zero = llm_config(Settings(_env_file=None, llm_provider="openai", openai_api_key="k", openai_temperature_zero=True))
+    assert zero.temperature == 0.0
+
+
+def test_default_proposer_is_jev():
+    # the reported results use the jev proposer; the shipped default must match
+    assert Settings(_env_file=None).proposer == "jev"

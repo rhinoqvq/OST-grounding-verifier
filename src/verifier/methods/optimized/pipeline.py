@@ -2,8 +2,10 @@
 
 Rounds (latency is bounded by rounds, not by question count):
   0  code   segment + limits
-  1  LLM    propose answer structure            (sees the answer only)
-  2  Jev    fidelity + coverage checks          (sees the answer only)
+  1  Jev    propose answer structure: code cut points, Jev classifies them
+            (default proposer; with proposer=llm a generative model proposes
+            and round 2 checks it)              (sees the answer only)
+  2  Jev    fidelity + coverage checks          (proposer=llm only)
   2.5 code  select final units (fallback: whole sentence)
   3  Jev    verdicts + evidence relevance       (sees the sources)
   4  Jev    whole-sentence recheck where all split facts were SUPPORTED

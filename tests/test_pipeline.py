@@ -12,8 +12,10 @@ from verifier.output.schemas import Verdict, VerifyRequest
 
 
 def make_deps(llm, decider, **settings_overrides) -> Dependencies:
+    # these tests feed a scripted proposal, so they run the llm proposer entry
     settings = Settings(
-        _env_file=None, openai_api_key="test", typesafe_api_key="test", **settings_overrides
+        _env_file=None, openai_api_key="test", typesafe_api_key="test",
+        **{"proposer": "llm", **settings_overrides},
     )
     return Dependencies(settings=settings, llm=llm, decider=decider, conn=None)
 

@@ -25,7 +25,9 @@ from verifier.rag.tree import Node, NodeKind, RelationType
 
 
 def make_deps(llm, decider, **overrides) -> Dependencies:
-    settings = Settings(_env_file=None, openai_api_key="test", typesafe_api_key="test", **overrides)
+    # scripted proposals: the llm proposer entry
+    settings = Settings(_env_file=None, openai_api_key="test", typesafe_api_key="test",
+                        **{"proposer": "llm", **overrides})
     return Dependencies(settings=settings, llm=llm, decider=decider, conn=None)
 
 

@@ -24,7 +24,10 @@ class Settings(BaseSettings):
     dashscope_api_key: str | None = Field(default=None, alias="DASHSCOPE_API_KEY")
 
     # models
-    proposer: str = "llm"  # llm (generative model proposes structure) | jev (code cut points + Jev)
+    # jev (code cut points + Jev) | llm (generative model proposes structure).
+    # All reported results use jev; llm stays only as the entry for injecting a
+    # precomputed decomposition (test suite, oracle-claim adapter).
+    proposer: str = "jev"
     jev_cut_min_prob: float = 0.60  # jev proposer: accept a cut above this probability
     # (cut-vote averaging removed 2026-10-22: measured no flip reduction on
     # the boundary-riding candidates it targeted; see design log)
@@ -40,7 +43,10 @@ class Settings(BaseSettings):
     # (measured, n02), which is why this arm exists at all.
     flat_escalation: str = "off"
     llm_provider: str = "openai"  # openai | qwen (which generative model proposes structure)
-    openai_model: str = "gpt-6-astra"
+    # method 2 (minimal_llm) as reported: gpt-6.1-sol, a reasoning model that rejects a temperature
+    # parameter, so none is sent; set true for a model that accepts temperature=0
+    openai_model: str = "gpt-6.1-sol"
+    openai_temperature_zero: bool = False
     qwen_model: str = "qwen-plus"
     qwen_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     qwen_schema_mode: str = "json_schema"  # json_schema (Max/Plus/Flash) | json_object (older)

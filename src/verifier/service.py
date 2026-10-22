@@ -35,7 +35,8 @@ from verifier.rag.store import connect, init_db
 def llm_config(settings: Settings) -> LLMProviderConfig:
     if settings.llm_provider == "openai":
         return LLMProviderConfig(
-            name="openai", model=settings.openai_model, api_key=settings.openai_api_key
+            name="openai", model=settings.openai_model, api_key=settings.openai_api_key,
+            temperature=0.0 if settings.openai_temperature_zero else None,
         )
     if settings.llm_provider == "qwen":
         return LLMProviderConfig(
