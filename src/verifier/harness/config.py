@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -101,8 +101,10 @@ class Settings(BaseSettings):
     max_candidate_sentences: int = 60  # lexical prefilter above this many source sentences
     # two-tree check: the source gets the answer's decomposition and answer
     # nodes are first mapped onto source nodes; unmapped ones fall back to the
-    # whole-source judge
-    source_tree: bool = True
+    # whole-source judge. "on" always, "off" never, "auto" (rc2) only when the
+    # whole source does not fit one judge state (max_state_tokens); below that
+    # the whole-source judge sees all of it anyway
+    source_tree: Literal["off", "on", "auto"] = "auto"
     tree_map_leaves: int = 4           # source leaves tried per answer fact (plus their sentences)
     # whole-sentence guard: an alarm from a structural layer (gate, fragment, relation,
     # threshold, C filter) stands only if a single-call judgment of the whole sentence is not S
@@ -124,6 +126,18 @@ class Settings(BaseSettings):
     citation_policy: Literal["inherit", "probe"] = "inherit"
     citation_probe_min_prob: float = 0.50
     max_state_tokens: int = 26_000     # a state above this is narrowed to the relevant sentences
+
+    @field_validator("source_tree", mode="before")
+    @classmethod
+    def _source_tree_from_bool(cls, value):
+        """The switch used to be a bool: true / false (GV_SOURCE_TREE=1 / 0) keep their meaning."""
+        if isinstance(value, bool):
+            return "on" if value else "off"
+        if isinstance(value, str) and value.strip().lower() in ("1", "true", "yes"):
+            return "on"
+        if isinstance(value, str) and value.strip().lower() in ("0", "false", "no"):
+            return "off"
+        return value
 
     # batching / retries
     max_questions_per_request: int = 48

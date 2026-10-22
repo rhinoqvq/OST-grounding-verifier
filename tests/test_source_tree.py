@@ -25,9 +25,10 @@ from verifier.rag.tree import Node, NodeKind, RelationType
 
 
 def make_deps(llm, decider, **overrides) -> Dependencies:
-    # scripted proposals: the llm proposer entry
+    # scripted proposals: the llm proposer entry; the tree always on here (its default
+    # "auto" would skip it for these short passages)
     settings = Settings(_env_file=None, openai_api_key="test", typesafe_api_key="test",
-                        **{"proposer": "llm", "sentence_guard": False, **overrides})
+                        **{"proposer": "llm", "sentence_guard": False, "source_tree": "on", **overrides})
     return Dependencies(settings=settings, llm=llm, decider=decider, conn=None)
 
 
@@ -239,3 +240,46 @@ async def test_source_tree_off_builds_no_tree_and_maps_nothing(wal_request, wal_
     assert len(response.claims) == 4
     assert not any(q.startswith("m::") for q in asked(decider))
     assert "v::u3" in asked(decider)
+
+
+
+def test_source_tree_switch_takes_three_values_and_the_old_bools():
+    assert Settings(_env_file=None).source_tree == "auto"
+    assert Settings(_env_file=None, source_tree=True).source_tree == "on"
+    assert Settings(_env_file=None, source_tree=False).source_tree == "off"
+    assert Settings(_env_file=None, source_tree="on").source_tree == "on"
+
+
+async def test_source_tree_auto_skips_a_source_that_fits_one_state(wal_request, wal_proposal, monkeypatch):
+    from verifier.methods.optimized import pipeline
+
+    async def never(*_args, **_kwargs):
+        raise AssertionError("source tree built for a short source under auto")
+
+    monkeypatch.setattr(pipeline, "build_source_tree", never)
+    decider = scripted_decider({"v::u1": verdict_answer("v::u1", "contradicted"),
+                                "r::u1::P0.S2": Answer("r::u1::P0.S2", yes_prob=0.95)})
+    response, trace = await run_verification(
+        wal_request, make_deps(FakeLLM(wal_proposal), decider, source_tree="auto"))
+    assert len(response.claims) == 4
+    assert not any(q.startswith("m::") for q in asked(decider))
+    assert any(n.startswith("source tree: auto -> off (state ") for n in trace.as_dict()["notes"])
+
+
+async def test_source_tree_auto_builds_for_a_source_too_long_for_one_state(wal_request, wal_proposal, monkeypatch):
+    """The same request with max_state_tokens set below its source state: auto builds the tree."""
+    from verifier.methods.optimized import pipeline
+
+    built = []
+
+    async def record(*args, **kwargs):
+        built.append(True)
+        return SourceTree(units=[], notes=[])
+
+    monkeypatch.setattr(pipeline, "build_source_tree", record)
+    decider = scripted_decider({"v::u1": verdict_answer("v::u1", "contradicted"),
+                                "r::u1::P0.S2": Answer("r::u1::P0.S2", yes_prob=0.95)})
+    _, trace = await run_verification(
+        wal_request, make_deps(FakeLLM(wal_proposal), decider, source_tree="auto", max_state_tokens=50))
+    assert built == [True]
+    assert any(n.startswith("source tree: auto -> on (state ") for n in trace.as_dict()["notes"])

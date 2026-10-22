@@ -227,10 +227,16 @@ async def _run(request: VerifyRequest, deps: Dependencies, trace: Trace) -> Veri
         return VerifyResponse(claims=[])
 
     # the source tree depends on the source alone: it is built while the
-    # answer is being decomposed
+    # answer is being decomposed. "auto" builds it only for a source too long
+    # for one judge state; the note lets a run be split by the path it took
+    build_tree = settings.source_tree == "on"
+    if settings.source_tree == "auto" and store.all_source_sentences():
+        tokens = estimate_tokens(build_source_state(store))
+        build_tree = tokens > settings.max_state_tokens
+        trace.note(f"source tree: auto -> {'on' if build_tree else 'off'} (state {tokens:,} tokens)")
     source_tree_task = (
         asyncio.create_task(build_source_tree(deps.decider, store, settings))
-        if settings.source_tree and store.all_source_sentences()
+        if build_tree and store.all_source_sentences()
         else None
     )
     try:
