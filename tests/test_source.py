@@ -78,6 +78,24 @@ def test_paragraph_breaks_and_list_markers_split():
     ]
 
 
+def test_footnoted_sentence_ends_split_and_keep_their_markers():
+    """TRIVIA+ (2026-10-23): Wikipedia text with footnotes ran thousands of characters as one
+    sentence; a footnoted end is a boundary, but an initialism before a footnote is not."""
+    assert _pieces("Many studied anthropology.[4] Today, most universities offer it.") == [
+        "Many studied anthropology.[4]",
+        "Today, most universities offer it.",
+    ]
+    assert _pieces('It aired in 2019.[36][37] The second episode followed. He was "loved".[45] Recent years differ.') == [
+        "It aired in 2019.[36][37]",
+        "The second episode followed.",
+        'He was "loved".[45]',
+        "Recent years differ.",
+    ]
+    assert _pieces("It was signed by the U.S.[3] President in 1964.") == [
+        "It was signed by the U.S.[3] President in 1964.",
+    ]
+
+
 def test_single_line_break_inside_a_sentence_does_not_split():
     assert _pieces("Prices rose 3.5\npercent last year. That hurt.") == [
         "Prices rose 3.5\npercent last year.",

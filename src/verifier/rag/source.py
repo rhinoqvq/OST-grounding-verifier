@@ -69,6 +69,13 @@ _TRAILER = re.compile(r"[(\[][^()\[\]\n]{1,60}[)\]][.,;:]?")
 _ENUMERATOR = re.compile(r"\(\s*(?:\d{1,2}|[A-Za-z])\s*\)")
 _PARAGRAPH_BREAK = re.compile(r"\n[ \t]*\n\s*(?=\S)")
 _LIST_ITEM = re.compile(r"(?m)^([ \t]*)(?:\d{1,2}[.)]|[-*•])[ \t]+(?=\S)")
+# A sentence end followed by footnote markers ("...studies.[4] Today, most"): spaCy keeps
+# the markers and the next sentence together, so Wikipedia text ran thousands of characters
+# as one "sentence" (TRIVIA+, 2026-10-23). The markers stay with the sentence they follow.
+# Not after an uppercase letter: "the U.S.[3] President" is an initialism, not an end.
+_FOOTNOTE_END = re.compile(
+    r"""(?<=[a-z0-9)\]"'”’])[.!?]["'”’]?(?:\[[^\]\n]{1,12}\])+[ \t]+(?=["“(]?[A-Z0-9])"""
+)
 
 
 def _closes_open_paren(text: str, pos: int) -> bool:
@@ -111,9 +118,11 @@ def _model_boundaries(text: str) -> set[int]:
 
 
 def _layout_boundaries(text: str) -> set[int]:
-    """Paragraph breaks and line-initial list markers always start a sentence."""
+    """Paragraph breaks, line-initial list markers and footnoted sentence ends always
+    start a sentence."""
     out = {m.end() for m in _PARAGRAPH_BREAK.finditer(text)}
     out |= {m.start() + len(m.group(1)) for m in _LIST_ITEM.finditer(text)}
+    out |= {m.end() for m in _FOOTNOTE_END.finditer(text)}
     return out
 
 
