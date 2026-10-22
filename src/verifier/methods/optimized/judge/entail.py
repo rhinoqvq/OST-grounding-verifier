@@ -20,7 +20,7 @@ from verifier.harness.context import describe_unit
 from verifier.models.decider import MAX_CHOICE_OPTIONS, Answer, ChoiceQuestion, Question, YesNoQuestion
 from verifier.output.schemas import Verdict
 from verifier.rag.retrieve import top_by_overlap
-from verifier.rag.source import Sentence, TextStore
+from verifier.rag.source import Sentence, TextStore, strip_list_marker
 from verifier.rag.tree import Node, RelationType
 from verifier.methods.optimized.semantics.lexicon import words_with
 
@@ -666,8 +666,10 @@ def verbatim_in_source(store: TextStore, part_text: str) -> bool:
     is a string property, so this is decidable with certainty — a probabilistic
     grounding answer must not override it (Def. 3's verbatim clause; measured
     false caps hit verbatim-supported if/when content at probe 0.02-0.47).
-    Fails closed: a paraphrased part gets no witness and the cap stands."""
-    norm = _normalized_tokens(part_text)
+    Fails closed: a paraphrased part gets no witness and the cap stands.
+    A leading list marker is layout, not content, so it is dropped first:
+    "8. Click Apply" is present when a source sentence says "Click Apply"."""
+    norm = _normalized_tokens(strip_list_marker(part_text))
     tokens = norm.split()
     alt = ""
     if tokens and tokens[0] in _WITNESS_LEAD_WORDS and len(tokens) > 1:

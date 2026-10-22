@@ -117,6 +117,14 @@ def _layout_boundaries(text: str) -> set[int]:
     return out
 
 
+def strip_list_marker(text: str) -> str:
+    """The text without a leading list marker ("1. ", "2) ", "- ", "* ", "• "):
+    the same markers that start a sentence above. They are layout, not content;
+    a sign or a decimal ("-5", "2.5") is not a marker and stays."""
+    m = _LIST_ITEM.match(text)
+    return text[m.end():] if m else text
+
+
 @lru_cache(maxsize=1)
 def _nlp():
     import spacy

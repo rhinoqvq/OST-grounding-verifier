@@ -1035,6 +1035,23 @@ def test_witness_preserves_signs_and_comparators():
     assert verbatim_in_source(s3, "alerts on call staff")
 
 
+def test_witness_ignores_a_leading_list_marker():
+    """Gate sample 2026-10-22 (#20): "8. Click Apply" was capped although the
+    source says "Click Apply" verbatim; the step number is layout, not content.
+    Only a real marker is dropped: a sign or a decimal stays."""
+    from verifier.methods.optimized.judge.entail import verbatim_in_source
+
+    store = TextStore.from_request(
+        "x", ["Click Apply at the bottom of the screen, you can finish syncing process."])
+    assert verbatim_in_source(store, '8. Click "Apply"')
+    assert verbatim_in_source(store, "* Click Apply")
+    assert not verbatim_in_source(store, "8. Click Cancel")
+    s1 = TextStore.from_request("x", ["The recorded temperature is exactly 5 C."])
+    assert not verbatim_in_source(s1, "-5 C")
+    s2 = TextStore.from_request("x", ["Add 5 cups of flour."])
+    assert not verbatim_in_source(s2, "2.5 cups of flour")
+
+
 def test_staged_discharge_and_aux_evidence():
     """Round-2 audit B03/B07: a condition-wrapped link composes S when another
     sentence discharges the condition (both cited); an alias premise named by
