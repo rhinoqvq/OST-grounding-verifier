@@ -10,7 +10,7 @@ from verifier.service import create_app
 def make_client(llm, decider, **overrides) -> TestClient:
     # scripted proposals: the llm proposer entry
     settings = Settings(_env_file=None, openai_api_key="t", typesafe_api_key="t",
-                        **{"proposer": "llm", **overrides})
+                        **{"proposer": "llm", "sentence_guard": False, **overrides})
     deps = Dependencies(settings=settings, llm=llm, decider=decider, conn=None)
     app = create_app(settings, dependencies=deps)
     return TestClient(app, raise_server_exceptions=False)

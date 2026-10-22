@@ -12,10 +12,11 @@ from verifier.output.schemas import Verdict, VerifyRequest
 
 
 def make_deps(llm, decider, **settings_overrides) -> Dependencies:
-    # these tests feed a scripted proposal, so they run the llm proposer entry
+    # these tests feed a scripted proposal, so they run the llm proposer entry;
+    # the decider scripts no whole-sentence guard call (tests/test_sentence_guard.py covers it)
     settings = Settings(
         _env_file=None, openai_api_key="test", typesafe_api_key="test",
-        **{"proposer": "llm", **settings_overrides},
+        **{"proposer": "llm", "sentence_guard": False, **settings_overrides},
     )
     return Dependencies(settings=settings, llm=llm, decider=decider, conn=None)
 

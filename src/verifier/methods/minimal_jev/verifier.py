@@ -18,6 +18,7 @@ selection only, never rewriting; the trace records how many were kept.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from verifier.harness.batching import DEFAULT_REQUEST_TOKEN_BUDGET, ask_batched, question_tokens
@@ -87,6 +88,65 @@ def fit_source(store: TextStore, answer_texts: list[str], *, max_tokens: int, li
     return [sentences[i] for i in sorted(kept)]
 
 
+@dataclass(frozen=True)
+class SentenceCall:
+    """The judge's call on one whole answer sentence."""
+
+    verdict: Verdict           # the top choice
+    evidence: str | None       # source sentence id; None for U or when no sentence was picked
+    prob: float
+
+    @property
+    def supported(self) -> bool:
+        """S that survives the exit contract: an S needs a citation."""
+        return self.verdict is Verdict.SUPPORTED and self.evidence is not None
+
+
+async def judge_sentences(store: TextStore, deps: "Dependencies") -> tuple[list[SentenceCall], dict]:
+    """One call per answer sentence, in sentence order: verdict and evidence questions in
+    one request (batched only for a very long answer). The optimized method's sentence
+    guard sends exactly this request, so the two methods share one cached call."""
+    settings = deps.settings
+    texts = [s.text for s in store.answer_sentences]
+    # one request: the state and every question (each evidence question lists the kept
+    # sentences as options) must fit the budget together; shrink the kept set until they do.
+    # The option cost counts the options a question can actually carry (no more than the
+    # source has): costing every question at the 255-option cap left a 13+ sentence answer
+    # no room for any source, and the empty request then passed the size check (2026-10-23:
+    # 214 RAGTruth answers were judged against nothing).
+    sources = store.all_source_sentences()
+    limit = MAX_CHOICE_OPTIONS - 1  # one option is NO_EVIDENCE
+    while True:
+        base = sum(question_tokens(q) for k, t in enumerate(texts)
+                   for q in (verdict_question(k, t), evidence_question(k, t, [])))
+        option_cost = len(texts) * (min(limit, len(sources)) + 1) * 8
+        kept = fit_source(store, texts, max_tokens=DEFAULT_REQUEST_TOKEN_BUDGET - base - option_cost - 500,
+                          limit=limit)
+        state = build_source_state(store, kept)
+        questions: list[Question] = []
+        for k, t in enumerate(texts):
+            questions += [verdict_question(k, t), evidence_question(k, t, kept)]
+        total = estimate_tokens(state) + sum(question_tokens(q) for q in questions)
+        if (total <= DEFAULT_REQUEST_TOKEN_BUDGET and kept) or limit <= 10:
+            break
+        limit //= 2
+    if len(questions) <= settings.max_questions_per_request:
+        answers = await deps.decider.ask(state, questions)
+        requests = 1
+    else:  # a long answer: more questions than one request takes
+        answers = await ask_batched(deps.decider, state, questions,
+                                    max_per_request=settings.max_questions_per_request,
+                                    max_parallel=settings.max_parallel_requests)
+        requests = -(-len(questions) // settings.max_questions_per_request)
+    calls = []
+    for k in range(len(texts)):
+        v, e = answers[f"v{k}"], answers[f"e{k}"]
+        verdict = Verdict(v.choice)
+        picked = verdict is not Verdict.UNSUPPORTED and e.choice and e.choice != NO_EVIDENCE
+        calls.append(SentenceCall(verdict, e.choice if picked else None, v.probabilities.get(v.choice, 0.0)))
+    return calls, {"questions": len(questions), "requests": requests, "source_sentences_kept": len(kept)}
+
+
 async def run_minimal_jev(
     request: VerifyRequest, deps: "Dependencies"
 ) -> tuple[VerifyResponse, Trace]:
@@ -122,51 +182,16 @@ async def _run(request: VerifyRequest, deps: "Dependencies", trace: Trace) -> Ve
         return VerifyResponse(claims=claims)
 
     r = trace.start_round("1-minimal-jev")
-    # one request: the state and every question (each evidence question lists the kept
-    # sentences as options) must fit the budget together; shrink the kept set until they do.
-    # The option cost counts the options a question can actually carry (no more than the
-    # source has): costing every question at the 255-option cap left a 13+ sentence answer
-    # no room for any source, and the empty request then passed the size check (2026-10-23:
-    # 214 RAGTruth answers were judged against nothing).
-    sources = store.all_source_sentences()
-    limit = MAX_CHOICE_OPTIONS - 1  # one option is NO_EVIDENCE
-    while True:
-        base = sum(question_tokens(q) for k, t in enumerate(texts)
-                   for q in (verdict_question(k, t), evidence_question(k, t, [])))
-        option_cost = len(texts) * (min(limit, len(sources)) + 1) * 8
-        kept = fit_source(store, texts, max_tokens=DEFAULT_REQUEST_TOKEN_BUDGET - base - option_cost - 500,
-                          limit=limit)
-        state = build_source_state(store, kept)
-        questions: list[Question] = []
-        for k, t in enumerate(texts):
-            questions += [verdict_question(k, t), evidence_question(k, t, kept)]
-        total = estimate_tokens(state) + sum(question_tokens(q) for q in questions)
-        if (total <= DEFAULT_REQUEST_TOKEN_BUDGET and kept) or limit <= 10:
-            break
-        limit //= 2
-    if len(questions) <= settings.max_questions_per_request:
-        answers = await deps.decider.ask(state, questions)
-        requests = 1
-    else:  # a long answer: more questions than one request takes
-        answers = await ask_batched(deps.decider, state, questions,
-                                    max_per_request=settings.max_questions_per_request,
-                                    max_parallel=settings.max_parallel_requests)
-        requests = -(-len(questions) // settings.max_questions_per_request)
-    trace.end_round(r, questions=len(questions), requests=requests,
-                    source_sentences_kept=len(kept))
+    calls, info = await judge_sentences(store, deps)
+    trace.end_round(r, **info)
 
     r = trace.start_round("2-render")
     drafts = []
-    for k, t in enumerate(texts):
-        v, e = answers[f"v{k}"], answers[f"e{k}"]
-        verdict = Verdict(v.choice)
-        p = v.probabilities.get(v.choice, 0.0)
-        citations = []
-        if verdict is not Verdict.UNSUPPORTED and e.choice and e.choice != NO_EVIDENCE:
-            citations = [make_citation(store, e.choice)]
-        evidence = e.choice if citations else "none"
-        drafts.append(DraftClaim(t, verdict, f"Judge: {verdict.value} (p={p:.2f}); evidence: {evidence}.",
-                                 citations))
+    for t, call in zip(texts, calls):
+        citations = [make_citation(store, call.evidence)] if call.evidence else []
+        evidence = call.evidence or "none"
+        drafts.append(DraftClaim(t, call.verdict, f"Judge: {call.verdict.value} (p={call.prob:.2f}); "
+                                 f"evidence: {evidence}.", citations))
     claims, report = enforce_contract(drafts, request.context_passages)
     trace.end_round(r, claims=len(claims), contract_violations=report.violations,
                     downgraded=report.downgraded_claims)

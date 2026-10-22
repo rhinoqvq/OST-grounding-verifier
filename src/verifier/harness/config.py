@@ -100,6 +100,9 @@ class Settings(BaseSettings):
     # whole-source judge
     source_tree: bool = True
     tree_map_leaves: int = 4           # source leaves tried per answer fact (plus their sentences)
+    # whole-sentence guard: an alarm from a structural layer (gate, fragment, relation,
+    # threshold, C filter) stands only if a single-call judgment of the whole sentence is not S
+    sentence_guard: bool = True
     max_state_tokens: int = 26_000     # a state above this is narrowed to the relevant sentences
 
     # batching / retries

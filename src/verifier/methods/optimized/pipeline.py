@@ -32,7 +32,9 @@ from verifier.methods.optimized.judge.aggregate import (
     relation_verdict,
     sentences_needing_recheck,
 )
+from verifier.methods.minimal_jev.verifier import judge_sentences
 from verifier.methods.optimized.judge.escalate import escalate_flat
+from verifier.methods.optimized.judge.guard import apply_sentence_guard
 from verifier.methods.optimized.judge.entail import (
     UnitJudgment,
     apply_grounding_gate,
@@ -770,6 +772,15 @@ async def _judge(
                     for note in notes:
                         trace.note(note)
             trace.end_round(r, rechecked=sorted(groups), overridden=overrides)
+
+    # round 4b: whole-sentence guard ------------------------------------------
+    if settings.sentence_guard and not context_empty:
+        r = trace.start_round("4b-sentence-guard")
+        calls, info = await judge_sentences(store, deps)
+        released = apply_sentence_guard(
+            units, judgments, {s.sentence_id: c for s, c in zip(store.answer_sentences, calls)}
+        )
+        trace.end_round(r, **info, released=released)
 
     # round 5: deterministic output -------------------------------------------
     r = trace.start_round("5-render")
