@@ -1380,3 +1380,27 @@ def test_witness_compares_words_of_any_script():
     # nothing to compare is no witness, even next to a source line with no word
     assert not verbatim_in_source(store, "——")
     assert not verbatim_in_source(store, "")
+def test_whole_sentences_ablation_applies_no_cut(store):
+    """OST-Whole ablation: the same answers that cut the sentences above leave
+    every sentence whole (no fragment, relation or recombination check), and a
+    kept-whole marker still attaches its diagnostic parts to the sentence."""
+    candidates = find_candidates(store)
+    by_conn = {c.connective: c for c in candidates}
+    answers = {
+        by_conn["because"].question_id: choice(by_conn["because"].question_id, "cause_link"),
+        by_conn["and"].question_id: choice(by_conn["and"].question_id, "two_facts"),
+        by_conn["or"].question_id: choice(by_conn["or"].question_id, "keep_whole"),
+    }
+    outcome = build_tree_from_cuts(store, candidates, answers, min_prob=0.6, whole_sentences=True)
+    assert outcome.units == []  # select falls back to the whole sentences
+    assert sum("not applied (whole_sentences)" in n for n in outcome.notes) == 2
+    assert outcome.tree.nodes["sent::A.S2"].diagnostic_spans
+    assert not outcome.tree.nodes["sent::A.S0"].diagnostic_spans
+
+    # a shared-part cut is not applied either, so no recombination round fires
+    store2 = TextStore.from_request(C20_ANSWER, ["(src)"])
+    cand = find_candidates(store2)[0]
+    probs = {"share_18": 0.9, "not_boundary": 0.1}
+    answers2 = {cand.question_id: Answer(cand.question_id, choice="share_18", probabilities=probs)}
+    outcome2 = build_tree_from_cuts(store2, [cand], answers2, min_prob=0.6, whole_sentences=True)
+    assert outcome2.units == [] and outcome2.shared_checks == []

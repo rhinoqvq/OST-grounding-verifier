@@ -407,6 +407,7 @@ def build_tree_from_cuts(
     min_prob: float,
     rejected_shared: set[str] | None = None,
     voice: Voice = ANSWER_VOICE,
+    whole_sentences: bool = False,
 ) -> JevProposalOutcome:
     tree = SemanticTree(store=store)
     notes: list[str] = []
@@ -498,6 +499,13 @@ def build_tree_from_cuts(
                     "(inside a kept-whole conditional's scope)"
                 )
                 kept_whole.append(candidate)
+            accepted = []
+
+        # ablation (OST-Whole): the cuts Jev accepted are not applied, the
+        # sentence stays one unit; its keep-whole diagnostics are kept
+        if whole_sentences and accepted:
+            for candidate, label in accepted:
+                notes.append(f"{candidate.question_id}: {label} cut not applied (whole_sentences)")
             accepted = []
 
         if not accepted:
@@ -643,6 +651,7 @@ async def propose_with_jev(
     max_parallel: int,
     nc_min_prob: float = 0.80,
     voice: Voice = ANSWER_VOICE,
+    whole_sentences: bool = False,
 ) -> JevProposalOutcome:
     candidates = find_candidates(store)
     questions = [cut_question(store, c, voice) for c in candidates]
@@ -657,7 +666,9 @@ async def propose_with_jev(
             max_per_request=max_per_request,
             max_parallel=max_parallel,
         )
-    outcome = build_tree_from_cuts(store, candidates, answers, min_prob=min_prob, voice=voice)
+    outcome = build_tree_from_cuts(
+        store, candidates, answers, min_prob=min_prob, voice=voice, whole_sentences=whole_sentences
+    )
     for sentence in store.answer_sentences:
         answer = answers.get(f"nc::{sentence.sentence_id}")
         p = (answer.probabilities or {}).get("meta_discourse", 0.0) if answer else 0.0

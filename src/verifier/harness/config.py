@@ -103,6 +103,10 @@ class Settings(BaseSettings):
     # whole-sentence guard: an alarm from a structural layer (gate, fragment, relation,
     # threshold, C filter) stands only if a single-call judgment of the whole sentence is not S
     sentence_guard: bool = True
+    # ablation (OST-Whole): answer-side cuts Jev accepts are not applied, every answer
+    # sentence stays one unit; the cut questions are still asked, keep-whole
+    # diagnostics stay on the sentence, the source side is unchanged
+    whole_sentences: bool = False
     max_state_tokens: int = 26_000     # a state above this is narrowed to the relevant sentences
 
     # batching / retries

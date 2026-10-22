@@ -261,6 +261,7 @@ async def _judge(
             max_per_request=settings.max_questions_per_request,
             max_parallel=settings.max_parallel_requests,
             nc_min_prob=settings.nc_min_prob,
+            whole_sentences=settings.whole_sentences,
         )
         non_claim_spans = jev_outcome.non_claim_spans
         tree = jev_outcome.tree
