@@ -125,7 +125,9 @@ class SentenceCall:
         return self.verdict is Verdict.SUPPORTED and self.evidence is not None
 
 
-async def _ask_sentences(store: TextStore, deps: "Dependencies", verdict_q) -> tuple[dict[str, Answer], dict]:
+async def _ask_sentences(
+    store: TextStore, deps: "Dependencies", verdict_q, out: dict | None = None
+) -> tuple[dict[str, Answer], dict]:
     """The one judge request: `verdict_q(k, text)` and the evidence question for every
     answer sentence (batched only for a very long answer)."""
     settings = deps.settings
@@ -160,6 +162,8 @@ async def _ask_sentences(store: TextStore, deps: "Dependencies", verdict_q) -> t
                                     max_per_request=settings.max_questions_per_request,
                                     max_parallel=settings.max_parallel_requests)
         requests = -(-len(questions) // settings.max_questions_per_request)
+    if out is not None:  # J+ME's evidence probes ask against this same state
+        out["state"], out["kept"] = state, kept
     return answers, {"questions": len(questions), "requests": requests, "source_sentences_kept": len(kept)}
 
 
@@ -219,13 +223,18 @@ async def meta_discourse(store: TextStore, deps: "Dependencies") -> dict[str, fl
 
 
 async def run_minimal_jev(
-    request: VerifyRequest, deps: "Dependencies", *, plus: bool = False
+    request: VerifyRequest, deps: "Dependencies", *, plus: bool = False, variant: str | None = None
 ) -> tuple[VerifyResponse, Trace]:
     from verifier.harness.pipeline import _save  # same persistence as the other methods
 
     trace = Trace()
     try:
-        response = await (_run_plus if plus else _run)(request, deps, trace)
+        if variant in ("nc", "me"):
+            from verifier.methods.minimal_jev.evidence import run_me
+
+            response = await run_me(request, deps, trace, ost_evidence=variant == "me")
+        else:
+            response = await (_run_plus if plus else _run)(request, deps, trace)
         _save(deps, request, response, "ok", trace)
         return response, trace
     except Exception as exc:

@@ -161,3 +161,41 @@ async def test_minimal_jev_keeps_its_own_wording():
     _, questions = decider.seen[0]
     v0 = next(q for q in questions if q.question_id == "v0")
     assert set(v0.options) == {"SUPPORTED", "CONTRADICTED", "UNSUPPORTED"}
+
+
+# --- J+nc / J+ME: J's verdict with the meta-discourse gate; ME takes the optimized evidence probes ---
+
+def me_deps(decider, method: str) -> Dependencies:
+    settings = Settings(_env_file=None, method=method, typesafe_api_key="t")
+    return Dependencies(settings=settings, llm=ForbiddenLLM(), decider=decider, conn=None)
+
+
+def j_script(**extra) -> dict:
+    return {
+        "nc::A.S0": nc("A.S0", 0.9), "nc::A.S1": nc("A.S1", 0.05), "nc::A.S2": nc("A.S2", 0.05),
+        "v0": choice("v0", "SUPPORTED"), "e0": choice("e0", "P0.S2"),
+        "v1": choice("v1", "SUPPORTED"), "e1": choice("e1", NO_EVIDENCE),  # J's pick found nothing
+        "v2": choice("v2", "UNSUPPORTED"), "e2": choice("e2", NO_EVIDENCE),
+        **extra,
+    }
+
+
+async def test_nc_is_j_without_the_gated_sentence():
+    response, _ = await run_request(wal_request(), me_deps(FakeDecider(j_script()), "minimal_jev_nc"))
+    store = TextStore.from_request(ANSWER, [PASSAGE_0, PASSAGE_1])
+    assert [c.claim_text for c in response.claims] == [s.text for s in store.answer_sentences][1:]
+    # S without J's evidence pick falls to U at the contract, as in J
+    assert [c.verdict for c in response.claims] == [Verdict.UNSUPPORTED, Verdict.UNSUPPORTED]
+
+
+async def test_me_takes_evidence_from_relevance_probes_with_rank_fallback():
+    def probe(q):  # only P0.S1 scores, and only at the fallback level
+        return Answer(q.question_id, yes_prob=0.4 if q.question_id == "r::1::P0.S1" else 0.1)
+
+    decider = FakeDecider(j_script(), default_factory=probe)
+    response, _ = await run_request(wal_request(), me_deps(decider, "minimal_jev_me"))
+    assert [c.verdict for c in response.claims] == [Verdict.SUPPORTED, Verdict.UNSUPPORTED]
+    store = TextStore.from_request(ANSWER, [PASSAGE_0, PASSAGE_1])
+    assert response.claims[0].citations[0].quote == store.sentence_by_id("P0.S1").text
+    asked = {q.question_id.split("::")[1] for _, qs in decider.seen for q in qs if q.question_id.startswith("r::")}
+    assert asked == {"1"}  # the gated sentence (0) and the U sentence (2) get no probes
