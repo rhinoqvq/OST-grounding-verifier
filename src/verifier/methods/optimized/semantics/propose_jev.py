@@ -321,6 +321,9 @@ def _containing_unit(units: list[Node], position: int) -> Node | None:
     return best
 
 
+_REASON_BREAK = re.compile(r",\s+(?:as|since)\s+", re.IGNORECASE)
+
+
 def _attach_diagnostics(store: TextStore, host: Node, markers: list[CutCandidate], notes: list[str]) -> None:
     """Split the host's anchor at keep_whole markers into diagnostic parts.
     Parts are never output and never truth-judged; each gets a grounding
@@ -337,7 +340,15 @@ def _attach_diagnostics(store: TextStore, host: Node, markers: list[CutCandidate
     starts = [anchor.start, *[m.marker_end for m in inside]]
     parts: list[Span] = []
     for i in range(len(inside) + 1):
-        span = _trim_span(store, starts[i], bounds[i + 1])
+        # a reason clause (", as ...", ", since ...") is its own piece: without the break an
+        # antecedent swallows it ("if desired, as it can help ...": gate audit 2026-10-22)
+        lo = starts[i]
+        for m in _REASON_BREAK.finditer(store.answer, starts[i], bounds[i + 1]):
+            span = _trim_span(store, lo, m.start())
+            if span is not None and _word_count(store.slice(span)) >= 2:
+                parts.append(span)
+            lo = m.end()
+        span = _trim_span(store, lo, bounds[i + 1])
         if span is not None and _word_count(store.slice(span)) >= 2:
             parts.append(span)
     if len(parts) >= 2:

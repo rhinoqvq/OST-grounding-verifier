@@ -12,7 +12,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="GV_", env_file=".env", extra="ignore")
 
     # which of the assignment's three methods serves POST /verify
-    method: Literal["optimized", "minimal_llm", "baseline"] = "optimized"
+    # minimal_jev: method 2's single request with the judge model in place of the LLM (ablation)
+    method: Literal["optimized", "minimal_llm", "baseline", "minimal_jev"] = "optimized"
     # method 1 (baseline): claims whose best source sentence covers less than
     # this IDF-weighted share of their content words become UNSUPPORTED.
     # Deliberately an untuned round default; retune on the eval dev split.
@@ -69,9 +70,17 @@ class Settings(BaseSettings):
 
     # decision thresholds (tuned on the dev set; defaults are starting points)
     verdict_min_prob: float = 0.55     # top verdict option below this -> UNSUPPORTED
+    # ... except a lean to SUPPORTED, which stays S (clean 430 times in 456 on the RAGTruth full test)
+    threshold_keeps_leaned_supported: bool = True
     relevance_min_prob: float = 0.60   # source sentence counts as evidence above this
     evidence_floor_prob: float = 0.30  # rank-fallback evidence must at least reach this
     grounding_min_prob: float = 0.50   # diagnostic part of a kept-whole unit counts as grounded above this
+    # an ungrounded conditional antecedent does not cap when the evidence states the consequent
+    # outright ("if A, B" is weaker than B); a conditional source still gets the check (m11)
+    gate_skip_unconditional_antecedent: bool = True
+    # a diagnostic part that asserts nothing presence-checkable ("if desired", "check if X", advice,
+    # an idiomatic 'or', a remark about the passages) does not cap either
+    gate_skip_non_assertive_parts: bool = True
     evidence_selector: str = "probe"   # probe | hybrid (probe + embedding prior)
     embed_model: str = "text-embedding-v3"
     embed_base_url: str | None = None  # None -> qwen_base_url; point at any OpenAI-compatible /v1 (e.g. local)

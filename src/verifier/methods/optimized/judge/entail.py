@@ -100,7 +100,7 @@ def grounding_question(store: TextStore, unit: Node, part_index: int) -> YesNoQu
     asks for *presence in the source*, not truth. Grounding composes across any
     structure, truth does not — this is what catches a fabricated disjunct or
     condition inside a unit whose overall verdict looks SUPPORTED."""
-    part_text = store.slice(unit.diagnostic_spans[part_index])
+    part_text = strip_framing(store.slice(unit.diagnostic_spans[part_index]))
     return YesNoQuestion(
         question_id=f"g::{unit.node_id}::{part_index}",
         instructions=(
@@ -669,7 +669,7 @@ def verbatim_in_source(store: TextStore, part_text: str) -> bool:
     Fails closed: a paraphrased part gets no witness and the cap stands.
     A leading list marker is layout, not content, so it is dropped first:
     "8. Click Apply" is present when a source sentence says "Click Apply"."""
-    norm = _normalized_tokens(strip_list_marker(part_text))
+    norm = _normalized_tokens(strip_framing(strip_list_marker(part_text)))
     tokens = norm.split()
     alt = ""
     if tokens and tokens[0] in _WITNESS_LEAD_WORDS and len(tokens) > 1:
@@ -685,6 +685,107 @@ def verbatim_in_source(store: TextStore, part_text: str) -> bool:
     return False
 
 
+# the antecedent of "if A, B" / "unless A, B" is not asserted; 'when' is left out
+# because a temporal 'when' presupposes its clause
+_ANTECEDENT_LEAD = re.compile(
+    r"^\s*(?:if|unless|should|had|were|(?:when|whenever)\s+(?:you|we|one|they|people|users?)\b)\b", re.IGNORECASE
+)
+_ANTECEDENT_BEFORE = re.compile(r"\b(?:if|unless)[\s,]*$", re.IGNORECASE)
+_GENERIC_WHEN_BEFORE = re.compile(r"\b(?:when|whenever)[\s,]*$", re.IGNORECASE)
+_GENERIC_SUBJECT = re.compile(r"^\s*(?:you|we|one|they|people|users?)\b", re.IGNORECASE)
+# a source sentence that states its content only under a condition
+_SOURCE_CONDITIONAL = re.compile(
+    r"\b(?:if|unless|when|whenever|in case|provided that|as long as|only if)\b", re.IGNORECASE
+)
+
+
+def is_antecedent_part(store: TextStore, unit: Node, i: int) -> bool:
+    """Diagnostic part i is the antecedent of a conditional: it opens with the
+    conditional word (a sentence-initial 'If A, ...') or follows one ('B if A')."""
+    part = unit.diagnostic_spans[i]
+    if _ANTECEDENT_LEAD.match(store.slice(part)):
+        return True
+    start = max(unit.anchor_spans[0].start, part.start - 12)
+    before = store.answer[start:part.start]
+    if _ANTECEDENT_BEFORE.search(before):
+        return True
+    return bool(_GENERIC_WHEN_BEFORE.search(before) and _GENERIC_SUBJECT.match(store.slice(part)))
+
+
+def evidence_is_unconditional(store: TextStore, judgment: "UnitJudgment") -> bool:
+    """The supporting evidence states its content outright: no cited source
+    sentence carries a condition of its own."""
+    texts = []
+    for sid in judgment.evidence_sentence_ids:
+        try:
+            texts.append(store.sentence_by_id(sid).text)
+        except KeyError:
+            return False
+    return bool(texts) and not any(_SOURCE_CONDITIONAL.search(t) for t in texts)
+
+
+# leading framing words: discourse links and source attributions carry no content of their own
+_FRAMING = re.compile(
+    r"^\s*(?:(?:therefore|thus|hence|also|additionally|furthermore|moreover|however|overall|"
+    r"in summary|in conclusion|note that|it is (?:also )?worth noting that)\s*,?\s+|"
+    r"(?:based on|according to) (?:the )?(?:provided |given )?(?:passages?|context|information|sources?|text)\s*,?\s+)+",
+    re.IGNORECASE,
+)
+# "if" read as "whether": the clause is an embedded question, not a condition
+_EMBEDDED_IF_BEFORE = re.compile(
+    r"\b(?:check|see|ask|know|determine|wonder|find out|test|verify|decide)\s+(?:\w+\s+){0,2}(?:if|whether)[\s,]*$",
+    re.IGNORECASE,
+)
+_OPTIONAL_ANTECEDENT = re.compile(
+    r"^\s*(?:if|when)\s+(?:desired|you (?:like|want|wish|prefer)|needed|necessary|preferred|possible|applicable)\b"
+    r"|^\s*(?:desired|needed|necessary|preferred|possible|applicable)\s*[,.]?\s*$",
+    re.IGNORECASE,
+)
+_ADVICE = re.compile(
+    r"^\s*(?:be|avoid|make sure|ensure|try|consider|do not|don't|remember|keep in mind|feel free)\b", re.IGNORECASE
+)
+_IDIOM_OR = re.compile(
+    r"\b(?:up or down|on or near|more or less|one or more|two or three|before or after|in or out|on or off|"
+    r"yes or no|or so|or two|or more|or less)\b",
+    re.IGNORECASE,
+)
+_ABOUT_THE_SOURCE = re.compile(
+    r"\b(?:passages?|context|article|text|sources?)\b.*\b(?:do(?:es)? not|don't|doesn't|not)\s+"
+    r"(?:provide|mention|specify|include|contain|say|state|give|discuss)",
+    re.IGNORECASE,
+)
+
+
+def strip_framing(text: str) -> str:
+    """The text without leading framing words ("Therefore, based on the provided
+    passages, ..."): they link or attribute, they assert nothing a source could contain."""
+    m = _FRAMING.match(text)
+    return text[m.end():] if m and m.end() < len(text) else text
+
+
+def non_assertive_part(store: TextStore, unit: Node, i: int) -> str | None:
+    """Why diagnostic part i asserts nothing whose presence the source could show,
+    or None. Gate audit 2026-10-22 (QA-900, confirmed on Summary + Data2txt):
+    such parts were capped although no true error sat in them."""
+    part = unit.diagnostic_spans[i]
+    text = strip_framing(strip_list_marker(store.slice(part)))
+    before = store.answer[max(unit.anchor_spans[0].start, part.start - 30):part.start]
+    if _OPTIONAL_ANTECEDENT.match(text) or (_ANTECEDENT_BEFORE.search(before) and _OPTIONAL_ANTECEDENT.match("if " + text)):
+        return "optional"  # "if desired": the reader's choice, no condition on the facts
+    if _EMBEDDED_IF_BEFORE.search(before):
+        return "whether"  # "check if X": X is asked, not asserted
+    after = store.answer[part.end:part.end + 12]
+    if i == 0 and len(re.findall(r"[A-Za-z0-9]\w*", text)) <= 2 and re.match(r"[\s,]*(?:if|whether)\b", after, re.IGNORECASE):
+        return "whether"  # "9. Check | if X": the head of an embedded question, nothing to look for
+    if _ADVICE.match(text):
+        return "advice"  # "be cautious": advice, not a claim
+    if re.search(r"\bor[\s,]*$", before, re.IGNORECASE) and _IDIOM_OR.search(store.slice(unit.anchor_spans[0])):
+        return "idiom"  # "up or down": one idiomatic choice, not a fabricated alternative
+    if _ABOUT_THE_SOURCE.search(text):
+        return "about the source"  # "the passages do not provide X" is about the passages
+    return None
+
+
 def apply_grounding_gate(
     unit: Node,
     judgment: "UnitJudgment",
@@ -692,13 +793,24 @@ def apply_grounding_gate(
     *,
     grounding_min_prob: float,
     store: TextStore | None = None,
+    skip_unconditional_antecedent: bool = False,
+    skip_non_assertive: bool = False,
 ) -> None:
     """An ungrounded diagnostic part caps a SUPPORTED verdict at UNSUPPORTED.
     CONTRADICTED is left alone (the block already flags a conflict), and
     UNSUPPORTED cannot get worse. A part whose text is verbatim present in a
     source passage is grounded by that fact alone: the syntactic witness
     overrides a low probe score (the gate stays a one-directional S->U
-    operator; the witness only narrows where it fires, never adds S or C)."""
+    operator; the witness only narrows where it fires, never adds S or C).
+
+    With skip_unconditional_antecedent, an ungrounded antecedent does not cap
+    when the evidence states the consequent outright: "if A, B" is weaker than
+    an unconditional B, so A need not appear in the source. When the source
+    gives the content under a condition of its own, the antecedent is still
+    checked (a changed or strengthened condition is not supported: m11).
+
+    With skip_non_assertive, a part that asserts nothing a source could contain
+    does not cap either (non_assertive_part); the whole-unit verdict stands."""
     if judgment.verdict is not Verdict.SUPPORTED or not unit.diagnostic_spans:
         return
     for i in range(len(unit.diagnostic_spans)):
@@ -708,6 +820,14 @@ def apply_grounding_gate(
         if answer.yes_prob < grounding_min_prob:
             if store is not None and verbatim_in_source(store, store.slice(unit.diagnostic_spans[i])):
                 judgment.flags.append(f"grounding_witness_{i}(p={answer.yes_prob:.2f})")
+                continue
+            if (skip_unconditional_antecedent and store is not None
+                    and is_antecedent_part(store, unit, i) and evidence_is_unconditional(store, judgment)):
+                judgment.flags.append(f"antecedent_unconditional_source_{i}(p={answer.yes_prob:.2f})")
+                continue
+            reason = non_assertive_part(store, unit, i) if (skip_non_assertive and store is not None) else None
+            if reason:
+                judgment.flags.append(f"part_not_gated_{i}:{reason}(p={answer.yes_prob:.2f})")
                 continue
             judgment.verdict = Verdict.UNSUPPORTED
             judgment.evidence_sentence_ids = []
@@ -756,6 +876,7 @@ def decide_verdict(
     embed_ranked: list[str] | None = None,
     embed_top_k: int = 2,
     embed_floor_prob: float = 0.25,
+    keep_leaned_supported: bool = False,
 ) -> UnitJudgment:
     judgment = UnitJudgment(node_id=unit.node_id, node_version=unit.version, verdict=Verdict.UNSUPPORTED)
     answer = answers.get(f"v::{unit.node_id}")
@@ -791,10 +912,16 @@ def decide_verdict(
     top_label = max(answer.probabilities, key=answer.probabilities.get, default=None)
     top_prob = answer.probabilities.get(top_label, 0.0) if top_label else 0.0
     if top_label is None or top_prob < verdict_min_prob:
-        # the calibrated distribution is too flat: say "cannot verify" rather than guess
-        judgment.verdict = Verdict.UNSUPPORTED
-        judgment.flags.append(f"low_confidence(top={top_label},p={top_prob:.2f})")
-        return judgment
+        if keep_leaned_supported and top_label == "supported":
+            # Threshold audit 2026-10-23: when the judge leans S below the bar the unit was
+            # clean 430 times in 456 on the RAGTruth full test (QA found, Summary + Data2txt
+            # confirmed). A flat lean to C or U still reports U, which flags the same.
+            judgment.flags.append(f"low_confidence_kept_supported(p={top_prob:.2f})")
+        else:
+            # the calibrated distribution is too flat: say "cannot verify" rather than guess
+            judgment.verdict = Verdict.UNSUPPORTED
+            judgment.flags.append(f"low_confidence(top={top_label},p={top_prob:.2f})")
+            return judgment
 
     verdict = _LABEL_TO_VERDICT[top_label]
     if verdict is not Verdict.UNSUPPORTED and not judgment.evidence_sentence_ids:

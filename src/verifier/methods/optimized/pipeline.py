@@ -85,6 +85,8 @@ def _admit_upgrade(unit, judgment, answers, settings, store, trace: Trace, label
     apply_grounding_gate(
         unit, judgment, answers,
         grounding_min_prob=settings.grounding_min_prob, store=store,
+        skip_unconditional_antecedent=settings.gate_skip_unconditional_antecedent,
+        skip_non_assertive=settings.gate_skip_non_assertive_parts,
     )
     trace.note(f"{label}: {unit.node_id} -> {judgment.verdict.value}")
 
@@ -180,6 +182,8 @@ async def _map_onto_source(
                 apply_grounding_gate(
                     unit, mapped[unit.node_id], g_answers,
                     grounding_min_prob=settings.grounding_min_prob, store=store,
+                    skip_unconditional_antecedent=settings.gate_skip_unconditional_antecedent,
+                    skip_non_assertive=settings.gate_skip_non_assertive_parts,
                 )
                 grounded = mapped[unit.node_id].verdict is Verdict.SUPPORTED
             else:
@@ -410,6 +414,7 @@ async def _judge(
                 answers,
                 candidates[unit.node_id],
                 verdict_min_prob=settings.verdict_min_prob,
+                keep_leaned_supported=settings.threshold_keeps_leaned_supported,
                 relevance_min_prob=settings.relevance_min_prob,
                 evidence_floor_prob=settings.evidence_floor_prob,
                 max_evidence=settings.max_evidence_sentences,
@@ -536,6 +541,7 @@ async def _judge(
                         answers,
                         candidates[unit.node_id],
                         verdict_min_prob=settings.verdict_min_prob,
+                        keep_leaned_supported=settings.threshold_keeps_leaned_supported,
                         relevance_min_prob=settings.relevance_min_prob,
                         evidence_floor_prob=settings.evidence_floor_prob,
                         max_evidence=settings.max_evidence_sentences,
@@ -745,6 +751,7 @@ async def _judge(
                     answers,
                     recheck_candidates[sentence_node.node_id],
                     verdict_min_prob=settings.verdict_min_prob,
+                    keep_leaned_supported=settings.threshold_keeps_leaned_supported,
                     relevance_min_prob=settings.relevance_min_prob,
                     evidence_floor_prob=settings.evidence_floor_prob,
                     max_evidence=settings.max_evidence_sentences,

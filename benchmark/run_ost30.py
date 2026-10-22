@@ -6,7 +6,7 @@ ost30.sha256. Raw model calls are recorded in a per-method
 cache DB, so a re-run replays instead of paying again.
 
 Usage:
-    python benchmark/run_ost30.py --method optimized|minimal_llm|baseline [--proposer jev] [--tag _sol]
+    python benchmark/run_ost30.py --method optimized|minimal_llm|baseline|minimal_jev [--proposer jev] [--tag _sol]
     (--tag keeps a second configuration of the same method apart, e.g. minimal_llm on another model:
      results_minimal_llm_sol.jsonl; provider and model come from GV_LLM_PROVIDER / GV_OPENAI_MODEL)
 """
@@ -84,7 +84,7 @@ async def run_one(item: dict, deps: Dependencies, semaphore: asyncio.Semaphore) 
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--method", required=True, choices=["optimized", "minimal_llm", "baseline"])
+    parser.add_argument("--method", required=True, choices=["optimized", "minimal_llm", "baseline", "minimal_jev"])
     parser.add_argument("--proposer", default=None, choices=["llm", "jev"])
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--data", default=str(FROZEN))

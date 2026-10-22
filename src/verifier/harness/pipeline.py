@@ -1,6 +1,6 @@
 """Shared harness wiring: the dependency container, the GV_METHOD dispatcher
 and run persistence. Each method's own pipeline lives under
-verifier.methods.{baseline,minimal_llm,optimized}.
+verifier.methods.{baseline,minimal_llm,minimal_jev,optimized}.
 """
 
 from __future__ import annotations
@@ -44,6 +44,10 @@ async def run_request(request: VerifyRequest, deps: Dependencies) -> tuple[Verif
             from verifier.methods.baseline import run_baseline
 
             return await run_baseline(request, deps)
+        if method == "minimal_jev":
+            from verifier.methods.minimal_jev import run_minimal_jev
+
+            return await run_minimal_jev(request, deps)
         raise NotImplementedError(f"method {method!r} is not implemented yet")
     finally:
         runctx.CURRENT_RUN_ID.reset(token)

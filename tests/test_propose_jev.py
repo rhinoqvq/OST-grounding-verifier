@@ -844,6 +844,127 @@ def test_grounding_gate_verbatim_witness():
     assert any(f.startswith("ungrounded_part_0") for f in j2.flags)
 
 
+def test_unconditional_evidence_does_not_gate_the_antecedent():
+    """Gate audit 2026-10-22: 'If the latch is misaligned, ...' / 'If desired, ...'
+    were capped on their antecedent although the source states the consequent
+    outright. "If A, B" is weaker than B, so A need not be in the source; a source
+    that gives the content under a condition of its own still gets the check."""
+    from verifier.methods.optimized.judge.entail import UnitJudgment, apply_grounding_gate
+    from verifier.rag.source import Span
+    from verifier.rag.tree import Node, NodeStatus
+
+    answer = "If desired, old entries are evicted."
+
+    def gate(passage: str) -> UnitJudgment:
+        store = TextStore.from_request(answer, [passage])
+        sentence = store.answer_sentences[0]
+        comma = store.answer.index(",")
+        unit = Node(
+            node_id="sent::A.S0", origin="answer", sentence_id=sentence.sentence_id,
+            kind=NodeKind.SENTENCE, anchor_spans=[sentence.span],
+            display_text=sentence.text, status=NodeStatus.CHECKED,
+        )
+        unit.diagnostic_spans = [
+            Span(store.ANSWER_DOC, sentence.span.start, comma),
+            Span(store.ANSWER_DOC, comma + 2, sentence.span.end - 1),
+        ]
+        answers = {
+            "g::sent::A.S0::0": Answer("g::sent::A.S0::0", yes_prob=0.03),
+            "g::sent::A.S0::1": Answer("g::sent::A.S0::1", yes_prob=0.9),
+        }
+        j = UnitJudgment(node_id=unit.node_id, node_version=1, verdict=Verdict.SUPPORTED,
+                         evidence_sentence_ids=["P0.S0"])
+        apply_grounding_gate(unit, j, answers, grounding_min_prob=0.5, store=store,
+                             skip_unconditional_antecedent=True)
+        return j
+
+    outright = gate("Old entries are evicted to make room.")
+    assert outright.verdict is Verdict.SUPPORTED
+    assert any(f.startswith("antecedent_unconditional_source_0") for f in outright.flags)
+    conditional = gate("Old entries are evicted when memory runs low.")
+    assert conditional.verdict is Verdict.UNSUPPORTED
+
+
+def _diagnostic_unit(answer: str, cuts: list[str]):
+    """A kept-whole answer sentence with diagnostic parts split at the given
+    connective phrases (each phrase dropped, as _attach_diagnostics does)."""
+    from verifier.rag.source import Span
+    from verifier.rag.tree import Node, NodeStatus
+
+    store = TextStore.from_request(answer, ["Unrelated source text about something else entirely."])
+    sentence = store.answer_sentences[0]
+    unit = Node(
+        node_id="sent::A.S0", origin="answer", sentence_id=sentence.sentence_id,
+        kind=NodeKind.SENTENCE, anchor_spans=[sentence.span],
+        display_text=sentence.text, status=NodeStatus.CHECKED,
+    )
+    bounds, pos = [], 0
+    for cut in cuts:
+        i = answer.index(cut, pos)
+        bounds.append((i, i + len(cut)))
+        pos = i + len(cut)
+    starts = [0] + [e for _, e in bounds]
+    ends = [s for s, _ in bounds] + [len(answer.rstrip("."))]
+    unit.diagnostic_spans = [Span(store.ANSWER_DOC, a, b) for a, b in zip(starts, ends)]
+    return store, unit
+
+
+def test_non_assertive_parts_are_not_gated():
+    """Gate audit 2026-10-22 (found on QA-900, confirmed on Summary + Data2txt):
+    parts that assert nothing a source could contain were capped although no
+    true error sat in them. A fabricated alternative is still content (m10)."""
+    from verifier.methods.optimized.judge.entail import non_assertive_part
+
+    def reasons(answer, cuts):
+        store, unit = _diagnostic_unit(answer, cuts)
+        return [non_assertive_part(store, unit, i) for i in range(len(unit.diagnostic_spans))]
+
+    assert reasons("If desired, top with cheese.", [", "]) == ["optional", None]
+    assert reasons("9. Check if the door now shuts and locks normally.", [" if "]) == ["whether", "whether"]
+    assert reasons("Water might stain them, so be cautious.", [", so "]) == [None, "advice"]
+    assert reasons("Adjust the clip up or down a few links.", [" or "]) == [None, "idiom"]
+    assert reasons("Note that the passages do not provide specific times or temperatures.", [" or "])[0] == "about the source"
+    # a fabricated disjunct stays gated, however short (m10)
+    assert reasons("Production requests face a 30-second timeout or instant rejection.", [" or "]) == [None, None]
+    # a real condition is not non-assertive: it is left to the antecedent rule (m11)
+    assert reasons("If the cache is full, old entries are evicted.", [", "]) == [None, None]
+
+
+def test_framing_words_are_dropped_before_the_presence_check():
+    from verifier.methods.optimized.judge.entail import grounding_question, strip_framing, verbatim_in_source
+
+    assert strip_framing("Therefore, based on the provided passages, you can use netting") == "you can use netting"
+    assert strip_framing("However, it does not offer WiFi") == "it does not offer WiFi"
+    assert strip_framing("Overall") == "Overall"  # nothing would be left: keep the text
+    store = TextStore.from_request("x", ["You can use bird netting over the porch."])
+    assert verbatim_in_source(store, "Therefore, you can use bird netting")
+    s2, unit = _diagnostic_unit("Therefore, based on the provided passages, you can use netting or spikes.", [" or "])
+    q = grounding_question(s2, unit, 0)
+    assert 'Content piece: "you can use netting"' in q.instructions
+
+
+def test_a_reason_clause_is_its_own_diagnostic_part():
+    """'Use graph paper if desired, as it can help ...': without the break the
+    antecedent part swallowed the reason clause and the whole part was capped."""
+    from verifier.methods.optimized.semantics.propose_jev import CutCandidate, _attach_diagnostics
+    from verifier.rag.tree import Node, NodeStatus
+
+    answer = "Use graph paper if desired, as it can help in creating a neat graph."
+    store = TextStore.from_request(answer, ["Graph paper helps."])
+    sentence = store.answer_sentences[0]
+    host = Node(
+        node_id="sent::A.S0", origin="answer", sentence_id=sentence.sentence_id,
+        kind=NodeKind.SENTENCE, anchor_spans=[sentence.span],
+        display_text=sentence.text, status=NodeStatus.CHECKED,
+    )
+    i = answer.index(" if ")
+    marker = CutCandidate("c0", sentence.sentence_id, i, i + len(" if "), "if")
+    _attach_diagnostics(store, host, [marker], [])
+    parts = [store.slice(sp) for sp in host.diagnostic_spans]
+    assert parts == ["Use graph paper", "it can help in creating a neat graph."] or \
+        parts[-1].startswith("it can help"), parts
+
+
 async def test_member_rescue_on_staged_matched_relation():
     """Fix (3): a staged-matched CAUSE relation rescues a FLAT member to S with
     the link sentence as evidence (witness-bearing judgment beats the

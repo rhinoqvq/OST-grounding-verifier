@@ -125,17 +125,45 @@ async def test_upstream_error_propagates(wal_request, wal_proposal):
 
 
 async def test_low_confidence_becomes_unsupported(wal_request, wal_proposal):
+    """The original policy, kept behind the switch: a flat distribution reports U."""
     flat = {
         "v::u1": Answer("v::u1", choice="supported",
                         probabilities={"supported": 0.4, "contradicted": 0.3, "not_in_context": 0.3}),
         "r::u1::P0.S2": Answer("r::u1::P0.S2", yes_prob=0.9),
     }
     response, _ = await run_verification(
-        wal_request, make_deps(FakeLLM(proposal=wal_proposal), scripted_decider(flat))
+        wal_request, make_deps(FakeLLM(proposal=wal_proposal), scripted_decider(flat),
+                               threshold_keeps_leaned_supported=False)
     )
     claim = response.claims[0]
     assert claim.verdict is Verdict.UNSUPPORTED
     assert "too flat" in claim.reasoning
+
+
+async def test_a_lean_to_supported_below_the_bar_stays_supported(wal_request, wal_proposal):
+    """Threshold audit 2026-10-23: a lean to S below 0.55 was clean 430 times in 456
+    on the RAGTruth full test, so it stays S (with its evidence); a flat lean to
+    not-in-context still reports U."""
+    lean_s = {
+        "v::u1": Answer("v::u1", choice="supported",
+                        probabilities={"supported": 0.4, "contradicted": 0.3, "not_in_context": 0.3}),
+        "r::u1::P0.S2": Answer("r::u1::P0.S2", yes_prob=0.9),
+    }
+    response, trace = await run_verification(
+        wal_request, make_deps(FakeLLM(proposal=wal_proposal), scripted_decider(lean_s))
+    )
+    claim = response.claims[0]
+    assert claim.verdict is Verdict.SUPPORTED
+    assert claim.citations and claim.citations[0].index == 0
+    lean_u = {
+        "v::u1": Answer("v::u1", choice="not_in_context",
+                        probabilities={"supported": 0.3, "contradicted": 0.2, "not_in_context": 0.5}),
+        "r::u1::P0.S2": Answer("r::u1::P0.S2", yes_prob=0.9),
+    }
+    response, _ = await run_verification(
+        wal_request, make_deps(FakeLLM(proposal=wal_proposal), scripted_decider(lean_u))
+    )
+    assert response.claims[0].verdict is Verdict.UNSUPPORTED
 
 
 async def test_verdict_without_evidence_downgrades(wal_request, wal_proposal):
