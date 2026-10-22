@@ -192,9 +192,15 @@ async def test_me_takes_evidence_from_relevance_probes_with_rank_fallback():
     def probe(q):  # only P0.S1 scores, and only at the fallback level
         return Answer(q.question_id, yes_prob=0.4 if q.question_id == "r::1::P0.S1" else 0.1)
 
-    decider = FakeDecider(j_script(), default_factory=probe)
+    # the recovered S (J's own pick was none) must pass the sufficiency check on what was found
+    for check, expected in (("supported", Verdict.SUPPORTED), ("not_in_context", Verdict.UNSUPPORTED)):
+        decider = FakeDecider(j_script(**{"cs::1": dist("cs::1", **{check: 0.8, "contradicted": 0.1})}),
+                              default_factory=probe)
+        response, _ = await run_request(wal_request(), me_deps(decider, "minimal_jev_me"))
+        assert [c.verdict for c in response.claims] == [expected, Verdict.UNSUPPORTED]
+    decider = FakeDecider(j_script(**{"cs::1": dist("cs::1", supported=0.8, contradicted=0.1)}),
+                          default_factory=probe)
     response, _ = await run_request(wal_request(), me_deps(decider, "minimal_jev_me"))
-    assert [c.verdict for c in response.claims] == [Verdict.SUPPORTED, Verdict.UNSUPPORTED]
     store = TextStore.from_request(ANSWER, [PASSAGE_0, PASSAGE_1])
     assert response.claims[0].citations[0].quote == store.sentence_by_id("P0.S1").text
     asked = {q.question_id.split("::")[1] for _, qs in decider.seen for q in qs if q.question_id.startswith("r::")}

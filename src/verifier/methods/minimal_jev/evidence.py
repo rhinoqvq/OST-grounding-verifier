@@ -42,6 +42,37 @@ def relevance_probe(k: int, text: str, sentence: Sentence) -> YesNoQuestion:
     )
 
 
+def sufficiency_state(store: TextStore, cited: list[str]) -> str:
+    """The found sentences and the sentence before each, in source order, in the usual state format."""
+    from verifier.harness.context import build_source_state
+
+    chosen: dict[str, Sentence] = {}
+    for sid in cited:
+        s = store.sentence_by_id(sid)
+        siblings = store.passage_sentences[store.passage_index_of(s.span.doc)]
+        k = next((i for i, x in enumerate(siblings) if x.sentence_id == sid), 0)
+        for x in siblings[max(0, k - 1):k + 1]:
+            chosen[x.sentence_id] = x
+    order = {x.sentence_id: i for i, x in enumerate(store.all_source_sentences())}
+    return build_source_state(store, sorted(chosen.values(), key=lambda x: order[x.sentence_id]))
+
+
+def sufficiency_question(k: int, text: str, cited: list[str]) -> "ChoiceQuestion":
+    from verifier.methods.optimized.judge.entail import VERDICT_OPTIONS
+    from verifier.models.decider import ChoiceQuestion
+
+    ids = ", ".join(f"[{sid}]" for sid in cited)
+    return ChoiceQuestion(
+        question_id=f"cs::{k}",
+        instructions=(
+            f"Judge this claim strictly against the source sentences {ids} in the state — never "
+            "against outside knowledge. The other sentences in the state are there only to resolve "
+            f'references (pronouns, shared subjects), not as extra evidence.\nClaim: "{text}"'
+        ),
+        options=dict(VERDICT_OPTIONS),
+    )
+
+
 def probe_evidence(answers: dict[str, Answer], k: int, candidates: list[Sentence], settings) -> tuple[list[str], str | None]:
     """decide_verdict's evidence rule: the top max_evidence above the relevance bar, else the
     best-ranked one above the floor (flagged), else nothing."""
@@ -102,15 +133,36 @@ async def run_me(request: VerifyRequest, deps: "Dependencies", trace: Trace, *, 
                                         max_per_request=settings.max_questions_per_request,
                                         max_parallel=settings.max_parallel_requests)) if questions else {}
             per_sentence = []
+            recovered = []  # an S that J's own pick left without evidence and the probes found some for
             for k in todo:
                 verdict, j_evidence, _, p = decided[k]
                 evidence, note = probe_evidence(probes, k, cands[k], settings)
                 decided[k] = (verdict if evidence else Verdict.UNSUPPORTED, evidence, note, p)
+                if verdict is Verdict.SUPPORTED and evidence and not j_evidence:
+                    recovered.append(k)
                 top = sorted((((probes.get(f"r::{k}::{s.sentence_id}") or Answer("")).yes_prob or 0.0), s.sentence_id)
                              for s in cands[k])[::-1][:5]
                 per_sentence.append({"k": k, "verdict": verdict.value, "j_evidence": j_evidence,
                                      "probes": [[sid, round(q, 3)] for q, sid in top]})
-            trace.end_round(r, questions=len(questions), sentences=len(todo), per_sentence=per_sentence)
+            # relevant is not sufficient: a recovered S stands only if the judge, asked against the
+            # found sentences alone, still says supported
+            checks = await asyncio.gather(*(
+                deps.decider.ask(sufficiency_state(store, decided[k][1]),
+                                 [sufficiency_question(k, texts[k], decided[k][1])]) for k in recovered))
+            sufficiency = {}
+            for k, answers_k in zip(recovered, checks):
+                probs = answers_k[f"cs::{k}"].probabilities or {}
+                top = max(probs, key=probs.get, default=None)
+                sufficiency[k] = (top == "supported", round(probs.get("supported", 0.0), 3))
+                if top != "supported":
+                    verdict, evidence, note, p = decided[k]
+                    decided[k] = (Verdict.UNSUPPORTED, [], "recovered_evidence_insufficient", p)
+            for row in per_sentence:
+                if row["k"] in sufficiency:
+                    row["recovered_check"] = sufficiency[row["k"]]
+            trace.end_round(r, questions=len(questions), sentences=len(todo), recovered=len(recovered),
+                            recovered_insufficient=sum(not ok for ok, _ in sufficiency.values()),
+                            per_sentence=per_sentence)
     gated = {sid for sid, p in nc.items() if p >= settings.nc_min_prob}
 
     r = trace.start_round("3-render")
