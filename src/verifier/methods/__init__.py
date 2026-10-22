@@ -1,3 +1,2 @@
-"""One folder per assignment method. The optimized method lives in the core
-package for now (its pipeline, semantics and judge modules are under active
-work); it moves here as methods/optimized/ once that lands."""
+"""One folder per assignment method: baseline, minimal_llm, optimized. Shared
+wiring (dependencies, GV_METHOD dispatch, persistence) stays in verifier.harness."""
