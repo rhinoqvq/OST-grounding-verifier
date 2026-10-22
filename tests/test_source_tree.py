@@ -220,3 +220,22 @@ async def test_long_sources_keep_states_and_option_lists_within_limits():
                 assert len(q.options) <= MAX_CHOICE_OPTIONS, q.question_id
         if state.startswith("Source passages"):
             assert estimate_tokens(state) <= 2_000
+
+
+async def test_source_tree_off_builds_no_tree_and_maps_nothing(wal_request, wal_proposal, monkeypatch):
+    """The source_tree switch (the W-TM ablation's way to turn the two-tree check
+    off): no source tree is built, no unit is mapped, every unit goes to the
+    whole-source judge."""
+    from verifier.methods.optimized import pipeline
+
+    async def never(*_args, **_kwargs):
+        raise AssertionError("source tree built with source_tree off")
+
+    monkeypatch.setattr(pipeline, "build_source_tree", never)
+    decider = scripted_decider({"v::u1": verdict_answer("v::u1", "contradicted"),
+                                "r::u1::P0.S2": Answer("r::u1::P0.S2", yes_prob=0.95)})
+    deps = make_deps(FakeLLM(wal_proposal), decider, source_tree=False)
+    response, _ = await run_verification(wal_request, deps)
+    assert len(response.claims) == 4
+    assert not any(q.startswith("m::") for q in asked(decider))
+    assert "v::u3" in asked(decider)
