@@ -113,17 +113,18 @@ class Settings(BaseSettings):
     # sentence stays one unit; the cut questions are still asked, keep-whole
     # diagnostics stay on the sentence, the source side is unchanged
     whole_sentences: bool = False
-    # rc2 candidate (off = rc1). guard_scope "all": the sentence guard also releases a plain
-    # whole-sentence U/C and a parent-recheck override when the single call says S with evidence
-    guard_scope: Literal["structural", "all"] = "structural"
-    parent_recheck: bool = True
+    # rc2 defaults on this branch (rc1: structural, recheck on, two-stage off, inherit, tree on).
+    # guard_scope "all": the sentence guard also releases a plain whole-sentence U/C and a
+    # parent-recheck override when the single call says S with evidence
+    guard_scope: Literal["structural", "all"] = "all"
+    parent_recheck: bool = False
     # two-stage judging: the guard's whole-sentence call runs before round 3; a sentence it
     # supports with evidence is S for all of its units; every other sentence gets the full
     # judgment. citation_policy for those settled units: "inherit" cites the call's evidence
     # sentence; "probe" asks each atomic claim which candidate states it (the call's sentence
     # and the two overlapping most), falling back to the inherited one below the bar
-    two_stage: bool = False
-    citation_policy: Literal["inherit", "probe"] = "inherit"
+    two_stage: bool = True
+    citation_policy: Literal["inherit", "probe"] = "probe"
     citation_probe_min_prob: float = 0.50
     max_state_tokens: int = 26_000     # a state above this is narrowed to the relevant sentences
 

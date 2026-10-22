@@ -99,6 +99,12 @@ class FakeLLM:
         return self.proposal
 
 
+# rc1's aggregation (this branch defaults to rc2's): tests of the round-3 / round-4 machinery
+# script no whole-sentence call, so they pin these
+RC1_SWITCHES = {"guard_scope": "structural", "parent_recheck": True, "two_stage": False,
+                "citation_policy": "inherit"}
+
+
 def scripted_decider(script: dict[str, Answer] | None = None) -> FakeDecider:
     """FakeDecider with sensible defaults: units pass fidelity, coverage is
     fine, verdicts default to not_in_context, relevance defaults to no."""

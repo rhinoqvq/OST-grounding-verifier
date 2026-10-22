@@ -4,7 +4,7 @@ supports with evidence settles all of its units, which inherit its citation)."""
 
 import pytest
 
-from conftest import ANSWER, PASSAGE_0, PASSAGE_1, FakeLLM, scripted_decider, verdict_answer
+from conftest import ANSWER, PASSAGE_0, PASSAGE_1, RC1_SWITCHES, FakeLLM, scripted_decider, verdict_answer
 from test_sentence_guard import judged, node
 from verifier.harness.config import Settings
 from verifier.harness.pipeline import Dependencies
@@ -26,7 +26,7 @@ def wal_request() -> VerifyRequest:
 
 def deps_with(decider, llm, **overrides) -> Dependencies:
     settings = Settings(_env_file=None, openai_api_key="test", typesafe_api_key="test",
-                        **{"proposer": "llm", **overrides})
+                        **{"proposer": "llm", **RC1_SWITCHES, **overrides})
     return Dependencies(settings=settings, llm=llm, decider=decider, conn=None)
 
 
@@ -88,9 +88,16 @@ async def test_parent_recheck_off_asks_no_recheck(wal_request, wal_proposal, wal
     assert len(response.claims) == 4
 
 
-async def test_parent_recheck_on_is_the_default(wal_request, wal_proposal, wal_decider):
+async def test_parent_recheck_on_asks_the_recheck(wal_request, wal_proposal, wal_decider):
     await run_verification(wal_request, deps_with(wal_decider, FakeLLM(wal_proposal), sentence_guard=False))
     assert "v::sent::A.S1" in asked(wal_decider)
+
+
+def test_defaults_are_the_rc2_configuration():
+    """On this branch Settings() with no environment is rc2: method=optimized alone names it."""
+    s = Settings(_env_file=None)
+    assert (s.guard_scope, s.parent_recheck, s.two_stage, s.citation_policy, s.source_tree) == (
+        "all", False, True, "probe", "auto")
 
 
 async def test_two_stage_settles_supported_sentences_and_judges_the_rest(wal_request, wal_proposal):

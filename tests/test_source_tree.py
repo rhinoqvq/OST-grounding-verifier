@@ -3,7 +3,7 @@ nodes mapped onto source nodes, whole-source judge as the fallback."""
 
 import pytest
 
-from conftest import ANSWER, PASSAGE_0, PASSAGE_1, FakeLLM, scripted_decider, verdict_answer
+from conftest import ANSWER, PASSAGE_0, PASSAGE_1, RC1_SWITCHES, FakeLLM, scripted_decider, verdict_answer
 from verifier.harness.config import Settings
 from verifier.harness.context import build_answer_state, estimate_tokens
 from verifier.harness.pipeline import Dependencies
@@ -28,7 +28,7 @@ def make_deps(llm, decider, **overrides) -> Dependencies:
     # scripted proposals: the llm proposer entry; the tree always on here (its default
     # "auto" would skip it for these short passages)
     settings = Settings(_env_file=None, openai_api_key="test", typesafe_api_key="test",
-                        **{"proposer": "llm", "sentence_guard": False, "source_tree": "on", **overrides})
+                        **{"proposer": "llm", "sentence_guard": False, "source_tree": "on", **RC1_SWITCHES, **overrides})
     return Dependencies(settings=settings, llm=llm, decider=decider, conn=None)
 
 

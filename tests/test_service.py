@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from conftest import ANSWER, PASSAGE_0, PASSAGE_1, FakeLLM, scripted_decider
+from conftest import ANSWER, PASSAGE_0, PASSAGE_1, RC1_SWITCHES, FakeLLM, scripted_decider
 from verifier.harness.config import Settings
 from verifier.harness.errors import MalformedModelOutput, UpstreamError
 from verifier.harness.pipeline import Dependencies
@@ -10,7 +10,7 @@ from verifier.service import create_app
 def make_client(llm, decider, **overrides) -> TestClient:
     # scripted proposals: the llm proposer entry
     settings = Settings(_env_file=None, openai_api_key="t", typesafe_api_key="t",
-                        **{"proposer": "llm", "sentence_guard": False, **overrides})
+                        **{"proposer": "llm", "sentence_guard": False, **RC1_SWITCHES, **overrides})
     deps = Dependencies(settings=settings, llm=llm, decider=decider, conn=None)
     app = create_app(settings, dependencies=deps)
     return TestClient(app, raise_server_exceptions=False)

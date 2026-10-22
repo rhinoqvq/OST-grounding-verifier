@@ -2,7 +2,7 @@
 
 import pytest
 
-from conftest import ANSWER, PASSAGE_0, PASSAGE_1, FakeLLM, scripted_decider, verdict_answer
+from conftest import ANSWER, PASSAGE_0, PASSAGE_1, RC1_SWITCHES, FakeLLM, scripted_decider, verdict_answer
 from verifier.harness.config import Settings
 from verifier.harness.errors import InputTooLarge, MalformedModelOutput, UpstreamError
 from verifier.harness.pipeline import Dependencies
@@ -16,7 +16,7 @@ def make_deps(llm, decider, **settings_overrides) -> Dependencies:
     # the decider scripts no whole-sentence guard call (tests/test_sentence_guard.py covers it)
     settings = Settings(
         _env_file=None, openai_api_key="test", typesafe_api_key="test",
-        **{"proposer": "llm", "sentence_guard": False, **settings_overrides},
+        **{"proposer": "llm", "sentence_guard": False, **RC1_SWITCHES, **settings_overrides},
     )
     return Dependencies(settings=settings, llm=llm, decider=decider, conn=None)
 
