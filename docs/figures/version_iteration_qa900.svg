@@ -1,0 +1,337 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" width="900" height="560" font-family="system-ui,-apple-system,Segoe UI,sans-serif">
+<rect width="900" height="560" fill="#fcfcfb"/>
+<rect x="24" y="16" width="4" height="20" rx="2" fill="#2a78d6"/>
+<text x="36.0" y="31.0" font-size="16" fill="#0b0b0b" text-anchor="start" font-weight="600">QA-900 开发集上的版本迭代（OP1 → OP29）</text>
+<rect x="36.0" y="51.0" width="10.0" height="10.0" fill="#eda100" rx="2"/>
+<text x="51.0" y="60.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400">换拆分方式</text>
+<rect x="134.0" y="51.0" width="10.0" height="10.0" fill="#e87ba4" rx="2"/>
+<text x="149.0" y="60.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400">语义树与算子开发及调整</text>
+<rect x="298.0" y="51.0" width="10.0" height="10.0" fill="#6250d6" rx="2"/>
+<text x="313.0" y="60.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400">模块及组合的消融实验驱动的推理管线优化</text>
+<rect x="81.0" y="100" width="10.1" height="7" rx="2" fill="#eda100"/>
+<rect x="93.1" y="100" width="265.1" height="7" rx="2" fill="#e87ba4"/>
+<rect x="360.3" y="100" width="78.7" height="7" rx="2" fill="#6250d6"/>
+<rect x="81.0" y="348" width="10.1" height="7" rx="2" fill="#eda100"/>
+<rect x="93.1" y="348" width="265.1" height="7" rx="2" fill="#e87ba4"/>
+<rect x="360.3" y="348" width="78.7" height="7" rx="2" fill="#6250d6"/>
+<rect x="521.0" y="100" width="10.1" height="7" rx="2" fill="#eda100"/>
+<rect x="533.1" y="100" width="265.1" height="7" rx="2" fill="#e87ba4"/>
+<rect x="800.3" y="100" width="78.7" height="7" rx="2" fill="#6250d6"/>
+<rect x="521.0" y="348" width="10.1" height="7" rx="2" fill="#eda100"/>
+<rect x="533.1" y="348" width="265.1" height="7" rx="2" fill="#e87ba4"/>
+<rect x="800.3" y="348" width="78.7" height="7" rx="2" fill="#6250d6"/>
+<text x="40.0" y="92.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">分数（%）</text>
+<circle cx="113.6" cy="88.0" r="6" fill="#fcfcfb"/>
+<circle cx="113.6" cy="88.0" r="4" fill="#2a78d6"/>
+<text x="122.6" y="92.0" font-size="10.5" fill="#52514e" text-anchor="start" font-weight="400">回答级 F1</text>
+<circle cx="192.4" cy="88.0" r="6" fill="#fcfcfb"/>
+<circle cx="192.4" cy="88.0" r="4" fill="#1baf7a"/>
+<text x="201.4" y="92.0" font-size="10.5" fill="#52514e" text-anchor="start" font-weight="400">字符级 F1</text>
+<rect x="80.0" y="108" width="12.1" height="154" fill="#eda100" fill-opacity="0.12"/>
+<rect x="92.1" y="108" width="267.1" height="154" fill="#e87ba4" fill-opacity="0.12"/>
+<rect x="359.3" y="108" width="80.7" height="154" fill="#6250d6" fill-opacity="0.12"/>
+<line x1="80.0" y1="262.0" x2="440.0" y2="262.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="74.0" y="266.0" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">10.0</text>
+<line x1="80.0" y1="230.7" x2="440.0" y2="230.7" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="74.0" y="234.7" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">20.0</text>
+<line x1="80.0" y1="199.4" x2="440.0" y2="199.4" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="74.0" y="203.4" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">30.0</text>
+<line x1="80.0" y1="168.1" x2="440.0" y2="168.1" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="74.0" y="172.1" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">40.0</text>
+<line x1="80.0" y1="136.8" x2="440.0" y2="136.8" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="74.0" y="140.8" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">50.0</text>
+<line x1="80.0" y1="262.0" x2="440.0" y2="262.0" stroke="#c3c2b7" stroke-width="1" stroke-linecap="butt"/>
+<text x="80.0" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 80.0 276)">OP1</text>
+<text x="104.3" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 104.28571428571428 276)">OP2</text>
+<text x="128.6" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 128.57142857142856 276)">OP3</text>
+<text x="152.9" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 152.85714285714286 276)">OP8</text>
+<text x="177.1" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 177.14285714285714 276)">OP15</text>
+<text x="201.4" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 201.42857142857144 276)">OP18</text>
+<text x="225.7" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 225.71428571428572 276)">OP19</text>
+<text x="250.0" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 250.0 276)">OP20</text>
+<text x="274.3" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 274.2857142857143 276)">OP21</text>
+<text x="298.6" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 298.57142857142856 276)">OP22</text>
+<text x="322.9" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 322.8571428571429 276)">OP23</text>
+<text x="347.1" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 347.14285714285717 276)">OP25</text>
+<text x="371.4" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 371.42857142857144 276)">OP27</text>
+<text x="395.7" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 395.7142857142857 276)">R1*</text>
+<text x="420.0" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 420.0 276)">OP29</text>
+<line x1="80" y1="124.6" x2="440" y2="124.6" stroke="#2a78d6" stroke-width="1.2" stroke-dasharray="4 3" stroke-opacity="0.6"/>
+<text x="436.0" y="120.6" font-size="9.5" fill="#52514e" text-anchor="end" font-weight="400">minimal_llm（jev） 53.9</text>
+<line x1="80" y1="229.4" x2="440" y2="229.4" stroke="#1baf7a" stroke-width="1.2" stroke-dasharray="4 3" stroke-opacity="0.6"/>
+<text x="436.0" y="225.4" font-size="9.5" fill="#52514e" text-anchor="end" font-weight="400">minimal_llm（jev） 20.4</text>
+<polyline points="80.0,171.5 104.3,175.6 128.6,174.7 152.9,178.4 177.1,175.6 201.4,174.7 225.7,174.0 250.0,173.4 274.3,174.0 298.6,170.6 322.9,171.2 347.1,170.0 371.4,146.2 395.7,141.5 420.0,143.1" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="80.0" cy="171.5" r="5.5" fill="#fcfcfb"/>
+<circle cx="80.0" cy="171.5" r="3.5" fill="#2a78d6"/>
+<circle cx="104.3" cy="175.6" r="5.5" fill="#fcfcfb"/>
+<circle cx="104.3" cy="175.6" r="3.5" fill="#2a78d6"/>
+<circle cx="128.6" cy="174.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="128.6" cy="174.7" r="3.5" fill="#2a78d6"/>
+<circle cx="152.9" cy="178.4" r="5.5" fill="#fcfcfb"/>
+<circle cx="152.9" cy="178.4" r="3.5" fill="#2a78d6"/>
+<circle cx="177.1" cy="175.6" r="5.5" fill="#fcfcfb"/>
+<circle cx="177.1" cy="175.6" r="3.5" fill="#2a78d6"/>
+<circle cx="201.4" cy="174.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="201.4" cy="174.7" r="3.5" fill="#2a78d6"/>
+<circle cx="225.7" cy="174.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="225.7" cy="174.0" r="3.5" fill="#2a78d6"/>
+<circle cx="250.0" cy="173.4" r="5.5" fill="#fcfcfb"/>
+<circle cx="250.0" cy="173.4" r="3.5" fill="#2a78d6"/>
+<circle cx="274.3" cy="174.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="274.3" cy="174.0" r="3.5" fill="#2a78d6"/>
+<circle cx="298.6" cy="170.6" r="5.5" fill="#fcfcfb"/>
+<circle cx="298.6" cy="170.6" r="3.5" fill="#2a78d6"/>
+<circle cx="322.9" cy="171.2" r="5.5" fill="#fcfcfb"/>
+<circle cx="322.9" cy="171.2" r="3.5" fill="#2a78d6"/>
+<circle cx="347.1" cy="170.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="347.1" cy="170.0" r="3.5" fill="#2a78d6"/>
+<circle cx="371.4" cy="146.2" r="5.5" fill="#fcfcfb"/>
+<circle cx="371.4" cy="146.2" r="3.5" fill="#2a78d6"/>
+<circle cx="395.7" cy="141.5" r="5.5" fill="#fcfcfb"/>
+<circle cx="395.7" cy="141.5" r="3.5" fill="#2a78d6"/>
+<circle cx="420.0" cy="143.1" r="5.5" fill="#fcfcfb"/>
+<circle cx="420.0" cy="143.1" r="3.5" fill="#2a78d6"/>
+<text x="82.0" y="187.5" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">38.9</text>
+<text x="152.9" y="194.4" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">36.7</text>
+<text x="395.7" y="133.5" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">48.5</text>
+<text x="420.0" y="135.1" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">48.0</text>
+<polyline points="80.0,217.6 104.3,221.0 128.6,221.3 152.9,222.6 177.1,223.2 201.4,222.6 225.7,222.2 250.0,222.6 274.3,222.6 298.6,210.7 322.9,206.3 347.1,205.7 371.4,182.2 395.7,176.9 420.0,177.8" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="80.0" cy="217.6" r="5.5" fill="#fcfcfb"/>
+<circle cx="80.0" cy="217.6" r="3.5" fill="#1baf7a"/>
+<circle cx="104.3" cy="221.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="104.3" cy="221.0" r="3.5" fill="#1baf7a"/>
+<circle cx="128.6" cy="221.3" r="5.5" fill="#fcfcfb"/>
+<circle cx="128.6" cy="221.3" r="3.5" fill="#1baf7a"/>
+<circle cx="152.9" cy="222.6" r="5.5" fill="#fcfcfb"/>
+<circle cx="152.9" cy="222.6" r="3.5" fill="#1baf7a"/>
+<circle cx="177.1" cy="223.2" r="5.5" fill="#fcfcfb"/>
+<circle cx="177.1" cy="223.2" r="3.5" fill="#1baf7a"/>
+<circle cx="201.4" cy="222.6" r="5.5" fill="#fcfcfb"/>
+<circle cx="201.4" cy="222.6" r="3.5" fill="#1baf7a"/>
+<circle cx="225.7" cy="222.2" r="5.5" fill="#fcfcfb"/>
+<circle cx="225.7" cy="222.2" r="3.5" fill="#1baf7a"/>
+<circle cx="250.0" cy="222.6" r="5.5" fill="#fcfcfb"/>
+<circle cx="250.0" cy="222.6" r="3.5" fill="#1baf7a"/>
+<circle cx="274.3" cy="222.6" r="5.5" fill="#fcfcfb"/>
+<circle cx="274.3" cy="222.6" r="3.5" fill="#1baf7a"/>
+<circle cx="298.6" cy="210.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="298.6" cy="210.7" r="3.5" fill="#1baf7a"/>
+<circle cx="322.9" cy="206.3" r="5.5" fill="#fcfcfb"/>
+<circle cx="322.9" cy="206.3" r="3.5" fill="#1baf7a"/>
+<circle cx="347.1" cy="205.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="347.1" cy="205.7" r="3.5" fill="#1baf7a"/>
+<circle cx="371.4" cy="182.2" r="5.5" fill="#fcfcfb"/>
+<circle cx="371.4" cy="182.2" r="3.5" fill="#1baf7a"/>
+<circle cx="395.7" cy="176.9" r="5.5" fill="#fcfcfb"/>
+<circle cx="395.7" cy="176.9" r="3.5" fill="#1baf7a"/>
+<circle cx="420.0" cy="177.8" r="5.5" fill="#fcfcfb"/>
+<circle cx="420.0" cy="177.8" r="3.5" fill="#1baf7a"/>
+<text x="82.0" y="233.6" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">24.2</text>
+<text x="177.1" y="239.2" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">22.4</text>
+<text x="395.7" y="168.9" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">37.2</text>
+<text x="420.0" y="169.8" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">36.9</text>
+<text x="480.0" y="92.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">平均每个问题的成本（$，只算输入）</text>
+<rect x="520.0" y="108" width="12.1" height="154" fill="#eda100" fill-opacity="0.12"/>
+<rect x="532.1" y="108" width="267.1" height="154" fill="#e87ba4" fill-opacity="0.12"/>
+<rect x="799.3" y="108" width="80.7" height="154" fill="#6250d6" fill-opacity="0.12"/>
+<line x1="520.0" y1="262.0" x2="880.0" y2="262.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="514.0" y="266.0" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">0</text>
+<line x1="520.0" y1="225.0" x2="880.0" y2="225.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="514.0" y="229.0" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">0.0005</text>
+<line x1="520.0" y1="188.0" x2="880.0" y2="188.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="514.0" y="192.0" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">0.001</text>
+<line x1="520.0" y1="151.0" x2="880.0" y2="151.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="514.0" y="155.0" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">0.0015</text>
+<line x1="520.0" y1="114.1" x2="880.0" y2="114.1" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="514.0" y="118.1" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">0.002</text>
+<line x1="520.0" y1="262.0" x2="880.0" y2="262.0" stroke="#c3c2b7" stroke-width="1" stroke-linecap="butt"/>
+<text x="520.0" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 520.0 276)">OP1</text>
+<text x="544.3" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 544.2857142857143 276)">OP2</text>
+<text x="568.6" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 568.5714285714286 276)">OP3</text>
+<text x="592.9" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 592.8571428571429 276)">OP8</text>
+<text x="617.1" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 617.1428571428571 276)">OP15</text>
+<text x="641.4" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 641.4285714285714 276)">OP18</text>
+<text x="665.7" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 665.7142857142858 276)">OP19</text>
+<text x="690.0" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 690.0 276)">OP20</text>
+<text x="714.3" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 714.2857142857142 276)">OP21</text>
+<text x="738.6" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 738.5714285714286 276)">OP22</text>
+<text x="762.9" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 762.8571428571429 276)">OP23</text>
+<text x="787.1" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 787.1428571428571 276)">OP25</text>
+<text x="811.4" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 811.4285714285714 276)">OP27</text>
+<text x="835.7" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 835.7142857142858 276)">R1*</text>
+<text x="860.0" y="276.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 860.0 276)">OP29</text>
+<line x1="520" y1="259.1" x2="880" y2="259.1" stroke="#eb6834" stroke-width="1.2" stroke-dasharray="4 3" stroke-opacity="0.55"/>
+<text x="876.0" y="255.1" font-size="9.5" fill="#52514e" text-anchor="end" font-weight="400">minimal_llm（jev） 0.00004</text>
+<polyline points="520.0,190.2 544.3,190.2 568.6,189.5 592.9,181.4 617.1,177.7 641.4,174.7 665.7,174.7 690.0,174.0 714.3,173.2 738.6,173.2 762.9,168.8 787.1,153.3 811.4,141.4 835.7,148.8 860.0,199.9" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="520.0" cy="190.2" r="5.5" fill="#fcfcfb"/>
+<circle cx="520.0" cy="190.2" r="3.5" fill="#eb6834"/>
+<circle cx="544.3" cy="190.2" r="5.5" fill="#fcfcfb"/>
+<circle cx="544.3" cy="190.2" r="3.5" fill="#eb6834"/>
+<circle cx="568.6" cy="189.5" r="5.5" fill="#fcfcfb"/>
+<circle cx="568.6" cy="189.5" r="3.5" fill="#eb6834"/>
+<circle cx="592.9" cy="181.4" r="5.5" fill="#fcfcfb"/>
+<circle cx="592.9" cy="181.4" r="3.5" fill="#eb6834"/>
+<circle cx="617.1" cy="177.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="617.1" cy="177.7" r="3.5" fill="#eb6834"/>
+<circle cx="641.4" cy="174.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="641.4" cy="174.7" r="3.5" fill="#eb6834"/>
+<circle cx="665.7" cy="174.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="665.7" cy="174.7" r="3.5" fill="#eb6834"/>
+<circle cx="690.0" cy="174.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="690.0" cy="174.0" r="3.5" fill="#eb6834"/>
+<circle cx="714.3" cy="173.2" r="5.5" fill="#fcfcfb"/>
+<circle cx="714.3" cy="173.2" r="3.5" fill="#eb6834"/>
+<circle cx="738.6" cy="173.2" r="5.5" fill="#fcfcfb"/>
+<circle cx="738.6" cy="173.2" r="3.5" fill="#eb6834"/>
+<circle cx="762.9" cy="168.8" r="5.5" fill="#fcfcfb"/>
+<circle cx="762.9" cy="168.8" r="3.5" fill="#eb6834"/>
+<circle cx="787.1" cy="153.3" r="5.5" fill="#fcfcfb"/>
+<circle cx="787.1" cy="153.3" r="3.5" fill="#eb6834"/>
+<circle cx="811.4" cy="141.4" r="5.5" fill="#fcfcfb"/>
+<circle cx="811.4" cy="141.4" r="3.5" fill="#eb6834"/>
+<circle cx="835.7" cy="148.8" r="5.5" fill="#fcfcfb"/>
+<circle cx="835.7" cy="148.8" r="3.5" fill="#eb6834"/>
+<circle cx="860.0" cy="199.9" r="5.5" fill="#fcfcfb"/>
+<circle cx="860.0" cy="199.9" r="3.5" fill="#eb6834"/>
+<circle cx="860.0" cy="213.2" r="3.5" fill="#fcfcfb" stroke="#eb6834" stroke-width="1.8"/>
+<text x="852.0" y="217.2" font-size="9.5" fill="#0b0b0b" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">不建树 0.00066</text>
+<text x="522.0" y="206.2" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">0.00097</text>
+<text x="811.4" y="133.4" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">0.00163</text>
+<text x="860.0" y="191.9" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">0.00084</text>
+<text x="40.0" y="340.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">延迟中位数（秒，并发 6 实测）</text>
+<rect x="80.0" y="356" width="12.1" height="154" fill="#eda100" fill-opacity="0.12"/>
+<rect x="92.1" y="356" width="267.1" height="154" fill="#e87ba4" fill-opacity="0.12"/>
+<rect x="359.3" y="356" width="80.7" height="154" fill="#6250d6" fill-opacity="0.12"/>
+<line x1="80.0" y1="510.0" x2="440.0" y2="510.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="74.0" y="514.0" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">0.00</text>
+<line x1="80.0" y1="476.7" x2="440.0" y2="476.7" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="74.0" y="480.7" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">0.50</text>
+<line x1="80.0" y1="443.3" x2="440.0" y2="443.3" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="74.0" y="447.3" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">1.00</text>
+<line x1="80.0" y1="410.0" x2="440.0" y2="410.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="74.0" y="414.0" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">1.50</text>
+<line x1="80.0" y1="376.6" x2="440.0" y2="376.6" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="74.0" y="380.6" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">2.00</text>
+<line x1="80.0" y1="510.0" x2="440.0" y2="510.0" stroke="#c3c2b7" stroke-width="1" stroke-linecap="butt"/>
+<text x="80.0" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 80.0 524)">OP1</text>
+<text x="104.3" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 104.28571428571428 524)">OP2</text>
+<text x="128.6" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 128.57142857142856 524)">OP3</text>
+<text x="152.9" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 152.85714285714286 524)">OP8</text>
+<text x="177.1" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 177.14285714285714 524)">OP15</text>
+<text x="201.4" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 201.42857142857144 524)">OP18</text>
+<text x="225.7" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 225.71428571428572 524)">OP19</text>
+<text x="250.0" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 250.0 524)">OP20</text>
+<text x="274.3" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 274.2857142857143 524)">OP21</text>
+<text x="298.6" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 298.57142857142856 524)">OP22</text>
+<text x="322.9" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 322.8571428571429 524)">OP23</text>
+<text x="347.1" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 347.14285714285717 524)">OP25</text>
+<text x="371.4" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 371.42857142857144 524)">OP27</text>
+<text x="395.7" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 395.7142857142857 524)">R1*</text>
+<text x="420.0" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 420.0 524)">OP29</text>
+<line x1="80" y1="499.9" x2="440" y2="499.9" stroke="#008300" stroke-width="1.2" stroke-dasharray="4 3" stroke-opacity="0.55"/>
+<text x="436.0" y="495.9" font-size="9.5" fill="#52514e" text-anchor="end" font-weight="400">minimal_llm（jev） 0.15</text>
+<polyline points="80.0,469.3 104.3,468.0 128.6,388.0 152.9,396.0 177.1,438.0 201.4,455.3 225.7,450.7 250.0,456.7 274.3,455.3 298.6,453.3 322.9,453.3 347.1,438.0 371.4,425.3 395.7,443.3 420.0,448.0" fill="none" stroke="#008300" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="80.0" cy="469.3" r="5.5" fill="#fcfcfb"/>
+<circle cx="80.0" cy="469.3" r="3.5" fill="#008300"/>
+<circle cx="104.3" cy="468.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="104.3" cy="468.0" r="3.5" fill="#008300"/>
+<circle cx="128.6" cy="388.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="128.6" cy="388.0" r="3.5" fill="#008300"/>
+<circle cx="152.9" cy="396.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="152.9" cy="396.0" r="3.5" fill="#008300"/>
+<circle cx="177.1" cy="438.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="177.1" cy="438.0" r="3.5" fill="#008300"/>
+<circle cx="201.4" cy="455.3" r="5.5" fill="#fcfcfb"/>
+<circle cx="201.4" cy="455.3" r="3.5" fill="#008300"/>
+<circle cx="225.7" cy="450.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="225.7" cy="450.7" r="3.5" fill="#008300"/>
+<circle cx="250.0" cy="456.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="250.0" cy="456.7" r="3.5" fill="#008300"/>
+<circle cx="274.3" cy="455.3" r="5.5" fill="#fcfcfb"/>
+<circle cx="274.3" cy="455.3" r="3.5" fill="#008300"/>
+<circle cx="298.6" cy="453.3" r="5.5" fill="#fcfcfb"/>
+<circle cx="298.6" cy="453.3" r="3.5" fill="#008300"/>
+<circle cx="322.9" cy="453.3" r="5.5" fill="#fcfcfb"/>
+<circle cx="322.9" cy="453.3" r="3.5" fill="#008300"/>
+<circle cx="347.1" cy="438.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="347.1" cy="438.0" r="3.5" fill="#008300"/>
+<circle cx="371.4" cy="425.3" r="5.5" fill="#fcfcfb"/>
+<circle cx="371.4" cy="425.3" r="3.5" fill="#008300"/>
+<circle cx="395.7" cy="443.3" r="5.5" fill="#fcfcfb"/>
+<circle cx="395.7" cy="443.3" r="3.5" fill="#008300"/>
+<circle cx="420.0" cy="448.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="420.0" cy="448.0" r="3.5" fill="#008300"/>
+<circle cx="420.0" cy="462.7" r="3.5" fill="#fcfcfb" stroke="#008300" stroke-width="1.8"/>
+<text x="412.0" y="466.7" font-size="9.5" fill="#0b0b0b" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">不建树 0.71</text>
+<text x="82.0" y="485.3" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">0.61</text>
+<text x="128.6" y="380.0" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">1.83</text>
+<text x="420.0" y="440.0" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">0.93</text>
+<text x="480.0" y="340.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">每条回答的 Jev 调用次数</text>
+<rect x="520.0" y="356" width="12.1" height="154" fill="#eda100" fill-opacity="0.12"/>
+<rect x="532.1" y="356" width="267.1" height="154" fill="#e87ba4" fill-opacity="0.12"/>
+<rect x="799.3" y="356" width="80.7" height="154" fill="#6250d6" fill-opacity="0.12"/>
+<line x1="520.0" y1="510.0" x2="880.0" y2="510.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="514.0" y="514.0" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">0.0</text>
+<line x1="520.0" y1="477.0" x2="880.0" y2="477.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="514.0" y="481.0" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">2.5</text>
+<line x1="520.0" y1="444.1" x2="880.0" y2="444.1" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="514.0" y="448.1" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">5.0</text>
+<line x1="520.0" y1="411.1" x2="880.0" y2="411.1" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="514.0" y="415.1" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">7.5</text>
+<line x1="520.0" y1="378.1" x2="880.0" y2="378.1" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="514.0" y="382.1" font-size="10" fill="#898781" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">10.0</text>
+<line x1="520.0" y1="510.0" x2="880.0" y2="510.0" stroke="#c3c2b7" stroke-width="1" stroke-linecap="butt"/>
+<text x="520.0" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 520.0 524)">OP1</text>
+<text x="544.3" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 544.2857142857143 524)">OP2</text>
+<text x="568.6" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 568.5714285714286 524)">OP3</text>
+<text x="592.9" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 592.8571428571429 524)">OP8</text>
+<text x="617.1" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 617.1428571428571 524)">OP15</text>
+<text x="641.4" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 641.4285714285714 524)">OP18</text>
+<text x="665.7" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 665.7142857142858 524)">OP19</text>
+<text x="690.0" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 690.0 524)">OP20</text>
+<text x="714.3" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 714.2857142857142 524)">OP21</text>
+<text x="738.6" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 738.5714285714286 524)">OP22</text>
+<text x="762.9" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 762.8571428571429 524)">OP23</text>
+<text x="787.1" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 787.1428571428571 524)">OP25</text>
+<text x="811.4" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 811.4285714285714 524)">OP27</text>
+<text x="835.7" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 835.7142857142858 524)">R1*</text>
+<text x="860.0" y="524.0" font-size="9.5" fill="#898781" text-anchor="middle" font-weight="400" transform="rotate(-35 860.0 524)">OP29</text>
+<line x1="520" y1="496.8" x2="880" y2="496.8" stroke="#2a78d6" stroke-width="1.2" stroke-dasharray="4 3" stroke-opacity="0.55"/>
+<text x="876.0" y="492.8" font-size="9.5" fill="#52514e" text-anchor="end" font-weight="400">minimal_llm（jev） 1.0</text>
+<polyline points="520.0,451.1 544.3,450.7 568.6,450.7 592.9,439.8 617.1,437.2 641.4,438.0 665.7,437.5 690.0,437.6 714.3,437.3 738.6,437.7 762.9,433.6 787.1,400.4 811.4,387.4 835.7,396.2 860.0,427.7" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="520.0" cy="451.1" r="5.5" fill="#fcfcfb"/>
+<circle cx="520.0" cy="451.1" r="3.5" fill="#2a78d6"/>
+<circle cx="544.3" cy="450.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="544.3" cy="450.7" r="3.5" fill="#2a78d6"/>
+<circle cx="568.6" cy="450.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="568.6" cy="450.7" r="3.5" fill="#2a78d6"/>
+<circle cx="592.9" cy="439.8" r="5.5" fill="#fcfcfb"/>
+<circle cx="592.9" cy="439.8" r="3.5" fill="#2a78d6"/>
+<circle cx="617.1" cy="437.2" r="5.5" fill="#fcfcfb"/>
+<circle cx="617.1" cy="437.2" r="3.5" fill="#2a78d6"/>
+<circle cx="641.4" cy="438.0" r="5.5" fill="#fcfcfb"/>
+<circle cx="641.4" cy="438.0" r="3.5" fill="#2a78d6"/>
+<circle cx="665.7" cy="437.5" r="5.5" fill="#fcfcfb"/>
+<circle cx="665.7" cy="437.5" r="3.5" fill="#2a78d6"/>
+<circle cx="690.0" cy="437.6" r="5.5" fill="#fcfcfb"/>
+<circle cx="690.0" cy="437.6" r="3.5" fill="#2a78d6"/>
+<circle cx="714.3" cy="437.3" r="5.5" fill="#fcfcfb"/>
+<circle cx="714.3" cy="437.3" r="3.5" fill="#2a78d6"/>
+<circle cx="738.6" cy="437.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="738.6" cy="437.7" r="3.5" fill="#2a78d6"/>
+<circle cx="762.9" cy="433.6" r="5.5" fill="#fcfcfb"/>
+<circle cx="762.9" cy="433.6" r="3.5" fill="#2a78d6"/>
+<circle cx="787.1" cy="400.4" r="5.5" fill="#fcfcfb"/>
+<circle cx="787.1" cy="400.4" r="3.5" fill="#2a78d6"/>
+<circle cx="811.4" cy="387.4" r="5.5" fill="#fcfcfb"/>
+<circle cx="811.4" cy="387.4" r="3.5" fill="#2a78d6"/>
+<circle cx="835.7" cy="396.2" r="5.5" fill="#fcfcfb"/>
+<circle cx="835.7" cy="396.2" r="3.5" fill="#2a78d6"/>
+<circle cx="860.0" cy="427.7" r="5.5" fill="#fcfcfb"/>
+<circle cx="860.0" cy="427.7" r="3.5" fill="#2a78d6"/>
+<circle cx="860.0" cy="450.8" r="3.5" fill="#fcfcfb" stroke="#2a78d6" stroke-width="1.8"/>
+<text x="852.0" y="454.8" font-size="9.5" fill="#0b0b0b" text-anchor="end" font-weight="400" style="font-variant-numeric: tabular-nums">不建树 4.5</text>
+<text x="522.0" y="467.1" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">4.5</text>
+<text x="811.4" y="379.4" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">9.3</text>
+<text x="860.0" y="419.7" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">6.2</text>
+</svg>

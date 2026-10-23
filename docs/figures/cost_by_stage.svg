@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 476" width="900" height="476" font-family="system-ui,-apple-system,Segoe UI,sans-serif">
+<rect width="900" height="476" fill="#fcfcfb"/>
+<rect x="24" y="16" width="4" height="20" rx="2" fill="#2a78d6"/>
+<text x="36.0" y="31.0" font-size="16" fill="#0b0b0b" text-anchor="start" font-weight="600">成本花在哪一环：OP27（G）对 OP29，全量开发集（$）</text>
+<text x="36.0" y="50.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="400">OP29 是默认配置实测（RAGTruth 上不建原文树）；同一缓存回放归到环节，只算输入 $0.042/M；下面两行是单次调用对照：Jev minimal_llm（jev）（整段）</text>
+<text x="36.0" y="65.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="400">实测，gpt-6.1-sol 按 token 试算。</text>
+<text x="158.0" y="110.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="400">OP27（G）</text>
+<rect x="171.0" y="95.0" width="27.7" height="22.0" fill="#2a78d6" rx="2"/>
+<rect x="200.7" y="95.0" width="70.8" height="22.0" fill="#eb6834" rx="2"/>
+<text x="236.1" y="110.0" font-size="10" fill="#ffffff" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">0.76</text>
+<rect x="273.5" y="95.0" width="60.3" height="22.0" fill="#1baf7a" rx="2"/>
+<text x="303.7" y="110.0" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">0.65</text>
+<rect x="335.8" y="95.0" width="240.5" height="22.0" fill="#eda100" rx="2"/>
+<text x="456.1" y="110.0" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">2.53</text>
+<rect x="578.3" y="95.0" width="12.4" height="22.0" fill="#e87ba4" rx="2"/>
+<rect x="592.7" y="95.0" width="227.0" height="22.0" fill="#008300" rx="2"/>
+<text x="706.2" y="110.0" font-size="10" fill="#ffffff" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">2.39</text>
+<rect x="821.7" y="95.0" width="10.5" height="22.0" fill="#6250d6" rx="2"/>
+<text x="841.2" y="110.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$6.91</text>
+<text x="158.0" y="165.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="400">OP29</text>
+<rect x="171.0" y="150.0" width="70.8" height="22.0" fill="#eb6834" rx="2"/>
+<text x="206.4" y="165.0" font-size="10" fill="#ffffff" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">0.76</text>
+<rect x="243.8" y="150.0" width="60.3" height="22.0" fill="#1baf7a" rx="2"/>
+<text x="274.0" y="165.0" font-size="10" fill="#0b0b0b" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">0.65</text>
+<rect x="306.1" y="150.0" width="86.2" height="22.0" fill="#008300" rx="2"/>
+<text x="349.2" y="165.0" font-size="10" fill="#ffffff" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">0.92</text>
+<rect x="394.3" y="150.0" width="2.8" height="22.0" fill="#6250d6" rx="2"/>
+<rect x="399.1" y="150.0" width="16.2" height="22.0" fill="#e34948" rx="2"/>
+<text x="424.3" y="165.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$2.57  ·  37% of G</text>
+<text x="158.0" y="220.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="400">minimal_llm（jev）</text>
+<rect x="171.0" y="205.0" width="12.0" height="22.0" fill="#cfceC6" rx="2"/>
+<text x="191.0" y="220.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$0.14  ·  2% of G（整段一次请求，不分环节）</text>
+<text x="158.0" y="270.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="400">gpt-6.1-sol 单次调用</text>
+<text x="158.0" y="284.0" font-size="9.5" fill="#898781" text-anchor="end" font-weight="400">按 token 试算</text>
+<rect x="171.0" y="260.0" width="593.2" height="22.0" fill="#cfceC6" rx="2"/>
+<rect x="773.2" y="260.0" width="86.8" height="22.0" fill="#cfceC6" rx="2"/>
+<line x1="762.7" y1="287" x2="768.7" y2="255" stroke="#52514e" stroke-width="1.2"/>
+<line x1="767.7" y1="287" x2="773.7" y2="255" stroke="#52514e" stroke-width="1.2"/>
+<text x="180.0" y="275.0" font-size="10.5" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">输入 $5.49 + 输出 $30.19 = $35.67，G 的 5.2 倍、OP29 的 13.9 倍（超出刻度）</text>
+<line x1="170.0" y1="295.0" x2="860.0" y2="295.0" stroke="#c3c2b7" stroke-width="1" stroke-linecap="butt"/>
+<text x="170.0" y="310.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$0</text>
+<text x="265.8" y="310.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$1</text>
+<text x="361.7" y="310.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$2</text>
+<text x="457.5" y="310.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$3</text>
+<text x="553.3" y="310.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$4</text>
+<text x="649.2" y="310.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$5</text>
+<text x="745.0" y="310.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$6</text>
+<text x="840.8" y="310.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$7</text>
+<rect x="40.0" y="337.0" width="12.0" height="12.0" fill="#2a78d6" rx="2"/>
+<text x="57.0" y="347.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">原文树</text>
+<rect x="116.0" y="337.0" width="12.0" height="12.0" fill="#eb6834" rx="2"/>
+<text x="133.0" y="347.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">答案分解（切分 / 元话语 / 重组）</text>
+<rect x="338.3" y="337.0" width="12.0" height="12.0" fill="#1baf7a" rx="2"/>
+<text x="355.3" y="347.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">整句判定（护栏 / 阶段 1）</text>
+<rect x="521.5" y="337.0" width="12.0" height="12.0" fill="#eda100" rx="2"/>
+<text x="538.5" y="347.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">映射到原文树</text>
+<rect x="40.0" y="359.0" width="12.0" height="12.0" fill="#e87ba4" rx="2"/>
+<text x="57.0" y="369.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">出处核对</text>
+<rect x="127.0" y="359.0" width="12.0" height="12.0" fill="#008300" rx="2"/>
+<text x="144.0" y="369.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">判定、相关性、关系、C 过滤</text>
+<rect x="314.1" y="359.0" width="12.0" height="12.0" fill="#6250d6" rx="2"/>
+<text x="331.1" y="369.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">桥接</text>
+<rect x="379.1" y="359.0" width="12.0" height="12.0" fill="#e34948" rx="2"/>
+<text x="396.1" y="369.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">引文选择题（b1）</text>
+<text x="40.0" y="434.0" font-size="10" fill="#898781" text-anchor="start" font-weight="400">省下的在三处：映射 $2.53 → $0、判定 $2.39 → $0.92（整句判定已判 S 的句子不再做片段判定），原文树 $0.31 → $0（RAGTruth 上不建）。sol 试算：</text>
+<text x="40.0" y="447.0" font-size="10" fill="#898781" text-anchor="start" font-weight="400">输入按我们的单次调用提示词计（OST30 上和 sol 实测对过，平均每条 1,016 token），输出按 OST30 上 sol 的实测拟合（131 + 1.27 × 回答字符数，含推理，平均 1,118</text>
+<text x="40.0" y="460.0" font-size="10" fill="#898781" text-anchor="start" font-weight="400">token），价格按第三方标价 $2 / $10 每百万 token；输出若只按 780 token 算是 $26.55。</text>
+</svg>

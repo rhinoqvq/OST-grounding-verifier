@@ -28,6 +28,12 @@ accuracy from a single gpt-6.1-sol call, at 0.20× the cost and a seventh of the
 RAGTruth development set it marks the wrong spans about twice as well as a single Jev call
 (character-level F1 31.8 vs 15.0).
 
+Detailed write-ups are in [`docs/`](docs/) (in Chinese for now):
+- [Version history](docs/version-history.zh-CN.md): OP0 → OP29 in three phases, what changed and what moved.
+- [Ablation](docs/ablation.zh-CN.md): what each OST mechanism contributes.
+- [Cost](docs/cost.zh-CN.md): cost per method and per version, and where the money goes.
+- [Failure analysis](docs/failure-analysis.zh-CN.md): which items each method gets wrong on the accompanying set, and why.
+
 ## OP29: how it works and what it gets
 
 How it works:
@@ -60,12 +66,13 @@ What it gets, on RAGTruth (2,700 answers; our development set, so the numbers ar
 | cost per answer (list price, input only) | **$0.00005** | $0.00095 | |
 
 - One request per answer is the better detector of *whether* an answer is wrong; OST is the one
-  that can say *where*.
+  that can say *where*. See the [ablation](docs/ablation.zh-CN.md) for what each mechanism adds.
 - From OP1 to OP29, on the 900 QA answers: answer-level F1 38.9 → 48.0, character-level F1
-  24.2 → 36.9, cost per answer $0.00097 → $0.00066.
+  24.2 → 36.9, cost per answer $0.00097 → $0.00066. See the [version history](docs/version-history.zh-CN.md).
 - From OP27 to OP29 the RAGTruth cost fell from $6.91 to $2.57, mostly because supported sentences
   skip claim-level mapping and judging and the source tree is built only for long sources; F1
-  rose +0.71 [+0.25, +1.17] / +0.76 [+0.46, +1.04] at the same time.
+  rose +0.71 [+0.25, +1.17] / +0.76 [+0.46, +1.04] at the same time. The stage-by-stage account is in
+  [cost](docs/cost.zh-CN.md).
 
 ## Evaluation results on the accompanying evaluation set (OST30)
 
@@ -127,7 +134,7 @@ medium (5k–20k) / long (20k–124k) sources, 0.20× overall, at 1.2 / 1.0 / 1.
 sol's 9.2 / 8.5 / 9.2 s; minimal_llm (jev) stays at 0.2 s and under $0.001 per item at
 every length. The figure below follows the cost per answer out to the design limit (500k
 characters of source), on 300 + 500 ANAH answers (aggregates only); Jev input priced at list,
-output is free.
+output is free. Costs per method and per version are in [cost](docs/cost.zh-CN.md).
 
 ![Cost per answer by source length](docs/figures/cost_by_source_length.svg)
 
@@ -159,6 +166,8 @@ Notes:
   winner is claimed above. The set was also designed by us, around our own architecture.
 - **Only sol was compared**: with qwen3.8-flash, minimal_llm costs about $0.03 for the 30 items,
   about a third of OST.
+
+Which items each method gets wrong, and why, is in the [failure analysis](docs/failure-analysis.zh-CN.md).
 
 ## Run
 

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 480" width="900" height="480" font-family="system-ui,-apple-system,Segoe UI,sans-serif">
+<rect width="900" height="480" fill="#fcfcfb"/>
+<rect x="24" y="16" width="4" height="20" rx="2" fill="#2a78d6"/>
+<text x="36.0" y="31.0" font-size="16" fill="#0b0b0b" text-anchor="start" font-weight="600">从头跑一次全量开发集的稳态成本（2,700 条，$）</text>
+<text x="36.0" y="50.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="400">缓存回放精算，同一请求只算一次；只算输入 $0.042/M（Jev 输出免费）。</text>
+<line x1="330.0" y1="79.0" x2="330.0" y2="425.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="330.0" y="73.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$0</text>
+<line x1="394.0" y1="79.0" x2="394.0" y2="425.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="394.0" y="73.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$1</text>
+<line x1="458.0" y1="79.0" x2="458.0" y2="425.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="458.0" y="73.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$2</text>
+<line x1="522.0" y1="79.0" x2="522.0" y2="425.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="522.0" y="73.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$3</text>
+<line x1="586.0" y1="79.0" x2="586.0" y2="425.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="586.0" y="73.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$4</text>
+<line x1="650.0" y1="79.0" x2="650.0" y2="425.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="650.0" y="73.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$5</text>
+<line x1="714.0" y1="79.0" x2="714.0" y2="425.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="714.0" y="73.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$6</text>
+<line x1="778.0" y1="79.0" x2="778.0" y2="425.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="778.0" y="73.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">$7</text>
+<text x="318.0" y="106.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="400">minimal_llm（jev）（整段，一条 claim）</text>
+<path d="M330.0,91.0 H334.7 a4,4 0 0 1 4,4 V109.0 a4,4 0 0 1 -4,4 H330.0 Z" fill="#52514e"/>
+<text x="346.7" y="106.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$0.14  ·  2% of G</text>
+<text x="318.0" y="140.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">按句判（主系统分句；消融）</text>
+<path d="M330.0,125.0 H367.6 a4,4 0 0 1 4,4 V143.0 a4,4 0 0 1 -4,4 H330.0 Z" fill="#cfceC6"/>
+<text x="379.6" y="140.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$0.65  ·  9% of G</text>
+<text x="318.0" y="174.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">+ 元话语门（J+nc）</text>
+<path d="M330.0,159.0 H383.6 a4,4 0 0 1 4,4 V177.0 a4,4 0 0 1 -4,4 H330.0 Z" fill="#cfceC6"/>
+<text x="395.6" y="174.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$0.90  ·  13% of G</text>
+<text x="318.0" y="208.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">OP29（默认）：+ 两阶段判定 + 引文 b1</text>
+<path d="M330.0,193.0 H490.5 a4,4 0 0 1 4,4 V211.0 a4,4 0 0 1 -4,4 H330.0 Z" fill="#2a78d6"/>
+<text x="502.5" y="208.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$2.57  ·  37% of G</text>
+<text x="318.0" y="242.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">+ OST 找证据方式（J+ME）</text>
+<path d="M330.0,227.0 H519.3 a4,4 0 0 1 4,4 V245.0 a4,4 0 0 1 -4,4 H330.0 Z" fill="#cfceC6"/>
+<text x="531.3" y="242.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$3.02  ·  44% of G</text>
+<text x="318.0" y="276.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">OP29，原文树常开</text>
+<rect x="330.0" y="261.0" width="213.8" height="22" fill="#2a78d6" fill-opacity="0.45" rx="4"/>
+<text x="551.8" y="276.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$3.34  ·  48% of G</text>
+<text x="318.0" y="310.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">W−TM：整句 OST，不建原文树</text>
+<path d="M330.0,295.0 H618.5 a4,4 0 0 1 4,4 V313.0 a4,4 0 0 1 -4,4 H330.0 Z" fill="#cfceC6"/>
+<text x="630.5" y="310.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$4.57  ·  66% of G</text>
+<text x="318.0" y="344.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">W：整句 OST</text>
+<path d="M330.0,329.0 H654.3 a4,4 0 0 1 4,4 V347.0 a4,4 0 0 1 -4,4 H330.0 Z" fill="#cfceC6"/>
+<text x="666.3" y="344.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$5.13  ·  74% of G</text>
+<text x="318.0" y="378.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="400">R1*：护栏扩展 + 复核关（OP29 中间臂）</text>
+<path d="M330.0,363.0 H731.1 a4,4 0 0 1 4,4 V381.0 a4,4 0 0 1 -4,4 H330.0 Z" fill="#52514e"/>
+<text x="743.1" y="378.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$6.33  ·  92% of G</text>
+<text x="318.0" y="412.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">OP27 / OP28 = G：完整 OST</text>
+<path d="M330.0,397.0 H768.2 a4,4 0 0 1 4,4 V415.0 a4,4 0 0 1 -4,4 H330.0 Z" fill="#52514e"/>
+<text x="780.2" y="412.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$6.91  ·  100% of G</text>
+<line x1="330.0" y1="425.0" x2="810.0" y2="425.0" stroke="#c3c2b7" stroke-width="1" stroke-linecap="butt"/>
+</svg>

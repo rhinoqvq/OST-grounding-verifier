@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 664" width="900" height="664" font-family="system-ui,-apple-system,Segoe UI,sans-serif">
+<rect width="900" height="664" fill="#fcfcfb"/>
+<rect x="24" y="16" width="4" height="20" rx="2" fill="#2a78d6"/>
+<text x="36.0" y="31.0" font-size="16" fill="#0b0b0b" text-anchor="start" font-weight="600">版本迭代时间轴：3 个阶段与关键节点（OP0 → OP29）</text>
+<text x="36.0" y="50.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="400">每个色块是一个阶段（和图 1 顶部的阶段色条同一套颜色），每行是一个关键节点；点的颜色是这一段真正动了哪条线。</text>
+<rect x="30" y="90" width="850" height="56" rx="4" fill="#cfceC6" fill-opacity="0.12"/>
+<rect x="30.0" y="90.0" width="4.0" height="56.0" fill="#cfceC6" rx="2"/>
+<text x="44.0" y="139.0" font-size="10.5" fill="#0b0b0b" text-anchor="start" font-weight="600">起点</text>
+<rect x="30" y="150" width="850" height="56" rx="4" fill="#eda100" fill-opacity="0.12"/>
+<rect x="30.0" y="150.0" width="4.0" height="56.0" fill="#eda100" rx="2"/>
+<text x="44.0" y="199.0" font-size="10.5" fill="#0b0b0b" text-anchor="start" font-weight="600">换拆分方式</text>
+<rect x="30" y="210" width="850" height="236" rx="4" fill="#e87ba4" fill-opacity="0.12"/>
+<rect x="30.0" y="210.0" width="4.0" height="236.0" fill="#e87ba4" rx="2"/>
+<text x="44.0" y="259.0" font-size="10.5" fill="#0b0b0b" text-anchor="start" font-weight="600">语义树与算子开发及调整</text>
+<rect x="30" y="450" width="850" height="116" rx="4" fill="#6250d6" fill-opacity="0.12"/>
+<rect x="30.0" y="450.0" width="4.0" height="116.0" fill="#6250d6" rx="2"/>
+<text x="44.0" y="499.0" font-size="10.5" fill="#0b0b0b" text-anchor="start" font-weight="600">模块及组合的消融实验驱动的推理</text>
+<text x="44.0" y="513.0" font-size="10.5" fill="#0b0b0b" text-anchor="start" font-weight="600">管线优化</text>
+<line x1="222.0" y1="96.0" x2="222.0" y2="560.0" stroke="#c3c2b7" stroke-width="1.5" stroke-linecap="butt"/>
+<circle cx="222.0" cy="118.0" r="7" fill="#fcfcfb"/>
+<circle cx="222.0" cy="118.0" r="5" fill="#52514e"/>
+<text x="210.0" y="122.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="600">OP0</text>
+<text x="242.0" y="122.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">起点：生成式模型拆分 + Jev 判定</text>
+<text x="242.0" y="138.0" font-size="10" fill="#52514e" text-anchor="start" font-weight="400">作业样例跑通；拆分占 97% 的延迟（中位数 15 秒），还会改写回答</text>
+<text x="242.0" y="153.0" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">回答级 F1 38.5 · 字符级 24.3 · 延迟 15.2 s</text>
+<circle cx="222.0" cy="178.0" r="7" fill="#fcfcfb"/>
+<circle cx="222.0" cy="178.0" r="5" fill="#1baf7a"/>
+<text x="210.0" y="182.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="600">OP1</text>
+<text x="242.0" y="182.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">代码找切点，Jev 只做分类</text>
+<text x="242.0" y="198.0" font-size="10" fill="#52514e" text-anchor="start" font-weight="400">片段都是回答原文，少用一个模型</text>
+<text x="242.0" y="213.0" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">38.9 · 24.2 · $0.97 / 千条 · 延迟 0.61 s</text>
+<circle cx="222.0" cy="238.0" r="7" fill="#fcfcfb"/>
+<circle cx="222.0" cy="238.0" r="5" fill="#52514e"/>
+<text x="210.0" y="242.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="600">OP2 → OP8</text>
+<text x="242.0" y="242.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">补证据和关系</text>
+<text x="242.0" y="258.0" font-size="10" fill="#52514e" text-anchor="start" font-weight="400">诊断切分 + 出处门、混合证据选择、并列切分、关系分步核对、两跳桥接</text>
+<text x="242.0" y="273.0" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">36.7 · 22.6 · $1.09（补漏报，换来误报 +50）</text>
+<circle cx="222.0" cy="298.0" r="7" fill="#fcfcfb"/>
+<circle cx="222.0" cy="298.0" r="5" fill="#52514e"/>
+<text x="210.0" y="302.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="600">OP10 → OP15</text>
+<text x="242.0" y="302.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">补可靠性漏洞</text>
+<text x="242.0" y="318.0" font-size="10" fill="#52514e" text-anchor="start" font-weight="400">短片段并回、先后方向题、三个见证算子、条件辖域守卫、断言门、词表整合</text>
+<text x="242.0" y="333.0" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">37.6 · 22.4 · $1.14（判 C 的单元 284 → 117）</text>
+<circle cx="222.0" cy="358.0" r="7" fill="#fcfcfb"/>
+<circle cx="222.0" cy="358.0" r="5" fill="#2a78d6"/>
+<text x="210.0" y="362.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="600">OP18 → OP20</text>
+<text x="242.0" y="362.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">减少误报、堵假 S</text>
+<text x="242.0" y="378.0" font-size="10" fill="#52514e" text-anchor="start" font-weight="400">元话语门（0.80 才排除）、减法 R5+R6、only-if 措辞；OP17 的生成式二审回滚</text>
+<text x="242.0" y="393.0" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">38.3 · 22.6 · $1.19</text>
+<circle cx="222.0" cy="418.0" r="7" fill="#fcfcfb"/>
+<circle cx="222.0" cy="418.0" r="5" fill="#1baf7a"/>
+<text x="210.0" y="422.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="600">OP21 → OP26</text>
+<text x="242.0" y="422.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">管线 bug 与两棵树</text>
+<text x="242.0" y="438.0" font-size="10" fill="#52514e" text-anchor="start" font-weight="400">段落编号从 1 起、分句修复、原文树 + 映射、原文侧措辞；RAGTruth 全量 / AggreFact 首测</text>
+<text x="242.0" y="453.0" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">39.4 · 28.1 · $1.47（定位 +5.5）</text>
+<circle cx="222.0" cy="478.0" r="7" fill="#fcfcfb"/>
+<circle cx="222.0" cy="478.0" r="5" fill="#2a78d6"/>
+<text x="210.0" y="482.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="600">OP27 / OP28</text>
+<text x="242.0" y="482.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">整句护栏</text>
+<text x="242.0" y="498.0" font-size="10" fill="#52514e" text-anchor="start" font-weight="400">修复当时对照用的按句单调用的 bug、整句护栏、low_confidence / max_tokens / 脚注边界修复；OP28 修短答案与非拉丁文字</text>
+<text x="242.0" y="513.0" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">47.0 · 35.5 · $1.63</text>
+<circle cx="222.0" cy="538.0" r="7" fill="#fcfcfb"/>
+<circle cx="222.0" cy="538.0" r="5" fill="#eb6834"/>
+<text x="210.0" y="542.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="600">OP29</text>
+<text x="242.0" y="542.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">两阶段判定</text>
+<text x="242.0" y="558.0" font-size="10" fill="#52514e" text-anchor="start" font-weight="400">整句判定判 S 的句子直接继承，不再做片段判定；护栏扩到整句 U/C、关复核、引文 b1、原文树 auto</text>
+<text x="242.0" y="573.0" font-size="10" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">48.0 · 36.9 · $0.84 / $0.66（成本砍一半，准确率没有证据变差）</text>
+<rect x="44.0" y="594.0" width="12.0" height="12.0" fill="#2a78d6" rx="2"/>
+<text x="61.0" y="604.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">检出 / 误报（回答级 F1）</text>
+<rect x="190.0" y="594.0" width="12.0" height="12.0" fill="#1baf7a" rx="2"/>
+<text x="207.0" y="604.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">定位（字符级 F1）/ 延迟</text>
+<rect x="329.0" y="594.0" width="12.0" height="12.0" fill="#eb6834" rx="2"/>
+<text x="346.0" y="604.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">成本</text>
+<rect x="384.0" y="594.0" width="12.0" height="12.0" fill="#52514e" rx="2"/>
+<text x="401.0" y="604.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="400">结构正确性：分数没动，证据在图 17</text>
+<text x="44.0" y="639.0" font-size="10" fill="#898781" text-anchor="start" font-weight="400">每行第三行的三个数是该节点的 QA-900 结果：回答级 F1 · 字符级 F1 · 每千条成本（只算输入）。语义树与算子那一段前半（OP2 → OP15）分数低于起点是故意的：在补漏报</text>
+<text x="44.0" y="652.0" font-size="10" fill="#898781" text-anchor="start" font-weight="400">后半（OP18 → OP26）再把误报压回去并修定位。</text>
+</svg>

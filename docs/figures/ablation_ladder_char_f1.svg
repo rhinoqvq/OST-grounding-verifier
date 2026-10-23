@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 460" width="900" height="460" font-family="system-ui,-apple-system,Segoe UI,sans-serif">
+<rect width="900" height="460" fill="#fcfcfb"/>
+<rect x="24" y="16" width="4" height="20" rx="2" fill="#2a78d6"/>
+<text x="36.0" y="31.0" font-size="16" fill="#0b0b0b" text-anchor="start" font-weight="600">定位：字符级 F1，开发集 RAGTruth 2,700 条</text>
+<text x="36.0" y="50.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="400">同一条梯子的字符级结果。最上面是minimal_llm（jev）（整段，只能把整段回答标成有错）；R1* 和 OP29 是收敛阶段；OP28 在 RAGTruth 上与 G</text>
+<text x="36.0" y="65.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="400">判定相同。</text>
+<line x1="327.0" y1="84.0" x2="327.0" y2="414.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="327.0" y="78.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">15.0</text>
+<line x1="462.0" y1="84.0" x2="462.0" y2="414.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="462.0" y="78.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">20.0</text>
+<line x1="597.0" y1="84.0" x2="597.0" y2="414.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="597.0" y="78.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">25.0</text>
+<line x1="732.0" y1="84.0" x2="732.0" y2="414.0" stroke="#e1e0d9" stroke-width="1" stroke-linecap="butt"/>
+<text x="732.0" y="78.0" font-size="10" fill="#898781" text-anchor="middle" font-weight="400" style="font-variant-numeric: tabular-nums">30.0</text>
+<line x1="300.0" y1="414.0" x2="840.0" y2="414.0" stroke="#c3c2b7" stroke-width="1" stroke-linecap="butt"/>
+<text x="288.0" y="112.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="400">minimal_llm（jev）（整段，一条 claim）</text>
+<line x1="300.0" y1="108.0" x2="327.0" y2="108.0" stroke="#52514e" stroke-width="2" stroke-linecap="round"/>
+<circle cx="327.0" cy="108.0" r="7" fill="#fcfcfb"/>
+<circle cx="327.0" cy="108.0" r="5" fill="#52514e"/>
+<text x="339.0" y="112.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">15.0</text>
+<text x="288.0" y="148.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">按句判（主系统分句；消融）</text>
+<line x1="300.0" y1="144.0" x2="661.5" y2="144.0" stroke="#cfceC6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="661.5" cy="144.0" r="7" fill="#fcfcfb"/>
+<circle cx="661.5" cy="144.0" r="5" fill="#cfceC6"/>
+<text x="673.5" y="148.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">27.4</text>
+<text x="288.0" y="184.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">+ 元话语门（J+nc）</text>
+<line x1="300.0" y1="180.0" x2="675.3" y2="180.0" stroke="#cfceC6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="675.3" cy="180.0" r="7" fill="#fcfcfb"/>
+<circle cx="675.3" cy="180.0" r="5" fill="#cfceC6"/>
+<text x="687.3" y="184.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">27.9</text>
+<text x="288.0" y="220.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">+ OST 找证据方式（J+ME）</text>
+<line x1="300.0" y1="216.0" x2="688.8" y2="216.0" stroke="#cfceC6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="688.8" cy="216.0" r="7" fill="#fcfcfb"/>
+<circle cx="688.8" cy="216.0" r="5" fill="#cfceC6"/>
+<text x="700.8" y="220.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">28.4</text>
+<text x="288.0" y="256.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">W−TM：整句 OST，不建原文树</text>
+<line x1="300.0" y1="252.0" x2="718.5" y2="252.0" stroke="#cfceC6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="718.5" cy="252.0" r="7" fill="#fcfcfb"/>
+<circle cx="718.5" cy="252.0" r="5" fill="#cfceC6"/>
+<text x="730.5" y="256.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">29.5</text>
+<text x="288.0" y="292.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">W：整句 OST</text>
+<line x1="300.0" y1="288.0" x2="719.9" y2="288.0" stroke="#cfceC6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="719.9" cy="288.0" r="7" fill="#fcfcfb"/>
+<circle cx="719.9" cy="288.0" r="5" fill="#cfceC6"/>
+<text x="731.9" y="292.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">29.6</text>
+<text x="288.0" y="328.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">OP27 / OP28 = G：完整 OST</text>
+<line x1="300.0" y1="324.0" x2="761.4" y2="324.0" stroke="#52514e" stroke-width="2" stroke-linecap="round"/>
+<circle cx="761.4" cy="324.0" r="7" fill="#fcfcfb"/>
+<circle cx="761.4" cy="324.0" r="5" fill="#52514e"/>
+<text x="773.4" y="328.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">31.1</text>
+<text x="288.0" y="364.0" font-size="11" fill="#0b0b0b" text-anchor="end" font-weight="400">R1*：护栏扩展 + 复核关（OP29 中间臂）</text>
+<line x1="300.0" y1="360.0" x2="785.7" y2="360.0" stroke="#52514e" stroke-width="2" stroke-linecap="round"/>
+<circle cx="785.7" cy="360.0" r="7" fill="#fcfcfb"/>
+<circle cx="785.7" cy="360.0" r="5" fill="#52514e"/>
+<text x="797.7" y="364.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">32.0</text>
+<text x="288.0" y="400.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">OP29（默认）：+ 两阶段判定 + 引文 b1</text>
+<line x1="300.0" y1="396.0" x2="781.7" y2="396.0" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="781.7" cy="396.0" r="7" fill="#fcfcfb"/>
+<circle cx="781.7" cy="396.0" r="5" fill="#2a78d6"/>
+<text x="793.7" y="400.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">31.8</text>
+<text x="40.0" y="435.0" font-size="10" fill="#898781" text-anchor="start" font-weight="400">整段 → 按句判 +12.4 [+11.4, +13.5]；拆分（W → G）对定位的贡献 +1.53 [+1.08, +1.97]；OP29 − minimal_llm（jev） +16.9 [+15.6, +18.2]：</text>
+<text x="40.0" y="448.0" font-size="10" fill="#898781" text-anchor="start" font-weight="400">答案树的价值在标出错误片段。</text>
+</svg>
