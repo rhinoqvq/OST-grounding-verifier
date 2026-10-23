@@ -81,12 +81,35 @@
    "why": "C: cites the 1908 Hyperion stories, Betrachtung, A Country Doctor (1919) and the 1924 essay — published during his lifetime"
   }
  },
- "minimal_llm_sol": {
+ "minimal_llm_sol_oldprompt": {
   "OST30-12#2": {
    "ok": true,
    "status": "proposed",
    "why": "cites 'publish their works by reciting them at popular festivals' + Lucian: read the Histories to the assembled spectators - covers both parts"
   },
+  "OST30-15#4": {
+   "ok": true,
+   "status": "proposed",
+   "why": "cites 'Baldwin retired in 1937 and was succeeded by Neville Chamberlain.'"
+  },
+  "OST30-23#1": {
+   "ok": true,
+   "status": "proposed",
+   "why": "'his age of death (120 years, according to Deuteronomy 34:7)' covers Deuteronomy + 120"
+  },
+  "OST30-29#2": {
+   "ok": true,
+   "status": "proposed",
+   "why": "'Deuteronomy 10:6, where Aaron died at Moserah and was buried' covers the claim"
+  },
+  "OST30-30#2": {
+   "ok": true,
+   "status": "proposed",
+   "why": "C: 'Deuteronomy 10:6, where Aaron died at Moserah' contradicts 'wilderness of Zin'"
+  }
+ },
+ "minimal_llm_sol": {
+  "_notes": "2026-10-23 sol run with the assignment's definitions (ce9d9b1). The four rulings below are the old run's (now minimal_llm_sol_oldprompt): this run cites exactly the same passages for those claims. OST30-12#2 is not carried over: this run cites 'Herodotus' recitation at Olympia was a favourite theme among ancient writers' instead of the Lucian sentence the old ruling relied on; it awaits a ruling (unruled counts as not supported).",
   "OST30-15#4": {
    "ok": true,
    "status": "proposed",

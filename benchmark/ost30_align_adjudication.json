@@ -1,6 +1,23 @@
 {
  "_doc": "System claims that no text rule can place on a gold sentence (the system's own inference or heavy rewording), placed by hand: method -> item id -> exact claim_text -> gold claim number (1-based). Read by score_ost30.py.",
  "minimal_llm_sol": {
+  "_notes": {
+   "OST30-30": "2026-10-23 sol run with the assignment's definitions (ce9d9b1): 'Numbers 20:22-29 is the specific reference ...' is a rewording of the old run's claim placed on gold #1; the old ruling is carried over. The other four rulings match this run's claim texts exactly."
+  },
+  "OST30-15": {
+   "Having achieved his goals contributed to Baldwin's decision to retire.": 3
+  },
+  "OST30-30": {
+   "The account of Aaron's burial is specifically in Numbers 20:22–29.": 1,
+   "Numbers 20:22-29 is the specific reference for Aaron's burial on Mount Hor.": 1
+  },
+  "OST30-03": {
+   "Rabbi Joel Teitelbaum opposed the creation of the State of Israel.": 3,
+   "Rabbi Joel Teitelbaum opposed Jewish emigration to the Land of Israel.": 4,
+   "Rabbi Joel Teitelbaum believed Jews should remain in the diaspora.": 4
+  }
+ },
+ "minimal_llm_sol_oldprompt": {
   "OST30-15": {
    "Having achieved his goals contributed to Baldwin's decision to retire.": 3
   },
