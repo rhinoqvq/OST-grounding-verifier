@@ -167,7 +167,18 @@ Notes:
 - **Only sol was compared**: with qwen3.8-flash, minimal_llm costs about $0.03 for the 30 items,
   about a third of OST.
 
-Which items each method gets wrong, and why, is in the [failure analysis](docs/failure-analysis.zh-CN.md).
+**Key failure cases** (the full analysis is in the [failure analysis](docs/failure-analysis.zh-CN.md), in Chinese for now):
+
+- Both model-based methods take nearby evidence as support. In item 11 the source is about a
+  different Hubbell; in item 16 two passages disagree, but only the supporting one is cited.
+- Two of OST's six own errors come from splitting: in items 14 and 30 two assertions stay in one
+  claim and are judged once. The rest are judging errors; in item 18, for example, the
+  contradiction needs several passages combined and OST reports U.
+- minimal_llm (gpt-6.1-sol) splits finer than the gold, so one unsupported fragment marks the
+  whole sentence U (01#4, 13#1).
+- minimal_llm (jev) gives one verdict per answer: one error flags every correct sentence with it.
+- The baseline is lexical only: paraphrases do not match, and distortions other than numbers and
+  negation are missed.
 
 ## Run
 
