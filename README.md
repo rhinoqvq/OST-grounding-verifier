@@ -6,7 +6,7 @@ An HTTP service that decomposes an LLM-generated answer into atomic factual
 claims, verifies each claim against the provided source passages, and attaches
 verbatim citations (`SUPPORTED` / `CONTRADICTED` / `UNSUPPORTED`).
 
-**Status: work in progress.** All three methods, the evaluation set and the
+**Status: work in progress.** All four methods, the evaluation set and the
 benchmark runner are in place (see *Evaluation results on the accompanying evaluation set* below); the full
 evaluation report is still being written.
 
@@ -143,15 +143,17 @@ assignment's SQLite/WAL example runs end-to-end as a fixture.
 Run each method once, then score and compute per-item latency and cost. Keys per method:
 
 - baseline: none.
+- single-call Jev (`minimal_jev`): `TYPESAFE_API_KEY`.
 - minimal_llm: `OPENAI_API_KEY` (gpt-6.1-sol is the default model).
 - OST (optimized): `TYPESAFE_API_KEY`.
 
 ```bash
 .venv/Scripts/python benchmark/run_ost30.py --method baseline
+.venv/Scripts/python benchmark/run_ost30.py --method minimal_jev
 .venv/Scripts/python benchmark/run_ost30.py --method minimal_llm
 .venv/Scripts/python benchmark/run_ost30.py --method optimized
-.venv/Scripts/python benchmark/score_ost30.py baseline minimal_llm optimized
-.venv/Scripts/python benchmark/cost_latency_ost30.py minimal_llm optimized
+.venv/Scripts/python benchmark/score_ost30.py baseline minimal_jev minimal_llm optimized
+.venv/Scripts/python benchmark/cost_latency_ost30.py minimal_jev minimal_llm optimized
 ```
 
 Results go to `var/ost30/`: each method's output is `results_<method>.jsonl`, and every model

@@ -4,7 +4,7 @@
 
 一个 HTTP 服务：把大模型生成的回答拆成原子事实 claim，逐条对照给定的原文段落核查，并附上逐字引文（`SUPPORTED` / `CONTRADICTED` / `UNSUPPORTED`）。
 
-**状态：开发中。** 三种方法、评测集和跑分脚本都已完成，结果见下面的「评测结果」。完整的评测报告还在写。
+**状态：开发中。** 四种方法、评测集和跑分脚本都已完成，结果见下面的「附带测评集上的评测结果」。完整的评测报告还在写。
 
 ## 一段话讲设计
 
@@ -102,17 +102,19 @@ curl -X POST localhost:8000/verify \
 
 ## 跑分
 
-三种方法各跑一遍，再打分、统计每题的耗时和成本。每种方法需要的 key：
+四种方法各跑一遍，再打分、统计每题的耗时和成本。每种方法需要的 key：
 - baseline：不需要；
+- 单调用 Jev（`minimal_jev`）：`TYPESAFE_API_KEY`；
 - minimal_llm：`OPENAI_API_KEY`，默认模型就是 gpt-6.1-sol；
 - OST（optimized）：`TYPESAFE_API_KEY`。
 
 ```bash
 .venv/Scripts/python benchmark/run_ost30.py --method baseline
+.venv/Scripts/python benchmark/run_ost30.py --method minimal_jev
 .venv/Scripts/python benchmark/run_ost30.py --method minimal_llm
 .venv/Scripts/python benchmark/run_ost30.py --method optimized
-.venv/Scripts/python benchmark/score_ost30.py baseline minimal_llm optimized
-.venv/Scripts/python benchmark/cost_latency_ost30.py minimal_llm optimized
+.venv/Scripts/python benchmark/score_ost30.py baseline minimal_jev minimal_llm optimized
+.venv/Scripts/python benchmark/cost_latency_ost30.py minimal_jev minimal_llm optimized
 ```
 
 结果写在 `var/ost30/`：每种方法的输出是 `results_<方法>.jsonl`，每次模型调用都记在 `runs_<方法>.sqlite3` 里。
