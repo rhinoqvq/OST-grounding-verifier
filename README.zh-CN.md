@@ -2,24 +2,44 @@
 
 [English](README.md) | 中文
 
-一个 HTTP 服务：把大模型生成的回答拆成原子事实 claim，逐条对照给定的原文段落核查，并附上逐字引文（`SUPPORTED` / `CONTRADICTED` / `UNSUPPORTED`）。
+一个 HTTP 服务：把大模型生成的回答对照给定的原文段落做核查，拆成 claim，逐条判定 `SUPPORTED` / `CONTRADICTED` / `UNSUPPORTED`，并附上逐字引文。
 
-**状态：开发中。** 四种方法、评测集和跑分脚本都已完成，结果见下面的「附带测评集上的评测结果」。完整的评测报告还在写。
+**状态：开发中。** 三种方法、评测集和跑分脚本都已完成，完整的评测报告还在写。
 
-## 一段话讲设计
+三种方法在这些文件夹里：
 
-原文段落和回答都以不可变的方式存下来，后面所有环节都指向字符偏移，所以每条引文都由代码从原文里切出，天然逐字。
+| 方法 | 文件夹 | 做什么 |
+|---|---|---|
+| baseline | [`src/verifier/methods/baseline/`](src/verifier/methods/baseline/) | 不调模型。回答的每一句是一条 claim，BM25 选引文，词面覆盖、数字和否定检查给判定。 |
+| minimal_llm | [`src/verifier/methods/minimal_llm/`](src/verifier/methods/minimal_llm/)（gpt-6.1-sol）<br>[`src/verifier/methods/minimal_jev/`](src/verifier/methods/minimal_jev/)（jev） | 每条回答调一次模型，放进全部原文和整段回答。gpt-6.1-sol 在这一次调用里自己拆分、判定、给引文；Jev 只回答选择题，整段回答就是一条 claim。 |
+| optimized（OST） | [`src/verifier/methods/optimized/`](src/verifier/methods/optimized/) | 我们的 OP 版本，见下文。只调 Jev。 |
 
-拆分时，代码先在回答的每个句子里找出候选切分点，再由 Jev（一个经过校准的判定模型）逐个决定切不切。这样每个 claim 单元都是回答里的一段原文，系统不生成任何文字，也就不会悄悄"修正"回答。原文按同样的方式拆分，判定和证据的问题也由 Jev 回答。
+三种方法共用同一个服务（[`src/verifier/service.py`](src/verifier/service.py)）和同一套响应约束（[`src/verifier/output/`](src/verifier/output/)）。
 
-确定性的部分全部由普通代码保证：
-- 偏移；
-- 覆盖；
-- 数字和否定的一致性检查；
-- 在语义树上汇总判定；
-- 最后的响应约束：引文段号不越界、引文逐字、引文和判定一致。
+**OP29：我们的优化版本。** OPn 是优化方法的迭代编号，从 OP0 到 OP29；OP29（提交 `c78c508`）是现行默认。它先用一个 Jev 问题把回答的每一句对照整份原文判一次，只有没被明确判为支持的句子，才拆成 claim 逐条判定。在附带的 30 题评测集上，它和 gpt-6.1-sol 单次调用的正确率分不出高下，成本是它的 0.20 倍，耗时约七分之一。在我们的开发集 RAGTruth 上，它标出错误片段的能力约是 Jev 单次调用的两倍（字符级 F1 31.8 对 15.0）。
 
-系统没把握的 claim 报为 `UNSUPPORTED` 并写明原因，从不猜。
+## OP29 的实现和效果
+
+怎么做的：
+
+1. **只认偏移，不认文字。** 原文段落和回答都以不可变的方式存下来，后面所有环节都指向字符偏移。每条引文都由代码从原文里切出，天然逐字。
+2. **先按句判定。** 回答的每一句向 Jev 问一次，对照整份原文（原文超过约 2.6 万 token 才收窄），判 S、C 还是 U。最高选项是 S 而且找到了证据段落，这句里的 claim 就都继承 S，再用一道选择题挑出引文句。大多数 claim 在这一步就定了。
+3. **其余的逐条判定。** 其他句子拆成答案树：代码提出候选切分点，由 Jev 逐个决定切不切；元话语门去掉「根据所给段落」这类话。每条 claim 对照 Jev 排出的相关原文句判定；如果没有一句过相关性门槛，就保留排名第一的那句作证据。之后还有出处门、反驳过滤，以及给需要两段原文才能支持的 claim 用的桥接检查。原文超过约 2.6 万 token 时，还会把原文建成树，把 claim 映射上去。
+4. **记账交给普通代码：** 在答案树上汇总判定，以及最后的响应约束（引文段号不越界、引文逐字、引文和判定一致）。
+
+它不做的：这条路径上没有确定性的数字或否定检查；按句判出的 S 取的是 Jev 的最高选项，不设概率门槛。
+
+效果，在 RAGTruth 上（2,700 条回答；这是我们的开发集，数字偏乐观）：
+
+| | minimal_llm（jev） | OST（OP29） | 差值，95% 区间 |
+|---|---:|---:|---|
+| 回答级 F1：这段回答有没有错 | **77.7** | 69.6 | −8.0 [−9.8, −6.2] |
+| 字符级 F1：错在哪些片段 | 15.0 | **31.8** | +16.9 [+15.6, +18.2] |
+| 每条回答成本（按标价，只算输入） | **$0.00005** | $0.00095 | |
+
+- 判断一段回答「有没有错」，每条一次请求更准；能说出「错在哪」的是 OST。
+- 从 OP1 到 OP29，在 900 条 QA 回答上：回答级 F1 38.9 → 48.0，字符级 F1 24.2 → 36.9，每条回答成本 $0.00097 → $0.00066。
+- 从 OP27 到 OP29，RAGTruth 全量成本从 $6.91 降到 $2.57，主要因为判为支持的句子不再做逐条映射和判定，原文树也只在长原文上建；F1 同时上升 +0.71 [+0.25, +1.17] / +0.76 [+0.46, +1.04]。
 
 ## 附带测评集上的评测结果（OST30）
 
@@ -39,37 +59,39 @@
 | 多段综合 | 4 |
 | 边界情况：没有可核对的事实 | 1 |
 
-四种方法：
+参与比较的方法：
 - baseline：不调模型。
-- 单调用 Jev：每题向 Jev 发一次请求，放进全部原文和整段回答，问回答是 SUPPORTED、CONTRADICTED 还是 UNSUPPORTED、哪一段是证据；整段回答作为一条 claim 输出。
-- minimal_llm：每题调一次 gpt-6.1-sol，提示词里的三条判定定义照抄题目原文。
+- minimal_llm（gpt-6.1-sol）：每题调一次 gpt-6.1-sol，提示词里的三条判定定义照抄题目原文。
+- minimal_llm（jev）：每题向 Jev 发一次请求，放进全部原文和整段回答，问回答是 SUPPORTED、CONTRADICTED 还是 UNSUPPORTED、哪一段是证据；整段回答作为一条 claim 输出。
 - OST（optimized，OP29）：只调 Jev。
 
-四种方法的输入都只有 `context_passages` 和 `generated_answer`，金标不发给系统。
+所有方法的输入都只有 `context_passages` 和 `generated_answer`，金标不发给系统。
 
-| 指标 | baseline | 单调用 Jev | minimal_llm（gpt-6.1-sol） | OST（optimized） |
+| 指标 | baseline | minimal_llm（gpt-6.1-sol） | minimal_llm（jev） | OST（optimized） |
 |---|---|---|---|---|
-| claim 准确率（71 条） | 0.662 | 0.662 | **0.845** | 0.803 |
-| 95% 区间（按题重采样） | 0.545–0.761 | 0.523–0.784 | 0.750–0.922 | 0.672–0.898 |
-| 三分类 macro-F1 | 0.591 | 0.630 | **0.819** | 0.760 |
-| C/U 报警 F1 | 0.780 | 0.815 | **0.909** | 0.877 |
-| 真错判成 S（共 37 条错） | 5 | 4 | **2** | 5 |
-| 整题全对 | 10 / 30 | 13 / 30 | **19 / 30** | 17 / 30 |
-| 每题耗时 p50 / p95 | 0.0 / 0.1 s | **0.2 / 0.3 s** | 7.1 / 18.1 s | 1.0 / 1.8 s |
-| 30 题成本（按标价推算） | $0 | **$0.007** | $0.45 | $0.09 |
+| claim 准确率（71 条） | 0.662 | **0.845** | 0.662 | 0.803 |
+| 95% 区间（按题重采样） | 0.545–0.761 | 0.750–0.922 | 0.523–0.784 | 0.672–0.898 |
+| 三分类 macro-F1 | 0.591 | **0.819** | 0.630 | 0.760 |
+| C/U 报警 F1 | 0.780 | **0.909** | 0.815 | 0.877 |
+| 回答级 F1（这段回答有没有错） | 0.750 | **0.878** | 0.865 | 0.865 |
+| 字符级 F1（错在哪些片段） | 0.715 | 0.729 | 0.693 | **0.753** |
+| 真错判成 S（共 37 条错） | 5 | **2** | 4 | 5 |
+| 整题全对 | 10 / 30 | **19 / 30** | 13 / 30 | 17 / 30 |
+| 每题耗时 p50 / p95 | 0.0 / 0.1 s | 7.1 / 18.1 s | **0.2 / 0.3 s** | 1.0 / 1.8 s |
+| 30 题成本（按标价推算） | $0 | $0.45 | **$0.007** | $0.09 |
 
 配对差（claim 准确率，按题重采样 10,000 次，29 / 30 两题共用原文，算作一组）：
 - OST − minimal_llm：−4.2 个百分点，95% 区间 [−13.0, +3.8]；
-- OST − 单调用 Jev：+14.1，95% 区间 [+3.4, +25.3]；
+- OST − minimal_llm（jev）：+14.1，95% 区间 [+3.4, +25.3]；
 - OST − baseline：+14.1，95% 区间 [+2.0, +26.1]。
 
-按原文长度分档：30 题里，短（< 5 千字符）、中（5 千–2 万）、长（2 万–12.4 万）三档，OST 的成本分别是 sol 的 0.07、0.10、0.27 倍，合计 0.20 倍；每题耗时 1.2 / 1.0 / 1.5 秒，sol 是 9.2 / 8.5 / 9.2 秒；单调用 Jev 在各档都是 0.2 秒、每题不到 $0.001。下图把每条回答的成本沿原文长度画到设计上限（原文 50 万字符），数据是 300 + 500 条 ANAH 回答（只看汇总）；Jev 按标价只算输入，输出免费。
+按原文长度分档：30 题里，短（< 5 千字符）、中（5 千–2 万）、长（2 万–12.4 万）三档，OST 的成本分别是 sol 的 0.07、0.10、0.27 倍，合计 0.20 倍；每题耗时 1.2 / 1.0 / 1.5 秒，sol 是 9.2 / 8.5 / 9.2 秒；minimal_llm（jev）在各档都是 0.2 秒、每题不到 $0.001。下图把每条回答的成本沿原文长度画到设计上限（原文 50 万字符），数据是 300 + 500 条 ANAH 回答（只看汇总）；Jev 按标价只算输入，输出免费。
 
 ![每条回答的成本随原文长度](docs/figures/cost_by_source_length.svg)
 
 **结论**：在自建的 30 题评测集上：
-- 和 gpt-6.1-sol 单次调用相比，OST 的正确率分不出高下（0.803 对 0.845，差值的 95% 区间 [−13.0, +3.8] 包含 0），每题都更快（p50 1.0 秒对 7.1 秒），按标价推算成本是它的 0.20 倍；
-- 和 Jev 单次调用相比，OST 的 claim 准确率高 14.1 个百分点 [+3.4, +25.3]：每题一次请求最快、最便宜，但整段回答只有一个判定，claim 准确率和不调模型的 baseline 一样（0.662），也说不出错在哪一句。
+- 和 minimal_llm（gpt-6.1-sol）相比，OST 的正确率分不出高下（0.803 对 0.845，差值的 95% 区间 [−13.0, +3.8] 包含 0），每题都更快（p50 1.0 秒对 7.1 秒），按标价推算成本是它的 0.20 倍；
+- 和 minimal_llm（jev）相比，判断一段回答有没有错，两者一样（回答级 F1 都是 0.865）。OST 多出来的是逐条判定和定位：claim 准确率高 14.1 个百分点 [+3.4, +25.3]，字符级 F1 0.753 对 0.693。minimal_llm（jev）整段只给一个判定，对齐到金标时每一句都继承这个判定，所以 claim 准确率这一项对它天然不利。它也是最快、最便宜的（每题 0.2 秒、$0.0002）。
 
 几点说明：
 - **成本**：是 token 数乘标价算出来的，不是实际账单。gpt-6.1-sol 按第三方标价，输入 $2、输出 $10（每百万 token）；Jev 按官方标价，输入 $0.042（每百万 token），输出不收费。
@@ -102,19 +124,19 @@ curl -X POST localhost:8000/verify \
 
 ## 跑分
 
-四种方法各跑一遍，再打分、统计每题的耗时和成本。每种方法需要的 key：
+每种方法各跑一遍，再打分、统计每题的耗时和成本。每种方法需要的 key：
 - baseline：不需要；
-- 单调用 Jev（`minimal_jev`）：`TYPESAFE_API_KEY`；
-- minimal_llm：`OPENAI_API_KEY`，默认模型就是 gpt-6.1-sol；
+- minimal_llm（gpt-6.1-sol），`--method minimal_llm`：`OPENAI_API_KEY`，默认模型就是 gpt-6.1-sol；
+- minimal_llm（jev），`--method minimal_jev`：`TYPESAFE_API_KEY`；
 - OST（optimized）：`TYPESAFE_API_KEY`。
 
 ```bash
 .venv/Scripts/python benchmark/run_ost30.py --method baseline
-.venv/Scripts/python benchmark/run_ost30.py --method minimal_jev
 .venv/Scripts/python benchmark/run_ost30.py --method minimal_llm
+.venv/Scripts/python benchmark/run_ost30.py --method minimal_jev
 .venv/Scripts/python benchmark/run_ost30.py --method optimized
-.venv/Scripts/python benchmark/score_ost30.py baseline minimal_jev minimal_llm optimized
-.venv/Scripts/python benchmark/cost_latency_ost30.py minimal_jev minimal_llm optimized
+.venv/Scripts/python benchmark/score_ost30.py baseline minimal_llm minimal_jev optimized
+.venv/Scripts/python benchmark/cost_latency_ost30.py minimal_llm minimal_jev optimized
 ```
 
 结果写在 `var/ost30/`：每种方法的输出是 `results_<方法>.jsonl`，每次模型调用都记在 `runs_<方法>.sqlite3` 里。

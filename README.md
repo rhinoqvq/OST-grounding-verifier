@@ -2,28 +2,70 @@
 
 English | [中文](README.zh-CN.md)
 
-An HTTP service that decomposes an LLM-generated answer into atomic factual
-claims, verifies each claim against the provided source passages, and attaches
-verbatim citations (`SUPPORTED` / `CONTRADICTED` / `UNSUPPORTED`).
+An HTTP service that checks an LLM-generated answer against the provided source passages: it
+splits the answer into claims, judges each one `SUPPORTED` / `CONTRADICTED` / `UNSUPPORTED`, and
+attaches verbatim citations.
 
-**Status: work in progress.** All four methods, the evaluation set and the
-benchmark runner are in place (see *Evaluation results on the accompanying evaluation set* below); the full
-evaluation report is still being written.
+**Status: work in progress.** The three methods, the evaluation set and the benchmark runner are
+in place; the full evaluation report is still being written.
 
-## Design in one paragraph
+Where the three methods are:
 
-Source passages and the answer are stored immutably; everything downstream
-points at character offsets, so every quote is sliced from the original text by
-code and is verbatim by construction. Code finds candidate cut points in each
-answer sentence and Jev — a calibrated decision model — decides each one, so
-every claim unit is a verbatim span of the answer (no text is generated, so
-nothing can quietly "fix" the answer); the sources are decomposed the same way,
-and Jev answers the verdict/evidence questions; plain
-code enforces everything deterministic: offsets, coverage, number/negation
-sanity, verdict aggregation over the semantic tree, and a final response
-contract (citation indexes in bounds, quotes verbatim, citations consistent
-with verdicts). A claim the system is not confident about is reported as
-`UNSUPPORTED` with the reason, never guessed.
+| method | folder | what it does |
+|---|---|---|
+| baseline | [`src/verifier/methods/baseline/`](src/verifier/methods/baseline/) | No model calls. Each answer sentence is a claim; BM25 picks the citation; lexical coverage, number and negation checks give the verdict. |
+| minimal_llm | [`src/verifier/methods/minimal_llm/`](src/verifier/methods/minimal_llm/) (gpt-6.1-sol)<br>[`src/verifier/methods/minimal_jev/`](src/verifier/methods/minimal_jev/) (jev) | One model call per answer with all passages and the whole answer. gpt-6.1-sol splits, judges and cites in that call; Jev answers choice questions, so the whole answer is one claim. |
+| optimized (OST) | [`src/verifier/methods/optimized/`](src/verifier/methods/optimized/) | Our OP versions, described below. Jev only. |
+
+All three run behind the same service ([`src/verifier/service.py`](src/verifier/service.py)) and
+the same response contract ([`src/verifier/output/`](src/verifier/output/)).
+
+**OP29, our optimized version.** OPn numbers the iterations of the optimized method, OP0 to OP29;
+OP29 (commit `c78c508`) is the default. It judges each answer sentence against the whole source
+with one Jev question first, and only sentences that are not clearly supported are split into
+claims and judged claim by claim. On the accompanying 30-item set it is not distinguishable in
+accuracy from a single gpt-6.1-sol call, at 0.20× the cost and a seventh of the latency. On our
+RAGTruth development set it marks the wrong spans about twice as well as a single Jev call
+(character-level F1 31.8 vs 15.0).
+
+## OP29: how it works and what it gets
+
+How it works:
+
+1. **Offsets, not text.** The passages and the answer are stored immutably and everything
+   downstream points at character offsets. Every citation is cut from the source by code, so
+   quotes are verbatim by construction.
+2. **Sentence-level judging first.** Each answer sentence gets one Jev question against the whole
+   source (narrowed only above about 26k tokens): S, C or U. When the top answer is S and an
+   evidence passage is found, the sentence's claims inherit S, and a second choice question picks
+   the citation sentence. Most claims are settled here.
+3. **Claim-level judging for the rest.** Other sentences are split into an answer tree: code
+   proposes cut points and Jev decides each one, and a meta-discourse gate drops phrases such as
+   "based on the passages". Each claim is judged against the source sentences Jev ranks as
+   relevant; if none passes the relevance bar, the top-ranked one is kept as evidence. A
+   provenance gate, a contradiction filter and a bridge check for claims that need two passages
+   follow. Sources over about 26k tokens are also built into a tree that claims are mapped onto.
+4. **Plain code does the bookkeeping:** verdict aggregation over the answer tree and the response
+   contract (citation indexes in range, quotes verbatim, citations consistent with verdicts).
+
+What it does not do: this path has no deterministic number or negation check, and a
+sentence-level S is Jev's top option without a probability threshold.
+
+What it gets, on RAGTruth (2,700 answers; our development set, so the numbers are optimistic):
+
+| | minimal_llm (jev) | OST (OP29) | difference, 95% interval |
+|---|---:|---:|---|
+| answer-level F1: does the answer contain an error | **77.7** | 69.6 | −8.0 [−9.8, −6.2] |
+| character-level F1: which spans are wrong | 15.0 | **31.8** | +16.9 [+15.6, +18.2] |
+| cost per answer (list price, input only) | **$0.00005** | $0.00095 | |
+
+- One request per answer is the better detector of *whether* an answer is wrong; OST is the one
+  that can say *where*.
+- From OP1 to OP29, on the 900 QA answers: answer-level F1 38.9 → 48.0, character-level F1
+  24.2 → 36.9, cost per answer $0.00097 → $0.00066.
+- From OP27 to OP29 the RAGTruth cost fell from $6.91 to $2.57, mostly because supported sentences
+  skip claim-level mapping and judging and the source tree is built only for long sources; F1
+  rose +0.71 [+0.25, +1.17] / +0.76 [+0.46, +1.04] at the same time.
 
 ## Evaluation results on the accompanying evaluation set (OST30)
 
@@ -48,39 +90,41 @@ Items by category:
 | multi-passage synthesis | 4 |
 | edge case: no checkable facts | 1 |
 
-The four methods:
+The methods compared:
 
 - **baseline**: no model calls.
-- **single-call Jev**: one Jev request per item — all passages and the whole answer, asked whether
-  the answer is SUPPORTED, CONTRADICTED or UNSUPPORTED and which passage is the evidence; the
-  answer is reported as one claim.
-- **minimal_llm**: one gpt-6.1-sol call per item, with the three verdict definitions from the
-  assignment word for word.
+- **minimal_llm (gpt-6.1-sol)**: one gpt-6.1-sol call per item, with the three verdict definitions
+  from the assignment word for word.
+- **minimal_llm (jev)**: one Jev request per item with all passages and the whole answer, asked
+  whether the answer is SUPPORTED, CONTRADICTED or UNSUPPORTED and which passage is the evidence;
+  the answer is reported as one claim.
 - **OST (optimized, OP29)**: Jev only.
 
 Every method receives only `context_passages` and `generated_answer`; the gold is never sent.
 
-| metric | baseline | single-call Jev | minimal_llm (gpt-6.1-sol) | OST (optimized) |
+| metric | baseline | minimal_llm (gpt-6.1-sol) | minimal_llm (jev) | OST (optimized) |
 |---|---|---|---|---|
-| claim accuracy (71 claims) | 0.662 | 0.662 | **0.845** | 0.803 |
-| 95% interval (item resampling) | 0.545–0.761 | 0.523–0.784 | 0.750–0.922 | 0.672–0.898 |
-| 3-way macro-F1 | 0.591 | 0.630 | **0.819** | 0.760 |
-| C/U alarm F1 | 0.780 | 0.815 | **0.909** | 0.877 |
-| real errors judged S (of 37) | 5 | 4 | **2** | 5 |
-| items fully correct | 10 / 30 | 13 / 30 | **19 / 30** | 17 / 30 |
-| latency per item p50 / p95 | 0.0 / 0.1 s | **0.2 / 0.3 s** | 7.1 / 18.1 s | 1.0 / 1.8 s |
-| cost for 30 items (list price) | $0 | **$0.007** | $0.45 | $0.09 |
+| claim accuracy (71 claims) | 0.662 | **0.845** | 0.662 | 0.803 |
+| 95% interval (item resampling) | 0.545–0.761 | 0.750–0.922 | 0.523–0.784 | 0.672–0.898 |
+| 3-way macro-F1 | 0.591 | **0.819** | 0.630 | 0.760 |
+| C/U alarm F1 | 0.780 | **0.909** | 0.815 | 0.877 |
+| answer-level F1 (does the answer contain an error) | 0.750 | **0.878** | 0.865 | 0.865 |
+| character-level F1 (which spans are wrong) | 0.715 | 0.729 | 0.693 | **0.753** |
+| real errors judged S (of 37) | 5 | **2** | 4 | 5 |
+| items fully correct | 10 / 30 | **19 / 30** | 13 / 30 | 17 / 30 |
+| latency per item p50 / p95 | 0.0 / 0.1 s | 7.1 / 18.1 s | **0.2 / 0.3 s** | 1.0 / 1.8 s |
+| cost for 30 items (list price) | $0 | $0.45 | **$0.007** | $0.09 |
 
 Paired differences in claim accuracy (resampling by item, 10,000 times; items 29 and 30 share a
 source and count as one group):
 
 - OST − minimal_llm: −4.2 points, 95% interval [−13.0, +3.8].
-- OST − single-call Jev: +14.1, 95% interval [+3.4, +25.3].
+- OST − minimal_llm (jev): +14.1, 95% interval [+3.4, +25.3].
 - OST − baseline: +14.1, 95% interval [+2.0, +26.1].
 
 By source length: on the 30 items OST costs 0.07× / 0.10× / 0.27× of sol on short (< 5k chars) /
 medium (5k–20k) / long (20k–124k) sources, 0.20× overall, at 1.2 / 1.0 / 1.5 s per item against
-sol's 9.2 / 8.5 / 9.2 s; the single-call Jev baseline stays at 0.2 s and under $0.001 per item at
+sol's 9.2 / 8.5 / 9.2 s; minimal_llm (jev) stays at 0.2 s and under $0.001 per item at
 every length. The figure below follows the cost per answer out to the design limit (500k
 characters of source), on 300 + 500 ANAH answers (aggregates only); Jev input priced at list,
 output is free.
@@ -89,13 +133,15 @@ output is free.
 
 **Summary.** On our own 30-item set:
 
-- against a single gpt-6.1-sol call, OST is not distinguishable in accuracy (0.803 vs 0.845; the
+- against minimal_llm (gpt-6.1-sol), OST is not distinguishable in accuracy (0.803 vs 0.845; the
   95% interval of the difference, [−13.0, +3.8], contains 0), is faster on every item (p50 1.0 s
   vs 7.1 s) and costs 0.20× as much at list prices;
-- against a single Jev call, OST is +14.1 points in claim accuracy [+3.4, +25.3]: one request per
-  item is the fastest and cheapest option, but it gives one verdict for the whole answer, so on
-  claim accuracy it is no better than the no-model baseline (0.662), and it cannot say which
-  sentence is wrong.
+- against minimal_llm (jev), the two are equal at telling whether an answer contains an error
+  (answer-level F1 0.865 each). What OST adds is per-claim verdicts and localization: claim
+  accuracy +14.1 points [+3.4, +25.3] and character-level F1 0.753 vs 0.693. minimal_llm (jev)
+  gives one verdict for the whole answer, and every gold sentence inherits it when aligned, so
+  claim accuracy is unfavourable to it by construction. It is also the fastest and cheapest
+  option (0.2 s and $0.0002 per item).
 
 Notes:
 
@@ -143,17 +189,17 @@ assignment's SQLite/WAL example runs end-to-end as a fixture.
 Run each method once, then score and compute per-item latency and cost. Keys per method:
 
 - baseline: none.
-- single-call Jev (`minimal_jev`): `TYPESAFE_API_KEY`.
-- minimal_llm: `OPENAI_API_KEY` (gpt-6.1-sol is the default model).
+- minimal_llm (gpt-6.1-sol), `--method minimal_llm`: `OPENAI_API_KEY` (gpt-6.1-sol is the default model).
+- minimal_llm (jev), `--method minimal_jev`: `TYPESAFE_API_KEY`.
 - OST (optimized): `TYPESAFE_API_KEY`.
 
 ```bash
 .venv/Scripts/python benchmark/run_ost30.py --method baseline
-.venv/Scripts/python benchmark/run_ost30.py --method minimal_jev
 .venv/Scripts/python benchmark/run_ost30.py --method minimal_llm
+.venv/Scripts/python benchmark/run_ost30.py --method minimal_jev
 .venv/Scripts/python benchmark/run_ost30.py --method optimized
-.venv/Scripts/python benchmark/score_ost30.py baseline minimal_jev minimal_llm optimized
-.venv/Scripts/python benchmark/cost_latency_ost30.py minimal_jev minimal_llm optimized
+.venv/Scripts/python benchmark/score_ost30.py baseline minimal_llm minimal_jev optimized
+.venv/Scripts/python benchmark/cost_latency_ost30.py minimal_llm minimal_jev optimized
 ```
 
 Results go to `var/ost30/`: each method's output is `results_<method>.jsonl`, and every model
