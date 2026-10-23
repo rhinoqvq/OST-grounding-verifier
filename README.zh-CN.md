@@ -31,6 +31,7 @@ README 只放摘要，完整的内容在 [`docs/`](docs/)：
 | [版本迭代](docs/version-history.zh-CN.md) | OP0 → OP29 的三个阶段，每个阶段改了什么、数字动了多少 |
 | [消融实验](docs/ablation.zh-CN.md) | OST 的每个机制各自贡献多少 |
 | [成本](docs/cost.zh-CN.md) | 各方法、各版本的成本，以及钱花在哪一环 |
+| [附录](docs/appendix/) | 逐版本数据、语义树的数学论证、Jev 题目清单、OST30 抽取标准，以及原始响应和数据表 |
 
 ## 评测报告
 

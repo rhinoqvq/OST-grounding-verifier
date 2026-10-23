@@ -52,6 +52,8 @@ gpt-6.1-sol 单次调用没有在全量上跑，按 token 试算约 $35.7（输�
 
 ## 钱花在哪一环
 
+数据表：[`appendix/data/cost_by_stage_ragtruth.csv`](appendix/data/cost_by_stage_ragtruth.csv)。
+
 ![成本花在哪一环](figures/cost_by_stage.svg)
 
 | 环节 | OP27 | OP29，原文树常开 | OP29，默认 |

@@ -13,6 +13,8 @@
 
 ## 梯子
 
+数据表：[`appendix/data/ablation_ragtruth.csv`](appendix/data/ablation_ragtruth.csv)。
+
 ![检出：回答级 F1](figures/ablation_ladder_answer_f1.svg)
 
 ![定位：字符级 F1](figures/ablation_ladder_char_f1.svg)

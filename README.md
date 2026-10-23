@@ -44,6 +44,7 @@ The README is the summary; the full write-ups are in [`docs/`](docs/) (in Chines
 | [Version history](docs/version-history.zh-CN.md) | OP0 → OP29 in three phases: what changed and what moved |
 | [Ablation](docs/ablation.zh-CN.md) | what each OST mechanism contributes |
 | [Cost](docs/cost.zh-CN.md) | cost per method and per version, and where the money goes |
+| [Appendix](docs/appendix/) | per-version data, the semantic-tree proofs, the Jev question catalogue, the full OST30 extraction rules, plus raw responses and data tables |
 
 ## Evaluation report
 

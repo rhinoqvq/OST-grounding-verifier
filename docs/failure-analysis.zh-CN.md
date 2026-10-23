@@ -10,7 +10,7 @@
 |---|---:|---:|---:|---:|
 | 错的 claim | 24 | 11 | 24 | 14 |
 
-OST 和 sol 的错有 8 条重合，OST 单独错 6 条，sol 单独错 3 条。
+OST 和 sol 的错有 8 条重合，OST 单独错 6 条，sol 单独错 3 条。逐条的判定在 [`appendix/data/ost30_claims.csv`](appendix/data/ost30_claims.csv)。
 
 ## OST 和 minimal_llm（gpt-6.1-sol）都错的
 

@@ -1,0 +1,72 @@
+item,claim,category,gold,baseline,minimal_llm_sol,minimal_llm_jev,op29,claim_text
+OST30-01,1,fully_supported,SUPPORTED,UNSUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"The aftermath of the Battle of Sobraon saw Gough's army advancing to within 30 miles of Lahore, the capital of the Sikh Empire."
+OST30-01,2,fully_supported,SUPPORTED,CONTRADICTED,SUPPORTED,SUPPORTED,SUPPORTED,"Although detachments of the Sikh Khalsa Army remained intact in frontier districts, they were unable to defend Lahore."
+OST30-01,3,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"As a result, the central durbar of the Punjab nominated Gulab Singh to negotiate terms for surrender."
+OST30-01,4,fully_supported,SUPPORTED,SUPPORTED,UNSUPPORTED,SUPPORTED,SUPPORTED,"The Treaty of Lahore was then signed, leading to the cession of valuable agricultural lands to the East India Company, the establishment of a British Resident at Lahore, and the payment of a substantial indemnity by the Sikhs."
+OST30-01,5,fully_supported,SUPPORTED,CONTRADICTED,SUPPORTED,SUPPORTED,SUPPORTED,"Furthermore, Gulab Singh was allowed to acquire Kashmir from the Punjab by paying a significant sum to the East India Company."
+OST30-02,1,subtle_distortion,CONTRADICTED,CONTRADICTED,CONTRADICTED,CONTRADICTED,CONTRADICTED,"The first rail passenger service departed from Colombo Fort railway station on October 27, 1864."
+OST30-03,1,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,"Rabbi Joel Teitelbaum was the Grand Rabbi of Satmar, a city in Transylvania (which was part of Hungary at the time)."
+OST30-03,2,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,He was also the founder of the Satmar Hasidic dynasty.
+OST30-03,3,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,He was a staunch anti-Zionist and was against the creation of the State of Israel.
+OST30-03,4,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,He was also against the emigration of Jews to the Land of Israel and felt that Jews should remain in the diaspora and wait for the coming of the Messiah.
+OST30-03,5,extrinsic_hallucination,SUPPORTED,UNSUPPORTED,SUPPORTED,UNSUPPORTED,SUPPORTED,He was a very influential figure in the Orthodox Jewish community in Hungary before the Holocaust.
+OST30-04,1,subtle_distortion,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,CONTRADICTED,UNSUPPORTED,The Tyne Stop Line was an anti-tank defence line built in the north east of England during World War II to protect against a possible German invasion.
+OST30-04,2,subtle_distortion,CONTRADICTED,UNSUPPORTED,CONTRADICTED,CONTRADICTED,CONTRADICTED,"The line ran from the mouth of the River Tyne at Tynemouth, south to the River Wansbeck at Morpeth."
+OST30-04,3,subtle_distortion,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,CONTRADICTED,UNSUPPORTED,"The line was designed to be defended by regular army units, with support from local Home Guard units."
+OST30-04,4,subtle_distortion,SUPPORTED,UNSUPPORTED,UNSUPPORTED,CONTRADICTED,UNSUPPORTED,"The line was built as part of a wider network of stop lines across the country, which were intended to slow down any German advance and allow time for reinforcements to be brought up."
+OST30-04,5,subtle_distortion,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,CONTRADICTED,UNSUPPORTED,"The Tyne Stop Line was never tested in combat, as the German invasion never materialised."
+OST30-06,1,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,Mike has an F1 visa.
+OST30-07,1,subtle_distortion,CONTRADICTED,CONTRADICTED,CONTRADICTED,CONTRADICTED,CONTRADICTED,Kafka's works were not published during his lifetime.
+OST30-07,2,subtle_distortion,SUPPORTED,UNSUPPORTED,CONTRADICTED,CONTRADICTED,UNSUPPORTED,It was only after his death that his works were published and became popular.
+OST30-08,1,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"Galen may have written as many as 500 treatises, amounting to some 10 million words."
+OST30-08,2,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"However, only about a third of his complete writings have survived, with his surviving works amounting to around 3 million words."
+OST30-09,1,subtle_distortion,CONTRADICTED,SUPPORTED,CONTRADICTED,CONTRADICTED,CONTRADICTED,The first serious archaeological excavations at Titelberg began in 1928.
+OST30-10,1,extrinsic_hallucination,SUPPORTED,SUPPORTED,SUPPORTED,CONTRADICTED,SUPPORTED,Psychosis is an abnormal condition of the mind that results in difficulties determining what is real and what is not real.
+OST30-10,2,extrinsic_hallucination,UNSUPPORTED,SUPPORTED,CONTRADICTED,CONTRADICTED,UNSUPPORTED,"Symptoms always include delusions and hallucinations, among other features."
+OST30-11,1,subtle_distortion,CONTRADICTED,UNSUPPORTED,UNSUPPORTED,SUPPORTED,SUPPORTED,"John and his wife, Lina Hubbell"
+OST30-12,1,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,Herodotus made his research known to the public through oral recitations.
+OST30-12,2,fully_supported,SUPPORTED,UNSUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"He would recite his work to a public crowd, possibly at popular festivals."
+OST30-12,3,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"According to Lucian, Herodotus recited his entire Histories at the Olympic Games to the assembled spectators in one sitting and received rapturous applause at the end of it."
+OST30-13,1,fully_supported,SUPPORTED,UNSUPPORTED,UNSUPPORTED,SUPPORTED,SUPPORTED,"The Emancipation Proclamation was an executive order issued by President Abraham Lincoln on January 1, 1863, during the American Civil War."
+OST30-13,2,fully_supported,SUPPORTED,UNSUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"It declared that all slaves in Confederate-held territory were to be set free, and it authorized the military to enlist African Americans as soldiers."
+OST30-14,1,multi_passage,SUPPORTED,UNSUPPORTED,SUPPORTED,UNSUPPORTED,UNSUPPORTED,The creator of A Burial at Ornans is Gustave Courbet.
+OST30-14,2,multi_passage,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,Gustave Courbet was born on 10 June 1819.
+OST30-15,1,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,Stanley Baldwin retired as prime minister in 1937 in part due to his declining health.
+OST30-15,2,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,"He had suffered a nervous breakdown in 1936 and was increasingly plagued by arthritis, making it difficult for him to carry out his duties effectively."
+OST30-15,3,extrinsic_hallucination,CONTRADICTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,"Additionally, Baldwin had achieved many of his goals as prime minister, such as preserving capitalism and strengthening the Conservative Party, and felt that it was time for new leadership."
+OST30-15,4,extrinsic_hallucination,SUPPORTED,SUPPORTED,SUPPORTED,UNSUPPORTED,SUPPORTED,Neville Chamberlain succeeded Baldwin as prime minister in 1937.
+OST30-16,1,multi_passage,UNSUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,The German architect Gottfried Semper was asked to produce a design for the museum.
+OST30-17,1,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"Plato's works discussed a wide range of subjects, including politics, ethics, metaphysics, epistemology, psychology, and mathematics."
+OST30-18,1,multi_passage,CONTRADICTED,UNSUPPORTED,CONTRADICTED,UNSUPPORTED,UNSUPPORTED,Elizabeth is a king.
+OST30-19,1,multi_passage,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"Marshall Islands International Airport is on Majuro Atoll, the capital of the Marshall Islands."
+OST30-19,2,multi_passage,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,The first mosque in Majuro opened in September 2012.
+OST30-20,1,extrinsic_hallucination,SUPPORTED,SUPPORTED,SUPPORTED,UNSUPPORTED,SUPPORTED,Volta is credited as the inventor of the electric battery and the discoverer of methane.
+OST30-20,2,extrinsic_hallucination,SUPPORTED,SUPPORTED,SUPPORTED,UNSUPPORTED,SUPPORTED,"He invented the voltaic pile in 1799, and reported the results of his experiments in 1800 in a two-part letter to the president of the Royal Society."
+OST30-20,3,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,Volta received the Copley Medal of the Royal Society in 1794.
+OST30-21,1,extrinsic_hallucination,SUPPORTED,UNSUPPORTED,SUPPORTED,UNSUPPORTED,SUPPORTED,The Byzantines used subsidies as a diplomatic weapon of war in several ways.
+OST30-21,2,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,One example is the payment of tribute to the Bulgarian Khan Tervel in the early 8th century.
+OST30-21,3,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,"The Byzantine emperor Justinian II had been deposed in a coup in 695 and had fled to the court of Tervel, who agreed to help him regain his throne in exchange for a large payment of gold."
+OST30-21,4,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,"Justinian II returned to Constantinople in 705 and resumed his reign, but he was unable to fulfill his promise to Tervel."
+OST30-21,5,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,"In response, Tervel invaded Byzantine territory and defeated the Byzantine army in battle."
+OST30-21,6,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,Justinian II was forced to agree to pay Tervel an annual tribute of gold in exchange for peace.
+OST30-21,7,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,"This tribute continued to be paid by the Byzantine Empire for many years, and it helped to maintain a fragile peace between the two powers."
+OST30-21,8,extrinsic_hallucination,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,"By using subsidies in this way, the Byzantines were able to avoid a costly and potentially disastrous war with the Bulgarians."
+OST30-22,1,subtle_distortion,CONTRADICTED,SUPPORTED,CONTRADICTED,CONTRADICTED,CONTRADICTED,All the reviews that Dolphin Tale 2 received from critics were favorable.
+OST30-23,1,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"According to the Book of Deuteronomy, Moses was 120 years old when he died."
+OST30-23,2,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"He died on Mount Nebo, within sight of the Promised Land."
+OST30-24,1,subtle_distortion,SUPPORTED,UNSUPPORTED,CONTRADICTED,CONTRADICTED,CONTRADICTED,"We observe that, let alone a reduction in performance, the obtained scores indicate an almost uniform improvement in the correlation values for the proposed algorithm, outperforming all the alternatives except Word2Vec baseline on average."
+OST30-24,2,subtle_distortion,CONTRADICTED,UNSUPPORTED,UNSUPPORTED,CONTRADICTED,UNSUPPORTED,"It should also be noted that scores obtained by SPINE are relatively low on some tests, but still acceptable, indicating that it has achieved its interpretability performance without sacrificing its semantic functions."
+OST30-24,3,subtle_distortion,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,CONTRADICTED,SUPPORTED,The proposed approach is seen to perform well against the other unsupervised models.
+OST30-25,1,extrinsic_hallucination,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"An intelligent tutoring system (ITS) is a computer system that aims to provide immediate and customized instruction or feedback to learners, usually without requiring intervention from a human teacher."
+OST30-25,2,extrinsic_hallucination,UNSUPPORTED,SUPPORTED,UNSUPPORTED,SUPPORTED,SUPPORTED,"In an intelligent tutoring system, the domain model is presented as a set of constraints on correct solutions."
+OST30-26,1,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"In 1991, Ukraine became an independent country after the dissolution of the Soviet Union."
+OST30-26,2,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,Kyiv has been the capital of Ukraine since then.
+OST30-27,1,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,Passenger trains stopped running through Saugus in 1958.
+OST30-27,2,fully_supported,SUPPORTED,UNSUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,Saugus had 3 train stations.
+OST30-28,1,subtle_distortion,SUPPORTED,SUPPORTED,SUPPORTED,CONTRADICTED,SUPPORTED,The Battle of Wagram was fought on 5–6 July 1809 and ended in a costly but decisive victory for Napoleon.
+OST30-28,2,subtle_distortion,CONTRADICTED,CONTRADICTED,CONTRADICTED,CONTRADICTED,CONTRADICTED,"An official tabulation found 31,626 officers and men missing on 11 July 1809."
+OST30-28,3,subtle_distortion,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,CONTRADICTED,CONTRADICTED,Archduke Charles resigned his command shortly after the battle.
+OST30-29,1,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"According to the Book of Numbers, Aaron was buried on Mount Hor."
+OST30-29,2,fully_supported,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,SUPPORTED,"However, Deuteronomy places these events at Moserah."
+OST30-30,1,subtle_distortion,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,UNSUPPORTED,"Aaron was buried on Mount Hor, which is in the land of Edom, according to Numbers 20:22-29."
+OST30-30,2,subtle_distortion,CONTRADICTED,UNSUPPORTED,CONTRADICTED,UNSUPPORTED,UNSUPPORTED,"Deuteronomy places these events in the wilderness of Zin, which is also in the land of Edom."

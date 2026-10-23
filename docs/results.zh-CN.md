@@ -12,7 +12,7 @@ README 里放的是摘要，这里是完整的表和说明。评测集怎么来�
 - **minimal_llm（jev）**：每题向 Jev 发一次请求，放进全部原文和整段回答，整段回答算一条 claim。
 - **OST（OP29）**：只调 Jev，现行默认配置。
 
-所有方法的输入都只有 `context_passages` 和 `generated_answer`。
+所有方法的输入都只有 `context_passages` 和 `generated_answer`。四次运行的原始响应在 [`appendix/data/ost30_runs/`](appendix/data/ost30_runs/)，可以用打分脚本复算这张表，做法见[附录](appendix/README.md#用原始响应复算-readme-的表)。
 
 | 指标 | baseline | minimal_llm（gpt-6.1-sol） | minimal_llm（jev） | OST（OP29） |
 |---|---|---|---|---|
