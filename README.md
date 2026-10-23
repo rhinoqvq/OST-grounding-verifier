@@ -50,6 +50,11 @@ split, which verdict and which citation are all decided by code from its probabi
 accompanying 30-item set it is not distinguishable in accuracy from a single gpt-6.1-sol call, at
 0.20× the cost and a seventh of the latency. See [design](docs/design.zh-CN.md).
 
+The animation walks through OP29's four steps on the assignment's SQLite WAL example; it is a
+real run (5 Jev requests, about $0.0003).
+
+![How OST checks an answer](docs/figures/how_it_works.svg)
+
 ## Documents
 
 The README is the summary; the full write-ups are in [`docs/`](docs/) (in Chinese for now):

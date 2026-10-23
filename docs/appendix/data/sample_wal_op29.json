@@ -1,0 +1,99 @@
+{
+ "claims": [
+  {
+   "claim_text": "SQLite WAL mode allows multiple processes across different host machines on an NFS network share to write concurrently.",
+   "verdict": "CONTRADICTED",
+   "reasoning": "The cited source text explicitly states the opposite of the claim (P0.S2) (calibrated p=1.00).",
+   "citations": [
+    {
+     "index": 0,
+     "quote": "However, WAL does not work over a network filesystem because it requires all processes to share a small amount of memory via shared memory files (-shm).",
+     "start_char": 231,
+     "end_char": 383
+    }
+   ]
+  },
+  {
+   "claim_text": "Alongside the main database file, it uses two auxiliary files (-wal and -shm) and automatically checkpoints when the log reaches roughly 1,000 pages.",
+   "verdict": "SUPPORTED",
+   "reasoning": "The cited source text entails the claim (P1.S0) (calibrated p=1.00).",
+   "citations": [
+    {
+     "index": 1,
+     "quote": "When in active use, the state of a WAL mode database is described by three separate files: the main database file 'X', the write-ahead log file 'X-wal', and the wal-index shared-memory file 'X-shm'.",
+     "start_char": 0,
+     "end_char": 198
+    }
+   ]
+  },
+  {
+   "claim_text": "By default, WAL files are encrypted with AES-256 at rest.",
+   "verdict": "UNSUPPORTED",
+   "reasoning": "The source passages neither establish nor contradict this claim (calibrated p=1.00); it may be true elsewhere, but it cannot be verified from the provided context.",
+   "citations": []
+  }
+ ],
+ "units": [
+  {
+   "node_id": "sent::A.S1",
+   "kind": "sentence",
+   "verdict": "SUPPORTED",
+   "flags": [
+    "two_stage_sentence_supported",
+    "inherited_citation",
+    "citation_fallback"
+   ],
+   "probabilities": {
+    "supported": 1.0
+   },
+   "evidence": [
+    "P1.S0"
+   ],
+   "anchor_spans": [
+    [
+     120,
+     269
+    ]
+   ]
+  },
+  {
+   "node_id": "sent::A.S0",
+   "kind": "sentence",
+   "verdict": "CONTRADICTED",
+   "flags": [],
+   "probabilities": {
+    "supported": 0.0,
+    "contradicted": 1.0,
+    "not_in_context": 0.0,
+    "opposition_opposite": 1.0
+   },
+   "evidence": [
+    "P0.S2"
+   ],
+   "anchor_spans": [
+    [
+     0,
+     119
+    ]
+   ]
+  },
+  {
+   "node_id": "sent::A.S2",
+   "kind": "sentence",
+   "verdict": "UNSUPPORTED",
+   "flags": [],
+   "probabilities": {
+    "supported": 0.0,
+    "contradicted": 0.0,
+    "not_in_context": 1.0
+   },
+   "evidence": [],
+   "anchor_spans": [
+    [
+     270,
+     327
+    ]
+   ]
+  }
+ ]
+}

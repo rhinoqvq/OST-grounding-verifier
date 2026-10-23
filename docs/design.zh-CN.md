@@ -78,6 +78,10 @@ Jev（TypeSafe 的 System One）在这个系统里只做选择题，从不写字
 
 代码在 [`methods/optimized/pipeline.py`](../src/verifier/methods/optimized/pipeline.py)。延迟由轮数决定，不由题数决定，同一轮的题并发发出。
 
+下面的动图是作业里 SQLite WAL 例子的一次真实运行，每一步 Jev 给的概率都是当时记下来的，完整的输出在 [`appendix/data/sample_wal_op29.json`](appendix/data/sample_wal_op29.json)。第二句里有「when」，切点判成整句保留，所以整句没拆开，在先按句判定这一步就直接定为 S。
+
+![一次判定的流程](figures/how_it_works.zh-CN.svg)
+
 1. **准备（代码）**：检查入口上限，存下原文和回答，分句。回答为空就直接返回空列表。原文超过约 2.6 万 token 时，开始在后台建原文树，和下一步并行。
 2. **拆回答（Jev，只看回答）**：每个候选切点一道题，每句一道元话语题（「Based on the passages…」这类不是事实的话不进核对），共享开头拆开后再问一道拼回题。所有句子都拆。
 3. **先按句判定（Jev，看原文）**：回答的每一句问一次，对照整份原文，判 S、C 还是 U，并选出一句证据。最高选项是 S 而且找到了证据句，这句里的所有 claim 就都定为 S。再给每条 claim 问一道引文选择题，从这句证据和词面最接近的两句里挑出真正说了它的那句，过不了 0.50 就沿用整句的证据。
