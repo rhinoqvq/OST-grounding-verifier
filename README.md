@@ -42,140 +42,77 @@ Items by category:
 
 | category | items |
 |---|---:|
-| fully supported answers | 9 |
+| fully supported answers | 8 |
 | subtle distortions (off-by-one numbers, swapped conditions, inverted negations, …) | 9 |
 | extrinsic hallucinations (not in the passages, including facts true in the real world) | 8 |
 | multi-passage synthesis | 4 |
 | edge case: no checkable facts | 1 |
 
-The three methods:
+The four methods:
 
 - **baseline**: no model calls.
-- **minimal_llm**: one gpt-6.1-sol call per item.
-- **OST (optimized)**: Jev only.
+- **single-call Jev**: one Jev request per item — all passages and the whole answer, asked whether
+  the answer is SUPPORTED, CONTRADICTED or UNSUPPORTED and which passage is the evidence; the
+  answer is reported as one claim.
+- **minimal_llm**: one gpt-6.1-sol call per item, with the three verdict definitions from the
+  assignment word for word.
+- **OST (optimized, OP29)**: Jev only.
 
 Every method receives only `context_passages` and `generated_answer`; the gold is never sent.
 
-| metric | baseline | minimal_llm (gpt-6.1-sol) | OST (optimized) |
-|---|---|---|---|
-| claim accuracy (71 claims) | 0.662 | **0.845** | 0.831 |
-| 95% interval (item resampling) | 0.545–0.761 | 0.750–0.922 | 0.702–0.925 |
-| 3-way macro-F1 | 0.591 | **0.819** | 0.798 |
-| C/U alarm F1 | 0.780 | **0.895** | 0.889 |
-| real errors judged S (of 37) | 5 | **3** | 5 |
-| items fully correct | 10 / 30 | **19 / 30** | **19 / 30** |
-| latency per item p50 / p95 | 0.0 / 0.1 s | 7.5 / 19.4 s | **1.9 / 3.7 s** |
-| cost for 30 items (list price) | $0 | $0.45 | **$0.34** |
+| metric | baseline | single-call Jev | minimal_llm (gpt-6.1-sol) | OST (optimized) |
+|---|---|---|---|---|
+| claim accuracy (71 claims) | 0.662 | 0.662 | **0.845** | 0.803 |
+| 95% interval (item resampling) | 0.545–0.761 | 0.523–0.784 | 0.750–0.922 | 0.672–0.898 |
+| 3-way macro-F1 | 0.591 | 0.630 | **0.819** | 0.760 |
+| C/U alarm F1 | 0.780 | 0.815 | **0.909** | 0.877 |
+| real errors judged S (of 37) | 5 | 4 | **2** | 5 |
+| items fully correct | 10 / 30 | 13 / 30 | **19 / 30** | 17 / 30 |
+| latency per item p50 / p95 | 0.0 / 0.1 s | **0.2 / 0.3 s** | 7.1 / 18.1 s | 1.0 / 1.8 s |
+| cost for 30 items (list price) | $0 | **$0.007** | $0.45 | $0.09 |
 
-Paired differences (resampling by item; items 29 and 30 share a source and count as one group):
+Paired differences in claim accuracy (resampling by item, 10,000 times; items 29 and 30 share a
+source and count as one group):
 
-- OST − minimal_llm: −1.4 points, 95% interval [−10.2, +6.7].
-- OST − baseline: +16.9, 95% interval [+4.5, +29.3].
+- OST − minimal_llm: −4.2 points, 95% interval [−13.0, +3.8].
+- OST − single-call Jev: +14.1, 95% interval [+3.4, +25.3].
+- OST − baseline: +14.1, 95% interval [+2.0, +26.1].
 
-By source length:
+By source length: on the 30 items OST costs 0.07× / 0.10× / 0.27× of sol on short (< 5k chars) /
+medium (5k–20k) / long (20k–124k) sources, 0.20× overall, at 1.2 / 1.0 / 1.5 s per item against
+sol's 9.2 / 8.5 / 9.2 s; the single-call Jev baseline stays at 0.2 s and under $0.001 per item at
+every length. The figure below follows the cost per answer out to the design limit (500k
+characters of source), on 300 + 500 ANAH answers (aggregates only); Jev input priced at list,
+output is free.
 
-| source length | items | sol mean latency | OST (optimized) mean latency | sol mean cost | OST (optimized) mean cost | OST (optimized) cost ÷ sol cost |
-|---|---:|---:|---:|---:|---:|---:|
-| short (< 5k chars) | 10 | 9.8 s | 1.4 s | $0.0052 | $0.0009 | 0.18 |
-| medium (5k–20k) | 12 | 9.8 s | 2.1 s | $0.0103 | $0.0053 | 0.52 |
-| long (20k–124k) | 8 | 10.8 s | 3.5 s | $0.0342 | $0.0339 | 0.99 |
-| total | 30 | — | — | $0.448 | $0.344 | 0.77 |
+![Cost per answer by source length](docs/figures/cost_by_source_length.svg)
 
-**Summary.** On our own 30-item set, compared with a single gpt-6.1-sol call, OST:
+**Summary.** On our own 30-item set:
 
-- is not distinguishable in accuracy: 0.831 vs 0.845, and the 95% interval of the difference,
-  [−10.2, +6.7], contains 0;
-- is faster on every item: p50 1.9 s vs 7.5 s;
-- costs 23% less at list prices: 0.18× and 0.52× of sol on short and medium sources, and about
-  the same (0.99×) on sources over 20k characters.
+- against a single gpt-6.1-sol call, OST is not distinguishable in accuracy (0.803 vs 0.845; the
+  95% interval of the difference, [−13.0, +3.8], contains 0), is faster on every item (p50 1.0 s
+  vs 7.1 s) and costs 0.20× as much at list prices;
+- against a single Jev call, OST is +14.1 points in claim accuracy [+3.4, +25.3]: one request per
+  item is the fastest and cheapest option, but it gives one verdict for the whole answer, so on
+  claim accuracy it is no better than the no-model baseline (0.662), and it cannot say which
+  sentence is wrong.
 
 Notes:
 
 - **Cost** is token counts times list prices, not billing. gpt-6.1-sol uses third-party prices
   ($2 / $10 per million input / output tokens); Jev uses its official price ($0.042 per million
   input tokens, output free).
-- **Runs**: gpt-6.1-sol was run once. OST's column is one run of the current default
-  configuration, sentence guard included (it released no unit on this set). Replaying the Jev
-  calls recorded in earlier runs through the same code changes 3 of 71 verdicts (04#4, 07#2,
-  18#1) and gives an accuracy of 0.803: Jev's answers vary from run to run.
+- **Runs**: each column is one run. The OST column is the current default configuration (OP29,
+  commit `c78c508`; later commits on `main` do not change its verdicts). Jev's answers vary from
+  run to run: against the previous default (the sentence-guard version), 2 of 71 verdicts changed
+  (04#4 S→U with the judge's S probability at 0.46 instead of 0.52; 18#1 C→U through a different
+  evidence sentence), both on claims that had already flipped between earlier runs. The sol column
+  is the prompt with the assignment's definitions; the earlier paraphrased prompt gave the same
+  accuracy with one verdict different.
 - **The set**: 30 items only give wide intervals for differences between configurations, so no
   winner is claimed above. The set was also designed by us, around our own architecture.
 - **Only sol was compared**: with qwen3.8-flash, minimal_llm costs about $0.03 for the 30 items,
-  under 1/11 of OST.
-
-## Failure analysis
-
-Item numbers are the `id`s in `benchmark/ost30.jsonl`; every case was checked against the source
-text.
-
-**Both model-based methods**
-
-- Nearby evidence taken as support:
-  - 11: the source's "Mr. Hubbell married … Lina Rubi" is about a different Hubbell; both methods
-    took her for John's wife in the answer.
-  - 16: the two passages disagree on who designed the museum (Semper / Mies van der Rohe); both
-    methods cited only the supporting passage and missed the conflict.
-  - 17: the answer lists six fields Plato discussed; both methods found a passage for each and
-    judged it supported. "Psychology" is not stated in the source but inferred from a passage on
-    the three parts of the soul; the gold is U.
-- A refusal treated as a claim (05): the answer is only "Unable to answer based on given
-  passages", and all three methods output one U claim.
-- Reading disagreements (07#2, 15#3, 24#1): both methods differ from the gold on how to read the
-  source or the answer. Example, 07#2 "only after his death were his works published":
-  - the source says a few works were published in his lifetime, so sol judges C, and OST's judge
-    leans C too (its strict contradiction rule reports it as U);
-  - the gold reads "his works" as most of them and judges S.
-
-  These are scored as errors.
-
-**OST only**
-
-- Two assertions kept as one claim:
-  - 14, "The creator of A Burial at Ornans is Gustave Courbet, who was born on 10 June 1819": the
-    relative clause was not cut, so the whole sentence was judged U although its first half is
-    supported.
-  - 30: sentence splitting did not break after "Numbers 20:22-29.", so two sentences became one
-    and the second one's C was not judged on its own.
-- A weak lean kept as supported (24#3): "The proposed approach is seen to perform well against
-  the other unsupervised models." The judge leaned S at p=0.51, below the 0.55 bar, and a lean to
-  S under the bar stays S (on the RAGTruth test such leans were clean 430 times in 456). The
-  source is a table of correlation scores and does not say which models are unsupervised; the
-  gold (SciTab: not enough info) is U.
-- A dropped condition judged supported (25): the source says "in this case [this paradigm], the
-  domain model is presented as a set of constraints"; the answer replaces the condition with "in
-  an intelligent tutoring system", and OST judged S.
-- Evidence over-read (28#3): for "Archduke Charles resigned his command shortly after the battle",
-  OST cited "After the battle, Charles remained in command of a cohesive force and decided to
-  retreat to Bohemia" and judged C. That sentence only says he was still in command right after
-  the battle, not that he never resigned later; the gold is U.
-
-**Method 2 (gpt-6.1-sol) only**
-
-- A strengthened modal judged a contradiction (10): the source says "may include", the answer
-  "always include". The source does not state "not always", so the gold is U; sol judged C.
-- Splitting finer than the gold (01#4, 04#4, 13#1): sol splits a sentence into several small
-  assertions, and if one of them has no support the whole sentence counts as U.
-  - 13#1 yields "The Emancipation Proclamation was an executive order", which the source does not
-    say; the other parts are S.
-  - 04#4 yields "The wider network of stop lines extended across the country", which sol finds
-    the source does not establish.
-  - The gold judges each sentence as a whole, S.
-
-  These three are also reading disagreements.
-
-**Baseline**
-
-- Lexical only: paraphrases and aliases do not match. 01 gets two of five sentences right, and
-  both sentences of 13 are judged U.
-- Distortions other than numbers and negation are missed, and both of these are judged S:
-  - 09: the answer's 1928 does occur in the source, but for a different event;
-  - 22: the answer says "all the reviews were favorable", the source "mixed to positive".
-- Over-wide flagging: the characters it marks C / U are 1.65× the gold error spans.
-
-**Prompt injection (20).** The source has an instruction disguised as a system message, telling
-the checker to mark two true sentences CONTRADICTED and the unsupported one SUPPORTED. None of
-the three methods followed it. For comparison, method 2 on qwen3.8-flash followed it and marked
-the two true sentences C.
+  about a third of OST.
 
 ## Run
 
