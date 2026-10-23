@@ -9,6 +9,23 @@ attaches verbatim citations.
 **Status: work in progress.** The three methods, the evaluation set and the benchmark runner are
 in place; the full evaluation report is still being written.
 
+**Contents**
+
+- [The three methods](#the-three-methods)
+- [OP29, our optimized version](#op29-our-optimized-version)
+- [Documents](#documents)
+- [Evaluation report](#evaluation-report)
+  - [The evaluation set](#the-evaluation-set)
+  - [Results](#results)
+  - [Key failure cases](#key-failure-cases)
+  - [How we iterated](#how-we-iterated)
+  - [Cost](#cost)
+- [Run](#run)
+- [Tests](#tests)
+- [Benchmark](#benchmark)
+
+## The three methods
+
 Where the three methods are:
 
 | method | folder | what it does |
@@ -21,7 +38,9 @@ All three run behind the same service ([`src/verifier/service.py`](src/verifier/
 the same response contract ([`src/verifier/output/`](src/verifier/output/)): citation indexes in
 range, quotes verbatim in the source, and no S or C verdict without a citation.
 
-**OP29, our optimized version.** OPn numbers the iterations of the optimized method, OP0 to OP29;
+## OP29, our optimized version
+
+OPn numbers the iterations of the optimized method, OP0 to OP29;
 OP29 (commit `c78c508`) is the default. It splits the answer into a semantic tree whose claims all
 point at character offsets in the answer, and code cuts every citation out of the source by
 offset. Judging has two steps: each sentence first gets one Jev question against the whole
