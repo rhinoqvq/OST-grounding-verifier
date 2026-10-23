@@ -50,8 +50,11 @@ split, which verdict and which citation are all decided by code from its probabi
 accompanying 30-item set it is not distinguishable in accuracy from a single gpt-6.1-sol call, at
 0.20× the cost and a seventh of the latency. See [design](docs/design.zh-CN.md).
 
-The animation walks through OP29's four steps on the assignment's SQLite WAL example; it is a
-real run (5 Jev requests, about $0.0003).
+Both animations are real runs. The first shows one sentence being split into claims, built into
+the semantic tree, judged claim by claim and aggregated back up (OST30 item 15); the second walks
+the whole pipeline on the assignment's SQLite WAL example (5 Jev requests, about $0.0003).
+
+![The semantic tree: how one sentence is split, built into a tree and judged](docs/figures/semantic_tree.svg)
 
 ![How OST checks an answer](docs/figures/how_it_works.svg)
 

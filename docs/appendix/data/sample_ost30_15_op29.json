@@ -1,0 +1,194 @@
+{
+ "claims": [
+  {
+   "claim_text": "Stanley Baldwin retired as prime minister in 1937 in part due to his declining health.",
+   "verdict": "UNSUPPORTED",
+   "reasoning": "The source passages neither establish nor contradict this claim (calibrated p=0.96); it may be true elsewhere, but it cannot be verified from the provided context.",
+   "citations": []
+  },
+  {
+   "claim_text": "He had suffered a nervous breakdown in 1936",
+   "verdict": "SUPPORTED",
+   "reasoning": "The cited source text entails the claim (P0.S342) (calibrated p=0.76).",
+   "citations": [
+    {
+     "index": 0,
+     "quote": "Thorpe wrote, \"Essentially, Baldwin was a much more neurotic and insecure character than his public persona would have suggested\", as shown by his nervous breakdown in 1936 that kept him out of action for three months.",
+     "start_char": 51858,
+     "end_char": 52076
+    }
+   ]
+  },
+  {
+   "claim_text": "He was increasingly plagued by arthritis, making it difficult for him to carry out his duties effectively.",
+   "verdict": "UNSUPPORTED",
+   "reasoning": "The source passages neither establish nor contradict this claim (calibrated p=0.74); it may be true elsewhere, but it cannot be verified from the provided context.",
+   "citations": []
+  },
+  {
+   "claim_text": "Additionally, Baldwin had achieved many of his goals as prime minister, such as preserving capitalism and strengthening the Conservative Party",
+   "verdict": "SUPPORTED",
+   "reasoning": "The cited source text entails the claim (P0.S347, P0.S97) (calibrated p=0.70).",
+   "citations": [
+    {
+     "index": 0,
+     "quote": "Ramsden argues that Baldwin made dramatic permanent improvements to the organisation and effectiveness of the Conservative Party.",
+     "start_char": 16467,
+     "end_char": 16596
+    },
+    {
+     "index": 0,
+     "quote": "On the other hand, he achieved his primary goals of preserving capitalism, maintaining the parliamentary system and strengthening the Conservative Party as a leading opponent of socialism.",
+     "start_char": 52705,
+     "end_char": 52893
+    }
+   ]
+  },
+  {
+   "claim_text": "Additionally, Baldwin felt that it was time for new leadership.",
+   "verdict": "UNSUPPORTED",
+   "reasoning": "The source passages neither establish nor contradict this claim (calibrated p=0.70); it may be true elsewhere, but it cannot be verified from the provided context.",
+   "citations": []
+  },
+  {
+   "claim_text": "Neville Chamberlain succeeded Baldwin as prime minister in 1937.",
+   "verdict": "SUPPORTED",
+   "reasoning": "The cited source text entails the claim (P0.S20) (calibrated p=1.00).",
+   "citations": [
+    {
+     "index": 0,
+     "quote": "Baldwin retired in 1937 and was succeeded by Neville Chamberlain.",
+     "start_char": 3685,
+     "end_char": 3750
+    }
+   ]
+  }
+ ],
+ "units": [
+  {
+   "node_id": "sent::A.S3",
+   "kind": "sentence",
+   "verdict": "SUPPORTED",
+   "flags": [
+    "two_stage_sentence_supported",
+    "inherited_citation",
+    "citation_selected"
+   ],
+   "probabilities": {
+    "supported": 1.0
+   },
+   "evidence": [
+    "P0.S20"
+   ],
+   "anchor_spans": [
+    [
+     430,
+     494
+    ]
+   ]
+  },
+  {
+   "node_id": "sent::A.S0",
+   "kind": "sentence",
+   "verdict": "UNSUPPORTED",
+   "flags": [],
+   "probabilities": {
+    "supported": 0.01,
+    "contradicted": 0.03,
+    "not_in_context": 0.96
+   },
+   "evidence": [],
+   "anchor_spans": [
+    [
+     0,
+     86
+    ]
+   ]
+  },
+  {
+   "node_id": "frag::A.S1::0",
+   "kind": "fact",
+   "verdict": "SUPPORTED",
+   "flags": [],
+   "probabilities": {
+    "supported": 0.76,
+    "contradicted": 0.0,
+    "not_in_context": 0.24
+   },
+   "evidence": [
+    "P0.S342"
+   ],
+   "anchor_spans": [
+    [
+     87,
+     130
+    ]
+   ]
+  },
+  {
+   "node_id": "frag::A.S1::1",
+   "kind": "fact",
+   "verdict": "UNSUPPORTED",
+   "flags": [],
+   "probabilities": {
+    "supported": 0.21,
+    "contradicted": 0.05,
+    "not_in_context": 0.74
+   },
+   "evidence": [],
+   "anchor_spans": [
+    [
+     87,
+     89
+    ],
+    [
+     135,
+     238
+    ]
+   ]
+  },
+  {
+   "node_id": "frag::A.S2::0",
+   "kind": "fact",
+   "verdict": "SUPPORTED",
+   "flags": [],
+   "probabilities": {
+    "supported": 0.7,
+    "contradicted": 0.01,
+    "not_in_context": 0.29
+   },
+   "evidence": [
+    "P0.S347",
+    "P0.S97"
+   ],
+   "anchor_spans": [
+    [
+     239,
+     381
+    ]
+   ]
+  },
+  {
+   "node_id": "frag::A.S2::1",
+   "kind": "fact",
+   "verdict": "UNSUPPORTED",
+   "flags": [],
+   "probabilities": {
+    "supported": 0.29,
+    "contradicted": 0.01,
+    "not_in_context": 0.7
+   },
+   "evidence": [],
+   "anchor_spans": [
+    [
+     239,
+     260
+    ],
+    [
+     387,
+     428
+    ]
+   ]
+  }
+ ]
+}

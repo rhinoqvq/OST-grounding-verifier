@@ -22,6 +22,10 @@
 
 ### 语义树
 
+下面的动图是附带测评集第 15 题第 2 句的一次真实运行：代码提出切点，Jev 判断怎么切，切出来的两条 claim 挂在整句下面，各自判定以后再往上汇总。每一步的概率都来自调用记录，完整输出在 [`appendix/data/sample_ost30_15_op29.json`](appendix/data/sample_ost30_15_op29.json)。
+
+![语义树：一句话怎么拆、怎么建树、怎么判](figures/semantic_tree.zh-CN.svg)
+
 - 原文段落和回答都以不可变的方式存下来（[`rag/source.py`](../src/verifier/rag/source.py)）。树上的每个节点都指向回答里的字符偏移，不存改写过的文字。
 - 节点有这几类：
   - **事实**：一条可以单独核对的断言。
