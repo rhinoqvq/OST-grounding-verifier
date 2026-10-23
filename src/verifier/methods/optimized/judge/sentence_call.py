@@ -1,16 +1,15 @@
 """The optimized method's whole-sentence call: stage 1 of the two-stage judgment, and the
 sentence guard's check when two-stage is off.
 
-One request per answer (batched only for a very long answer): the whole source as the
-state, and per answer sentence (the main system's sentences) two choice questions, the
-verdict and which source sentence is the evidence. The source is never narrowed: when it
-has more sentences than an evidence question can list, or the request would not fit the
-budget, the answer gets no whole-sentence call and every sentence takes the full path.
+One request per answer (batched only for a very long answer): per answer sentence (the main
+system's sentences) two choice questions, the verdict and which source sentence is the
+evidence, against the source. A source too large for one request is narrowed to the
+sentences with the most lexical overlap with the answer (selection only, never rewriting).
+That is a design choice of this method: stage 1 only settles sentences it calls S with
+evidence, and every other sentence still gets the full judgment against the whole source.
 
-Until 2026-10-23 this borrowed the single-call method's request, which narrows a large
-source to the sentences with the most lexical overlap. When the source fits, the request
-here is the same one byte for byte (same state, questions and batching), so recorded calls
-replay; the two methods no longer share code.
+Until 2026-10-23 this was the single-call method's own request (methods/minimal_jev); this
+module now builds it itself, byte for byte the same in every case, so recorded calls replay.
 """
 
 from __future__ import annotations
@@ -22,6 +21,7 @@ from verifier.harness.batching import DEFAULT_REQUEST_TOKEN_BUDGET, ask_batched,
 from verifier.harness.context import build_source_state, estimate_tokens
 from verifier.models.decider import MAX_CHOICE_OPTIONS, ChoiceQuestion, Question
 from verifier.output.schemas import Verdict
+from verifier.rag.retrieve import lexical_scores
 from verifier.rag.source import Sentence, TextStore
 
 if TYPE_CHECKING:
@@ -33,7 +33,6 @@ VERDICTS = {
     "UNSUPPORTED": "the passages neither state nor contradict it",
 }
 NO_EVIDENCE = "none"
-MAX_SOURCE_SENTENCES = MAX_CHOICE_OPTIONS - 1  # one option is NO_EVIDENCE
 
 
 def verdict_question(k: int, text: str) -> ChoiceQuestion:
@@ -57,6 +56,55 @@ def evidence_question(k: int, text: str, sentences: list[Sentence]) -> ChoiceQue
     )
 
 
+def fit_source(store: TextStore, answer_texts: list[str], *, max_tokens: int, limit: int) -> list[Sentence]:
+    """All source sentences when they fit; otherwise the ones with the most lexical overlap
+    with any answer sentence, at most `limit` of them and `max_tokens` of state, kept in
+    source order."""
+    sentences = store.all_source_sentences()
+    if len(sentences) <= limit and estimate_tokens(build_source_state(store, sentences)) <= max_tokens:
+        return sentences
+    best = [0.0] * len(sentences)
+    for text in answer_texts:
+        for i, score in enumerate(lexical_scores(text, sentences)):
+            best[i] = max(best[i], score)
+    ranked = sorted(range(len(sentences)), key=lambda i: -best[i])
+    kept: list[int] = []
+    budget = max_tokens - estimate_tokens(build_source_state(store, []))
+    for i in ranked:
+        if len(kept) == limit:
+            break
+        cost = estimate_tokens(sentences[i].text) + 8  # id and line overhead
+        if cost > budget:
+            continue
+        kept.append(i)
+        budget -= cost
+    return [sentences[i] for i in sorted(kept)]
+
+
+def sentence_call_request(store: TextStore) -> tuple[str, list[Question], list[Sentence]]:
+    """(state, questions, kept source sentences): the state and every question (each evidence
+    question lists the kept sentences) fit the budget together; the kept set shrinks until
+    they do. The option cost counts the options a question can actually carry (no more than
+    the source has)."""
+    texts = [s.text for s in store.answer_sentences]
+    sources = store.all_source_sentences()
+    limit = MAX_CHOICE_OPTIONS - 1  # one option is NO_EVIDENCE
+    while True:
+        base = sum(question_tokens(q) for k, t in enumerate(texts)
+                   for q in (verdict_question(k, t), evidence_question(k, t, [])))
+        option_cost = len(texts) * (min(limit, len(sources)) + 1) * 8
+        kept = fit_source(store, texts, max_tokens=DEFAULT_REQUEST_TOKEN_BUDGET - base - option_cost - 500,
+                          limit=limit)
+        state = build_source_state(store, kept)
+        questions: list[Question] = []
+        for k, t in enumerate(texts):
+            questions += [verdict_question(k, t), evidence_question(k, t, kept)]
+        total = estimate_tokens(state) + sum(question_tokens(q) for q in questions)
+        if (total <= DEFAULT_REQUEST_TOKEN_BUDGET and kept) or limit <= 10:
+            return state, questions, kept
+        limit //= 2
+
+
 @dataclass(frozen=True)
 class SentenceCall:
     """The judge's call on one whole answer sentence."""
@@ -71,38 +119,10 @@ class SentenceCall:
         return self.verdict is Verdict.SUPPORTED and self.evidence is not None
 
 
-def sentence_call_request(store: TextStore) -> tuple[str, list[Question]] | str:
-    """(state, questions) for the whole source, or why it does not fit one request."""
-    texts = [s.text for s in store.answer_sentences]
-    sources = store.all_source_sentences()
-    if len(sources) > MAX_SOURCE_SENTENCES:
-        return f"source has {len(sources)} sentences > {MAX_SOURCE_SENTENCES} evidence options"
-    state = build_source_state(store, sources)
-    # the budget test the narrowing version applied before it would narrow: the state must
-    # fit beside every question with its options, and the whole request must fit
-    base = sum(question_tokens(q) for k, t in enumerate(texts)
-               for q in (verdict_question(k, t), evidence_question(k, t, [])))
-    option_cost = len(texts) * (len(sources) + 1) * 8
-    state_tokens = estimate_tokens(state)
-    if state_tokens > DEFAULT_REQUEST_TOKEN_BUDGET - base - option_cost - 500:
-        return f"source state {state_tokens} tokens does not fit beside {len(texts) * 2} questions"
-    questions: list[Question] = []
-    for k, t in enumerate(texts):
-        questions += [verdict_question(k, t), evidence_question(k, t, sources)]
-    total = state_tokens + sum(question_tokens(q) for q in questions)
-    if total > DEFAULT_REQUEST_TOKEN_BUDGET:
-        return f"request {total} tokens > budget {DEFAULT_REQUEST_TOKEN_BUDGET}"
-    return state, questions
-
-
-async def whole_sentence_calls(store: TextStore, deps: "Dependencies") -> tuple[list[SentenceCall] | None, dict]:
-    """One call per answer sentence, in sentence order; None (with the reason in the info)
-    when the whole source does not fit one request."""
+async def whole_sentence_calls(store: TextStore, deps: "Dependencies") -> tuple[list[SentenceCall], dict]:
+    """One call per answer sentence, in sentence order."""
     settings = deps.settings
-    built = sentence_call_request(store)
-    if isinstance(built, str):
-        return None, {"skipped": built}
-    state, questions = built
+    state, questions, kept = sentence_call_request(store)
     if len(questions) <= settings.max_questions_per_request:
         answers = await deps.decider.ask(state, questions)
         requests = 1
@@ -117,6 +137,4 @@ async def whole_sentence_calls(store: TextStore, deps: "Dependencies") -> tuple[
         verdict = Verdict(v.choice)
         picked = verdict is not Verdict.UNSUPPORTED and e.choice and e.choice != NO_EVIDENCE
         calls.append(SentenceCall(verdict, e.choice if picked else None, v.probabilities.get(v.choice, 0.0)))
-    info = {"questions": len(questions), "requests": requests,
-            "source_sentences_kept": len(store.all_source_sentences())}
-    return calls, info
+    return calls, {"questions": len(questions), "requests": requests, "source_sentences_kept": len(kept)}
