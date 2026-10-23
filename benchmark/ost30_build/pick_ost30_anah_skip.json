@@ -1,0 +1,31 @@
+{
+ "05": {
+  "*": "仅有的两条候选（Gordon Brown、Nostradamus）都是事实陈述，ANAH 却标成「非事实」，标签存疑；ANAH 里没有真正不含事实的回答"
+ },
+ "07": {
+  "1962 Burmese coup d'état#internlm_closed_book#1": "标注格式有错（一句的订正里混进了另一条标注），第一句标了矛盾但订正内容并不矛盾",
+  "Gregor Mendel#gpt35_with_docs#2": "订正是「最初被认为是重新发现者，但……」，不是否定反转",
+  "Friedrich Nietzsche#internlm_closed_book#1": "命中的是 without（不经考试授予学位），不是否定反转",
+  "Wilberforce Colony#gpt35_with_docs#0": "复核时发现 ANAH 标错：标「矛盾」的「They never made it to Canada.」在原文里一字不差（They 指留在美国的那批人），按口径应判 S，改正后这题没有否定反转，不符合题型"
+ },
+ "10": {
+  "*": "只有 1 条候选，引文修不成逐字"
+ },
+ "11": {
+  "Sidon#internlm_closed_book#1": "订正是列表里多了 Turks、少了 Egyptians，不是把属性挂到别的实体上",
+  "Jesus#internlm_closed_book#2": "订正只是措辞差别（Judea / Palestine、most / modern scholars），不是属性挂错实体",
+  "Wilberforce Colony#internlm_closed_book#1": "购买方写成了原文没有的「Wilberforce 殖民地公司」，是编出来的实体，不是两个相似实体之间的属性错挂"
+ },
+ "13": {
+  "Georg Wilhelm Friedrich Hegel#internlm_closed_book#0": "所谓别名只是黑格尔的全名，不需要跨段对应"
+ },
+ "22": {
+  "*": "只有 1 条候选，引文修不成逐字"
+ },
+ "23": {
+  "Anne Frank#internlm_closed_book#0": "命中的是 wrote（她写日记），不是归属说法"
+ },
+ "25": {
+  "*": "引文能修好的 3 条候选（Republican empire、Averroes、David）里，前一句都没有被后一句继承的条件：命中的是 during / when 一类叙述，不是限制条件"
+ }
+}

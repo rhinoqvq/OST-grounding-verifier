@@ -192,3 +192,11 @@ The scoring rules are at the top of [`benchmark/score_ost30.py`](benchmark/score
 - when a citation counts as supporting.
 
 Hand rulings are in the two JSON files under `benchmark/`.
+
+Reproducing:
+
+- [`benchmark/ost30_build/`](benchmark/ost30_build/) rebuilds OST30 from the public source datasets, byte for byte.
+- [`benchmark/ragtruth/`](benchmark/ragtruth/) builds the RAGTruth development inputs, runs a method and scores it; the
+  recorded predictions of every run in the docs are included, so the numbers rescore without a model call.
+- The raw responses and call logs of the four runs in the results table are in
+  [`docs/appendix/data/ost30_runs/`](docs/appendix/data/ost30_runs/).

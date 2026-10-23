@@ -144,3 +144,8 @@ curl -X POST localhost:8000/verify \
 - 引文怎么算撑得住。
 
 人工裁定记在 `benchmark/` 下的两份 json 里。
+
+复现：
+- OST30 能用 [`benchmark/ost30_build/`](benchmark/ost30_build/) 从公开数据集重建，和冻结的文件逐字节相同。
+- 开发集 RAGTruth 的输入构建、运行和打分在 [`benchmark/ragtruth/`](benchmark/ragtruth/)，附每次运行的预测，可以不调模型复算文档里的数字。
+- README 结果表那四次运行的原始响应和调用记录在 [`docs/appendix/data/ost30_runs/`](docs/appendix/data/ost30_runs/)。

@@ -19,7 +19,7 @@
 
 | 文件 | 内容 |
 |---|---|
-| [`ost30_runs/`](data/ost30_runs/) | README 结果表那四次运行的原始响应，每题一行：baseline、minimal_llm（gpt-6.1-sol）、minimal_llm（jev）、OST（OP29） |
+| [`ost30_runs/`](data/ost30_runs/) | README 结果表那四次运行：原始响应（`results_*.jsonl`，每题一行）和每次模型调用的记录（`runs_*.sqlite3`）。四种方法：baseline、minimal_llm（gpt-6.1-sol）、minimal_llm（jev）、OST（OP29） |
 | [`ost30_claims.csv`](data/ost30_claims.csv) | 71 条金标 claim，每条的金标判定和四种方法对齐后的判定 |
 | [`versions_qa900.csv`](data/versions_qa900.csv) | QA-900 上每个版本的分数、成本、调用次数、延迟 |
 | [`ablation_ragtruth.csv`](data/ablation_ragtruth.csv) | RAGTruth 2,700 上消融梯子的每一级：分数、相对上一级的差值和区间、全量成本 |
@@ -30,10 +30,11 @@
 
 ### 用原始响应复算 README 的表
 
-把 `ost30_runs/` 里的四个文件复制到 `var/ost30/`，然后：
+把 `ost30_runs/` 里的文件复制到 `var/ost30/`，然后：
 
 ```bash
 .venv/Scripts/python benchmark/score_ost30.py baseline minimal_llm_sol minimal_llm_jev optimized_op29
+.venv/Scripts/python benchmark/cost_latency_ost30.py minimal_llm_sol minimal_llm_jev optimized_op29
 ```
 
-claim 准确率、报警 F1、回答级和字符级 F1、整题全对、耗时都能复算出来，和 README 一致。成本要读每次模型调用的记录，这些记录没有放进仓库，所以复算出来的成本一栏是 0。「引文核对后准确率」用到的人工裁定是给更早的几轮做的，对这几个文件不完整，README 没有引用这一项。
+claim 准确率、报警 F1、回答级和字符级 F1、整题全对、耗时和成本都能复算出来，和 README 一致。「引文核对后准确率」用到的人工裁定是给更早的几轮做的，对这几个文件不完整，README 没有引用这一项。

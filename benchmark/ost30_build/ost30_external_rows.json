@@ -1,0 +1,325 @@
+{
+ "folio": [
+  {
+   "story_id": 192,
+   "premises": "International students in the US have either an F1 visa or a J1 visa.\nAn international student in the US with an F1 visa needs to apply for CPT or OPT if the student wants to work in the US.\nMike is an international student.\nMike needs to apply for CPT if he wants to work in the US.",
+   "premises-FOL": "∀x (InternationalStudent(x) ∧ In(x, unitedStates) → F1Visa(x) ⊕ J1Visa(x))\n∀x (InternationalStudent(x) ∧ In(x, unitedStates) ∧ F1Visa(x) ∧ WantToWorkIn(x, unitedStates) → Apply(x, cpt) ∨ Apply(x, opt))\nInternationalStudent(mike)\nWantToWorkIn(x, unitedStates) → Apply(mike, cpt)",
+   "conclusion": "Mike has an F1 visa.",
+   "conclusion-FOL": "F1Visa(mike)",
+   "label": "Uncertain",
+   "example_id": 548
+  },
+  {
+   "story_id": 56,
+   "premises": "If a person is the leader of a country for life, that person has power.\nLeaders of a country for life are either a king or a queen.\nQueens are female.\nKings are male. \nElizabeth is a queen.\nElizabeth is a leader of a country for life.",
+   "premises-FOL": "∀x (Leader(x) → HavePower(x))\n∀x (Leader(x) → (King(x) ⊕ Queen(x)))\n∀x (Queen(x) → Female(x))\n∀x (King(x) → Male(x))\nQueen(elizabeth)\nLeader(elizabeth)",
+   "conclusion": "Elizabeth is a king.",
+   "conclusion-FOL": "King(elizabeth)",
+   "label": "False",
+   "example_id": 165
+  }
+ ],
+ "musique": [
+  {
+   "id": "2hop__107905_110222",
+   "paragraphs": [
+    {
+     "idx": 0,
+     "title": "Clara Morris",
+     "paragraph_text": "Clara Morris (March 17, 1849 – November 20, 1925) (her birth date is sometimes given as 1846/48) was an American actress.",
+     "is_supporting": false
+    },
+    {
+     "idx": 1,
+     "title": "Forest Lawn Memorial Park (Burnaby)",
+     "paragraph_text": "Forest Lawn Memorial Park is a cemetery in Burnaby, British Columbia. The burial park was founded in 1936 and the funeral home was established in 1965.",
+     "is_supporting": false
+    },
+    {
+     "idx": 2,
+     "title": "Ceolwald of Wessex",
+     "paragraph_text": "Ceolwald of Wessex was a member of the House of Wessex (see House of Wessex family tree). Although a member of the direct male line from Cynric to Egbert, Ceolwald was never king. His birth and death dates are unknown.",
+     "is_supporting": false
+    },
+    {
+     "idx": 3,
+     "title": "Pak Nam-gi",
+     "paragraph_text": "Pak Nam-gi or Park Nam-ki (21 February 1934 – 17 March 2010) was, until as late as January 2010, Director of the Planning and Finance Department of the ruling party of North Korea. There are doubts about his date of birth, with at least two unattributed sources reporting it as 21 February 1934 or sometime in 1928 respectively.",
+     "is_supporting": false
+    },
+    {
+     "idx": 4,
+     "title": "Childbirth",
+     "paragraph_text": "In many countries, age is reckoned from the date of birth, and sometimes the birthday is celebrated annually. East Asian age reckoning starts newborns at \"1\", incrementing each Lunar New Year.",
+     "is_supporting": false
+    },
+    {
+     "idx": 5,
+     "title": "Peter Fliesteden",
+     "paragraph_text": "Peter Fliesteden (date of birth unknown; died 28 September 1529) was condemned to be burnt at the stake at Melaten near Cologne, as one of the first Protestant martyrs of the Reformation on the Lower Rhine in Germany. He was born in a tiny place also called Fliesteden (now part of Bergheim, Rhein-Erft-Kreis) on an unknown date.",
+     "is_supporting": false
+    },
+    {
+     "idx": 6,
+     "title": "Mid-twentieth century baby boom",
+     "paragraph_text": "The end of World War II brought a baby boom to many countries, especially Western ones. There is some disagreement as to the precise beginning and ending dates of the post-war baby boom, but it is most often agreed to have begun in the years immediately after the war, though some place it earlier at the increase of births in 1941 - 1943. The boom started to decline as birth rates in the United States started to decline in 1958, though the boom would only grind to a halt 3 years later in 1961, 20 years after it began.",
+     "is_supporting": false
+    },
+    {
+     "idx": 7,
+     "title": "Berlin 1939–1945 Commonwealth War Graves Commission Cemetery",
+     "paragraph_text": "The Berlin 1939–1945 War Cemetery is one of two Commonwealth War Graves Commission (CWGC) cemeteries in Berlin, the other being the World War I Berlin South-Western Cemetery in Stahnsdorf, Brandenburg. The Berlin 1939–1945 War Cemetery was established in 1945 as a central burial ground for aircrew and prisoners of war who were interred in the Berlin area and in East Germany. There are also 260 burials from the post-war British Occupation Authorities staff, or their relatives. Of the wartime burials, about 80% are aircrew, killed in action over Germany: the remainder are prisoners of war.",
+     "is_supporting": false
+    },
+    {
+     "idx": 8,
+     "title": "Christmas",
+     "paragraph_text": "Although the month and date of Jesus' birth are unknown, by the early - to - mid fourth century the Western Christian Church had placed Christmas on December 25, a date that was later adopted in the East. Today, most Christians celebrate on December 25 in the Gregorian calendar, which has been adopted almost universally in the civil calendars used in countries throughout the world. However, some Eastern Christian Churches celebrate Christmas on December 25 of the older Julian calendar, which currently corresponds to January 7 in the Gregorian calendar, the day after the Western Christian Church celebrates the Epiphany. This is not a disagreement over the date of Christmas as such, but rather a preference of which calendar should be used to determine the day that is December 25. Moreover, for Christians, the belief that God came into the world in the form of man to atone for the sins of humanity, rather than the exact birth date, is considered to be the primary purpose in celebrating Christmas.",
+     "is_supporting": false
+    },
+    {
+     "idx": 9,
+     "title": "Anawrahta",
+     "paragraph_text": "Anawrahta was born Min Saw (, ) to King Kunhsaw Kyaunghpyu and Queen Myauk Pyinthe on 11 May 1044. The Burmese chronicles do not agree on the dates regarding his life and reign. The table below lists the dates given by the four main chronicles. Among the chronicles, scholarship usually accepts \"Zata's\" dates, which are considered to be the most accurate for the Pagan period. Scholarship's dates for Anawrahta's birth, death and reign dates are closest to \"Zata's\" dates.",
+     "is_supporting": false
+    },
+    {
+     "idx": 10,
+     "title": "A Burial At Ornans",
+     "paragraph_text": "A Burial At Ornans (, also known as A Funeral At Ornans) is a painting of 1849–50 by Gustave Courbet, and one of the major turning points of 19th-century French art. The painting records the funeral in September 1848 of his great-uncle in the painter's birthplace, the small town of Ornans. It treats an ordinary provincial funeral with unflattering realism, and on the giant scale traditionally reserved for the heroic or religious scenes of history painting. Its exhibition at the 1850–51 Paris Salon created an \"explosive reaction\" and brought Courbet instant fame. It is currently displayed at the Musée d'Orsay in Paris, France.",
+     "is_supporting": true
+    },
+    {
+     "idx": 11,
+     "title": "Southampton Old Cemetery",
+     "paragraph_text": "The cemetery has had various titles including The Cemetery by the Common, Hill Lane Cemetery and is currently known as Southampton Old Cemetery. An Act of Parliament was required in 1843 to acquire the land from Southampton Common. It covers an area of and the total number of burials is estimated at 116,800. Currently there are 6 to 8 burials a year to existing family plots.",
+     "is_supporting": false
+    },
+    {
+     "idx": 12,
+     "title": "Geumgoksa",
+     "paragraph_text": "Geumgoksa or Geumgok Temple (금곡사) is a Buddhist temple in Gangjin county, South Jeolla province, South Korea. Its name means \"Golden Valley Temple.\" Three temples and numerous smaller shrines and burial mounds comprise the site. It is noted for its scenic beauty as well as a 3-tiered stone pagoda that dates to the Goryo Dynasty.",
+     "is_supporting": false
+    },
+    {
+     "idx": 13,
+     "title": "Sami Brady",
+     "paragraph_text": "Sami Brady is a fictional character from the NBC soap opera, Days of Our Lives, portrayed by Alison Sweeney. The character was born on - screen during the episode dated October 16, 1984, and her birth date was later SORASed to October 16, 1977. Introduced by then head writer Margaret DePriest, Sami has been portrayed by Sweeney since January 22, 1993. Sami is known for her failed relationships with men, her children and her manipulative trouble - making ways. She has been described as vindictive and the girl ``you love to hate ''.",
+     "is_supporting": false
+    },
+    {
+     "idx": 14,
+     "title": "Bonnevaux-le-Prieuré",
+     "paragraph_text": "Bonnevaux-le-Prieuré is a former commune in the Doubs department in the Bourgogne-Franche-Comté region in eastern France. On 1 January 2016, it was merged into the commune Ornans.",
+     "is_supporting": false
+    },
+    {
+     "idx": 15,
+     "title": "Adeliza",
+     "paragraph_text": "Adeliza or Adelida (died before 1113) was a daughter of the English king William the Conqueror and his wife, Matilda of Flanders. There is considerable uncertainty about her life, including her dates of birth and death. In a mortuary roll prepared at her sister's religious house, she was listed first among the daughters of William the Conqueror. She was usually the first daughter in lists of William's children, and thus probably the eldest. Her inclusion in the mortuary roll indicates that her death preceded the date of its 1113 compilation.",
+     "is_supporting": false
+    },
+    {
+     "idx": 16,
+     "title": "Capital of the Netherlands",
+     "paragraph_text": "Although the proper legal status of Amsterdam as capital of the Netherlands is of recent date, the city has been uniformly recognised as capital ever since 1814. This is partly because it is a Royal City, used not only for the inauguration of kings, but also for royal weddings (note though that royal burials take place in Delft), and also because of its dominant position in Dutch history. From the end of the 16th century the city grew rapidly to become the largest and most powerful city in the Netherlands and the main centre of trade, commerce, finance and culture.",
+     "is_supporting": false
+    },
+    {
+     "idx": 17,
+     "title": "Meskhenet",
+     "paragraph_text": "In Ancient Egyptian mythology, Meskhenet, (also spelt Mesenet, Meskhent, and Meshkent) was the goddess of childbirth, and the creator of each child's Ka, a part of their soul, which she breathed into them at the moment of birth. She was worshipped from the earliest of times by Egyptians.",
+     "is_supporting": false
+    },
+    {
+     "idx": 18,
+     "title": "William Ganong Cemetery",
+     "paragraph_text": "William Ganong Cemetery is a cemetery located in Westland, Michigan, USA. It is named after a local farmer who set aside a portion of his farm land for burials in 1832. It contains approximately 350 interments. It is currently owned by Wayne County and no longer open for further burials.",
+     "is_supporting": false
+    },
+    {
+     "idx": 19,
+     "title": "Oglakhty",
+     "paragraph_text": "Oglahty (Russian: Оглахты) is a mountain range and a burial complex of Tashtyk culture located 60 km north of Minusinsk, Khakassia, Russia, on the right bank of Yenisei River. Oglahty burials are dated to ca. 1st century BC. The burials were first surveyed in 1903 by A.V. Adrianov. The dryness of the soil and favorable climatic conditions in the burial monument preserved perishable materials including wood, leather, fur, and fabrics. A prominent place among artifacts in the Oglahty complex occupy solid and decorated polychromatic fabrics. They are preserved in the Hermitage Museum of Saint Petersburg (see the pictures).",
+     "is_supporting": false
+    }
+   ],
+   "question": "When is the date of birth of the creator of A Burial at Ornans?",
+   "question_decomposition": [
+    {
+     "id": 107905,
+     "question": "Who is the creator of A Burial At Ornans?",
+     "answer": "Gustave Courbet",
+     "paragraph_support_idx": 10
+    },
+    {
+     "id": 110222,
+     "question": "The date of birth of #1 is?",
+     "answer": "10 June 1819",
+     "paragraph_support_idx": null
+    }
+   ],
+   "answer": "10 June 1819",
+   "answer_aliases": [],
+   "answerable": false
+  },
+  {
+   "id": "2hop__781079_9237",
+   "paragraphs": [
+    {
+     "idx": 0,
+     "title": "Mumbai",
+     "paragraph_text": "The Chhatrapati Shivaji International Airport (formerly Sahar International Airport) is the main aviation hub in the city and the second busiest airport in India in terms of passenger traffic. It handled 36.6 million passengers and 694,300 tonnes of cargo during FY 2014–2015. An upgrade plan was initiated in 2006, targeted at increasing the capacity of the airport to handle up to 40 million passengers annually and the new terminal T2 was opened in February 2014.The proposed Navi Mumbai International airport to be built in the Kopra-Panvel area has been sanctioned by the Indian Government and will help relieve the increasing traffic burden on the existing airport.The Juhu Aerodrome was India's first airport, and now hosts the Bombay Flying Club and a heliport operated by state-owned Pawan Hans.",
+     "is_supporting": false
+    },
+    {
+     "idx": 1,
+     "title": "Tawau Airport",
+     "paragraph_text": "Tawau Airport () is an airport located north east of Tawau, Sabah, Malaysia. It is one of two airports in Sabah with immigration counters for international flights, the other being Kota Kinabalu International Airport. Tawau Airport serves the districts of Tawau, Kunak and Semporna and is the nearest airport to the diving islands of Sipadan, Mabul and Kapalai, all of which are located in the latter district.",
+     "is_supporting": false
+    },
+    {
+     "idx": 2,
+     "title": "Halifax International Airport Authority",
+     "paragraph_text": "The Halifax International Airport Authority (HIAA) is a Canadian airport authority charged with operating Halifax Stanfield International Airport on behalf of Transport Canada.",
+     "is_supporting": false
+    },
+    {
+     "idx": 3,
+     "title": "Marshall Islands",
+     "paragraph_text": "The Marshall Islands are served by the Marshall Islands International Airport in Majuro, the Bucholz Army Airfield in Kwajalein, and other small airports and airstrips.",
+     "is_supporting": false
+    },
+    {
+     "idx": 4,
+     "title": "London",
+     "paragraph_text": "London is a major international air transport hub with the busiest city airspace in the world. Eight airports use the word London in their name, but most traffic passes through six of these. London Heathrow Airport, in Hillingdon, West London, is the busiest airport in the world for international traffic, and is the major hub of the nation's flag carrier, British Airways. In March 2008 its fifth terminal was opened. There were plans for a third runway and a sixth terminal; however, these were cancelled by the Coalition Government on 12 May 2010.",
+     "is_supporting": false
+    },
+    {
+     "idx": 5,
+     "title": "Incheon International Airport",
+     "paragraph_text": "The airport opened for business in early 2001 to replace the older Gimpo International Airport, which now serves mostly domestic destinations plus shuttle flights to alternate airports in China, Japan, and Taiwan.",
+     "is_supporting": false
+    },
+    {
+     "idx": 6,
+     "title": "Freeflight International Airport",
+     "paragraph_text": "Freeflight International Airport, also known as Dyess Army Airfield, is a military airbase at Roi-Namur on Kwajalein Atoll, Marshall Islands. It is owned by the United States Army. This airport is assigned the location identifier ROI by the FAA, but has received no designation by the IATA.",
+     "is_supporting": false
+    },
+    {
+     "idx": 7,
+     "title": "Eastar Jet",
+     "paragraph_text": "Eastar Jet (ESR) () is a low-cost airline with its headquarters in Banghwa-dong, Gangseo-gu, Seoul, South Korea. On January 7, 2009, Eastar Jet made its maiden flight from Gimpo International Airport to Jeju International Airport. Now, the airline operates a scheduled passenger network to 14 destinations in eight countries. Its main base is Gimpo International Airport, with a hub at Jeju International Airport.",
+     "is_supporting": false
+    },
+    {
+     "idx": 8,
+     "title": "Marshall Islands International Airport",
+     "paragraph_text": "Marshall Islands International Airport , also known as Amata Kabua International Airport, is located in the western part of Rairok on the south side of Majuro Atoll, the capital of the Republic of the Marshall Islands. The airport was built during World War II (1943) on Anenelibw and Lokojbar islets. It replaced Majuro Airfield, a coral-surfaced airstrip at Delap Island near the eastern end of Majuro Atoll that had been originally constructed by Japanese occupation forces in 1942.",
+     "is_supporting": true
+    },
+    {
+     "idx": 9,
+     "title": "Paris",
+     "paragraph_text": "Orly Airport, located in the southern suburbs of Paris, replaced Le Bourget as the principal airport of Paris from the 1950s to the 1980s. Charles de Gaulle Airport, located on the edge of the northern suburbs of Paris, opened to commercial traffic in 1974 and became the busiest Parisian airport in 1993. Today it is the 4th busiest airport in the world by international traffic, and is the hub for the nation's flag carrier Air France.  Beauvais-Tillé Airport, located 69 km (43 mi) north of Paris' city centre, is used by charter airlines and low-cost carriers such as Ryanair.",
+     "is_supporting": false
+    },
+    {
+     "idx": 10,
+     "title": "Marshall Islands",
+     "paragraph_text": "Major religious groups in the Republic of the Marshall Islands include the United Church of Christ (formerly Congregational), with 51.5% of the population; the Assemblies of God, 24.2%; the Roman Catholic Church, 8.4%; and The Church of Jesus Christ of Latter-day Saints (Mormons), 8.3%; Also represented are Bukot Nan Jesus (also known as Assembly of God Part Two), 2.2%; Baptist, 1.0%; Seventh-day Adventists, 0.9%; Full Gospel, 0.7%; and the Baha'i Faith, 0.6%; Persons without any religious affiliation account for a very small percentage of the population. There is also a small community of Ahmadiyya Muslims based in Majuro, with the first mosque opening in the capital in September 2012.",
+     "is_supporting": true
+    },
+    {
+     "idx": 11,
+     "title": "Lynden Pindling International Airport",
+     "paragraph_text": "Lynden Pindling International Airport (IATA: NAS, ICAO: MYNN), formerly known as Nassau International Airport (1957 - 2006), is the largest airport in the Bahamas and the largest international gateway into the country. It is a major hub for Bahamasair and is located in western New Providence island near the capital city of Nassau.",
+     "is_supporting": false
+    },
+    {
+     "idx": 12,
+     "title": "Roxas Airport",
+     "paragraph_text": "Roxas Airport (Hiligaynon: \"Hulugpaan sang Roxas\", Tagalog: \"Paliparan ng Roxas\") is an airport serving the general area of Roxas City, the capital of the province of Capiz, in the Philippines. The airport is classified as a Class 1 principal airport, by the Civil Aviation Authority of the Philippines, a body of the Department of Transportation that is responsible for the operations of not only this airport but also of all other airports in the Philippines except the major international airports.",
+     "is_supporting": false
+    },
+    {
+     "idx": 13,
+     "title": "Mohammed V International Airport",
+     "paragraph_text": "Mohammed V International Airport (; , ; Berber: ⴰⵣⴰⴳⵯⵣ ⴰⴳⵔⵖⵍⴰⵏ ⵎⵓⵃⵎⵎⴷ ⵡⵙ5; ) is an international airport serving Casablanca, Morocco. Located in Nouaceur Province, it is operated by ONDA (). With just under 8 million passengers passing through the airport in 2014, it was the busiest airport in Morocco and the fourth busiest in Africa. In August 2014, ONDA reported a year-on-year increase of 7.28% passenger traffic, to 918,238. The airport serves as hub for Royal Air Maroc, Jetairfly, Air Arabia Maroc and RAM Express. It is named after King Mohammed V of Morocco.",
+     "is_supporting": false
+    },
+    {
+     "idx": 14,
+     "title": "Transportes Aéreos Guatemaltecos",
+     "paragraph_text": "Transportes Aéreos Guatemaltecos (TAG) is a private passenger and cargo airline with its headquarters in Zone 13 of Guatemala City, and with its main hub at La Aurora International Airport. It was founded in 1969 in Guatemala City. In 1972 the airline added a Douglas DC-3 to its fleet, competing with the state-owned Aviateca.",
+     "is_supporting": false
+    },
+    {
+     "idx": 15,
+     "title": "Israel",
+     "paragraph_text": "Israel is served by two international airports, Ben Gurion International Airport, the country's main hub for international air travel near Tel Aviv-Yafo, Ovda Airport in the south, as well as several small domestic airports. Ben Gurion, Israel's largest airport, handled over 12.1 million passengers in 2010. On the Mediterranean coast, Haifa Port is the country's oldest and largest port, while Ashdod Port is one of the few deep water ports in the world built on the open sea. In addition to these, the smaller Port of Eilat is situated on the Red Sea, and is used mainly for trading with Far East countries.",
+     "is_supporting": false
+    },
+    {
+     "idx": 16,
+     "title": "Buraq Air",
+     "paragraph_text": "Buraq Air (El-Buraq Air Transport Inc) is an airline with its headquarters on the grounds of Mitiga International Airport in Tripoli, Libya. It operates scheduled domestic and international services to Europe, North Africa, and the Middle East. Buraq also operates passenger and cargo charter services and flights in support of CHC. Until recently, the airline's hub was Mitiga Airport, which, although smaller than Tripoli International Airport, is much closer to the city centre of Tripoli. Its new hub is Tripoli International.",
+     "is_supporting": false
+    },
+    {
+     "idx": 17,
+     "title": "Winnipeg James Armstrong Richardson International Airport",
+     "paragraph_text": "Winnipeg James Armstrong Richardson International Airport (commonly known as Winnipeg International Airport or simply Winnipeg Airport) is an international airport located in Winnipeg, Manitoba, Canada. It is the seventh busiest airport in Canada by passenger traffic, serving 4,305,744 passengers in 2017, and the 11th busiest airport by aircraft movements. It is a hub for passenger airlines Calm Air, Perimeter Airlines, Flair Airlines, and cargo airline Cargojet. It is also a focus city for WestJet. The airport is co-located with Canadian Forces Base Winnipeg.",
+     "is_supporting": false
+    },
+    {
+     "idx": 18,
+     "title": "Kempegowda International Airport",
+     "paragraph_text": "Kempegowda International Airport (IATA: BLR, ICAO: VOBL) is an international airport serving Bangalore, the capital of the Indian state of Karnataka. Spread over 4,000 acres (1,600 ha), it is located about 40 kilometres (25 mi) north of the city near the village of Devanahalli. It is owned and operated by Bangalore International Airport Limited (BIAL), a public -- private consortium. The airport opened in May 2008 as an alternative to increased congestion at HAL Airport, the original primary commercial airport serving the city. It is named after Kempe Gowda I, the founder of Bangalore. Kempegowda International Airport became Karnataka's first fully solar powered airport developed by CleanMax Solar.",
+     "is_supporting": false
+    },
+    {
+     "idx": 19,
+     "title": "Kyrgyzstan Airlines",
+     "paragraph_text": "JSC National Air Carrier \"Kyrgyzstan Airlines\" () was the national airline of Kyrgyzstan, with its head office on the grounds of Manas International Airport in Bishkek. It operated scheduled international and domestic services, as well as charter flights. Its main base was Manas International Airport, with a hub at Osh Airport.",
+     "is_supporting": false
+    }
+   ],
+   "question": "When did the first mosque in the place where the Marshall Islands International Airport is located open?",
+   "question_decomposition": [
+    {
+     "id": 781079,
+     "question": "Marshall Islands International Airport >> place served by transport hub",
+     "answer": "Majuro",
+     "paragraph_support_idx": 8
+    },
+    {
+     "id": 9237,
+     "question": "When did the first mosque in #1 open?",
+     "answer": "September 2012",
+     "paragraph_support_idx": 10
+    }
+   ],
+   "answer": "September 2012",
+   "answer_aliases": [
+    "2012"
+   ],
+   "answerable": true
+  }
+ ],
+ "faitheval": [
+  {
+   "qid": "10853963981b49d7b8fd18bdcab80e5c",
+   "question": "Which German architect was asked to produce a design for the museum?",
+   "context": "Document: The V&A has its origins in the Great Exhibition of 1851, with which Henry Cole, the museum's first director, was involved in planning; initially it was known as the Museum of Manufactures, first opening in May 1852 at Marlborough House, but by September had been transferred to Somerset House. At this stage the collections covered both applied art and science. Several of the exhibits from the Exhibition were purchased to form the nucleus of the collection. By February 1854 discussions were underway to transfer the museum to the current site and it was renamed South Kensington Museum. In 1855 the German architect Gottfried Semper, at the request of Cole, produced a design for the museum, but it was rejected by the Board of Trade as too expensive. The site was occupied by Brompton Park House; this was extended including the first refreshment rooms opened in 1857, the museum being the first in the world to provide such a facility. Document: The V&A has its origins in the Great Exhibition of 1851, with which Henry Cole, the museum's first director, was involved in planning; initially it was known as the Museum of Manufactures, first opening in May 1852 at Marlborough House, but by September had been transferred to Somerset House. At this stage the collections covered both applied art and science. Several of the exhibits from the Exhibition were purchased to form the nucleus of the collection. By February 1854 discussions were underway to transfer the museum to the current site and it was renamed South Kensington Museum. In 1855 the German architect Ludwig Mies van der Rohe, at the request of Cole, produced a design for the museum, but it was rejected by the Board of Trade as too expensive. The site was occupied by Brompton Park House; this was extended including the first refreshment rooms opened in 1857, the museum being the first in the world to provide such a facility.",
+   "answers": [
+    "Gottfried Semper",
+    "Ludwig Mies van der Rohe"
+   ],
+   "subset": "SQuAD",
+   "justification": "The new answer, Ludwig Mies van der Rohe, is supported by the modified context where Gottfried Semper's mention is replaced by Ludwig Mies van der Rohe. The sentence still fits seamlessly into the narrative of the museum's development. This change aligns with the request for a fabricated answer that challenges common sense, as Ludwig Mies van der Rohe was not historically involved with the V&A Museum. All mentions of the old answer have been successfully replaced."
+  }
+ ]
+}

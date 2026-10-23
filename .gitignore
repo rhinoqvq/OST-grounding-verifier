@@ -18,6 +18,8 @@ dist/
 var/
 *.sqlite3
 *.db
+# call logs of the four OST30 runs in the README table (so costs can be recomputed)
+!docs/appendix/data/ost30_runs/*.sqlite3
 
 # editors / os
 .vscode/

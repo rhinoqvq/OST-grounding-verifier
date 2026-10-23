@@ -37,7 +37,7 @@
 <text x="318.0" y="276.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">OP29，原文树常开</text>
 <rect x="330.0" y="261.0" width="213.8" height="22" fill="#2a78d6" fill-opacity="0.45" rx="4"/>
 <text x="551.8" y="276.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$3.34  ·  48% of G</text>
-<text x="318.0" y="310.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">W−TM：整句 OST，不建原文树</text>
+<text x="318.0" y="310.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">W−TM：整句 OST，不做原文树映射</text>
 <path d="M330.0,295.0 H618.5 a4,4 0 0 1 4,4 V313.0 a4,4 0 0 1 -4,4 H330.0 Z" fill="#cfceC6"/>
 <text x="630.5" y="310.0" font-size="11" fill="#0b0b0b" text-anchor="start" font-weight="400" style="font-variant-numeric: tabular-nums">$4.57  ·  66% of G</text>
 <text x="318.0" y="344.0" font-size="11" fill="#52514e" text-anchor="end" font-weight="400">W：整句 OST</text>
