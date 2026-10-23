@@ -7,7 +7,7 @@ claims, verifies each claim against the provided source passages, and attaches
 verbatim citations (`SUPPORTED` / `CONTRADICTED` / `UNSUPPORTED`).
 
 **Status: work in progress.** All three methods, the evaluation set and the
-benchmark runner are in place (see *Evaluation results* below); the full
+benchmark runner are in place (see *Evaluation results on the accompanying evaluation set* below); the full
 evaluation report is still being written.
 
 ## Design in one paragraph
@@ -25,7 +25,7 @@ contract (citation indexes in bounds, quotes verbatim, citations consistent
 with verdicts). A claim the system is not confident about is reported as
 `UNSUPPORTED` with the reason, never guessed.
 
-## Evaluation results (OST30)
+## Evaluation results on the accompanying evaluation set (OST30)
 
 The evaluation set is [`benchmark/ost30.jsonl`](benchmark/ost30.jsonl):
 

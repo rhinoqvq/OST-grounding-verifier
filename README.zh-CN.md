@@ -21,7 +21,7 @@
 
 系统没把握的 claim 报为 `UNSUPPORTED` 并写明原因，从不猜。
 
-## 评测结果（OST30）
+## 附带测评集上的评测结果（OST30）
 
 评测集是 [`benchmark/ost30.jsonl`](benchmark/ost30.jsonl)：
 - 30 题，71 条金标 claim（S 34、U 26、C 11）。
