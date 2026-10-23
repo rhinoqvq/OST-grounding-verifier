@@ -45,9 +45,9 @@ class MinimalOutput(BaseModel):
 _SYSTEM_PROMPT = """You verify a generated answer against context passages.
 
 Split the answer into its individual factual claims. For each claim decide:
-- SUPPORTED: the passages state it.
-- CONTRADICTED: the passages state the opposite.
-- UNSUPPORTED: the passages neither state nor contradict it.
+- SUPPORTED: Fully entailed by one or more context passages.
+- CONTRADICTED: Directly refuted by one or more context passages.
+- UNSUPPORTED: Not mentioned or cannot be verified from the provided context alone (even if true in the real world).
 
 For SUPPORTED and CONTRADICTED claims cite the evidence: the passage number and
 a quote copied VERBATIM, character for character, from that passage.
