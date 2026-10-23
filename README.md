@@ -18,76 +18,43 @@ Where the three methods are:
 | optimized (OST) | [`src/verifier/methods/optimized/`](src/verifier/methods/optimized/) | Our OP versions, described below. Jev only. |
 
 All three run behind the same service ([`src/verifier/service.py`](src/verifier/service.py)) and
-the same response contract ([`src/verifier/output/`](src/verifier/output/)).
+the same response contract ([`src/verifier/output/`](src/verifier/output/)): citation indexes in
+range, quotes verbatim in the source, and no S or C verdict without a citation.
 
 **OP29, our optimized version.** OPn numbers the iterations of the optimized method, OP0 to OP29;
-OP29 (commit `c78c508`) is the default. It judges each answer sentence against the whole source
-with one Jev question first, and only sentences that are not clearly supported are split into
-claims and judged claim by claim. On the accompanying 30-item set it is not distinguishable in
-accuracy from a single gpt-6.1-sol call, at 0.20× the cost and a seventh of the latency. On our
-RAGTruth development set it marks the wrong spans about twice as well as a single Jev call
-(character-level F1 31.8 vs 15.0).
+OP29 (commit `c78c508`) is the default. It splits the answer into a semantic tree whose claims all
+point at character offsets in the answer, and code cuts every citation out of the source by
+offset. Judging has two steps: each sentence first gets one Jev question against the whole
+source, and the claims of a sentence judged supported are settled as S; the remaining claims are
+then judged one by one. Jev only answers choice questions and never writes text, so whether to
+split, which verdict and which citation are all decided by code from its probabilities. On the
+accompanying 30-item set it is not distinguishable in accuracy from a single gpt-6.1-sol call, at
+0.20× the cost and a seventh of the latency. See [design](docs/design.zh-CN.md).
 
-Detailed write-ups are in [`docs/`](docs/) (in Chinese for now):
-- [Version history](docs/version-history.zh-CN.md): OP0 → OP29 in three phases, what changed and what moved.
-- [Ablation](docs/ablation.zh-CN.md): what each OST mechanism contributes.
-- [Cost](docs/cost.zh-CN.md): cost per method and per version, and where the money goes.
-- [Failure analysis](docs/failure-analysis.zh-CN.md): which items each method gets wrong on the accompanying set, and why.
+## Documents
 
-## OP29: how it works and what it gets
+The README is the summary; the full write-ups are in [`docs/`](docs/) (in Chinese for now):
 
-How it works:
+| document | what it covers |
+|---|---|
+| [Design](docs/design.zh-CN.md) | design rationale, the semantic tree and its operators, how Jev is used, one verification run step by step, deterministic validation, error boundaries |
+| [Evaluation set and metrics](docs/evaluation.zh-CN.md) | how the 30 items were chosen, how the gold was set, scoring rules, metric definitions |
+| [Full results](docs/results.zh-CN.md) | every metric on the accompanying set with notes, and the comparison on the RAGTruth development set |
+| [Failure analysis](docs/failure-analysis.zh-CN.md) | which items each method gets wrong, and why |
+| [Version history](docs/version-history.zh-CN.md) | OP0 → OP29 in three phases: what changed and what moved |
+| [Ablation](docs/ablation.zh-CN.md) | what each OST mechanism contributes |
+| [Cost](docs/cost.zh-CN.md) | cost per method and per version, and where the money goes |
 
-1. **Offsets, not text.** The passages and the answer are stored immutably and everything
-   downstream points at character offsets. Every citation is cut from the source by code, so
-   quotes are verbatim by construction.
-2. **Sentence-level judging first.** Each answer sentence gets one Jev question against the whole
-   source (narrowed only above about 26k tokens): S, C or U. When the top answer is S and an
-   evidence passage is found, the sentence's claims inherit S, and a second choice question picks
-   the citation sentence. Most claims are settled here.
-3. **Claim-level judging for the rest.** Other sentences are split into an answer tree: code
-   proposes cut points and Jev decides each one, and a meta-discourse gate drops phrases such as
-   "based on the passages". Each claim is judged against the source sentences Jev ranks as
-   relevant; if none passes the relevance bar, the top-ranked one is kept as evidence. A
-   provenance gate, a contradiction filter and a bridge check for claims that need two passages
-   follow. Sources over about 26k tokens are also built into a tree that claims are mapped onto.
-4. **Plain code does the bookkeeping:** verdict aggregation over the answer tree and the response
-   contract (citation indexes in range, quotes verbatim, citations consistent with verdicts).
+## Evaluation report
 
-What it does not do: this path has no deterministic number or negation check, and a
-sentence-level S is Jev's top option without a probability threshold.
+### The evaluation set
 
-What it gets, on RAGTruth (2,700 answers; our development set, so the numbers are optimistic):
-
-| | minimal_llm (jev) | OST (OP29) | difference, 95% interval |
-|---|---:|---:|---|
-| answer-level F1: does the answer contain an error | **77.7** | 69.6 | −8.0 [−9.8, −6.2] |
-| character-level F1: which spans are wrong | 15.0 | **31.8** | +16.9 [+15.6, +18.2] |
-| cost per answer (list price, input only) | **$0.00005** | $0.00095 | |
-
-- One request per answer is the better detector of *whether* an answer is wrong; OST is the one
-  that can say *where*. See the [ablation](docs/ablation.zh-CN.md) for what each mechanism adds.
-- From OP1 to OP29, on the 900 QA answers: answer-level F1 38.9 → 48.0, character-level F1
-  24.2 → 36.9, cost per answer $0.00097 → $0.00066. See the [version history](docs/version-history.zh-CN.md).
-- From OP27 to OP29 the RAGTruth cost fell from $6.91 to $2.57, mostly because supported sentences
-  skip claim-level mapping and judging and the source tree is built only for long sources; F1
-  rose +0.71 [+0.25, +1.17] / +0.76 [+0.46, +1.04] at the same time. The stage-by-stage account is in
-  [cost](docs/cost.zh-CN.md).
-
-## Evaluation results on the accompanying evaluation set (OST30)
-
-The evaluation set is [`benchmark/ost30.jsonl`](benchmark/ost30.jsonl):
-
-- 30 items and 71 gold claims (S 34, U 26, C 11).
-- Each line is a `/verify` request; the gold uses the same format as the API response.
-- The frozen hash is in [`benchmark/ost30.sha256`](benchmark/ost30.sha256), and the runner
-  refuses a file that does not match it.
-- Items are adapted from public datasets: ANAH, RAGTruth, FOLIO, MuSiQue, FaithEval, VitaminC
-  and SciTab. Four of them pair Wikipedia text with answers written for this set.
-- Licenses and per-item attribution are in
-  [`benchmark/DATA_LICENSE.md`](benchmark/DATA_LICENSE.md).
-
-Items by category:
+[`benchmark/ost30.jsonl`](benchmark/ost30.jsonl): 30 items and 71 gold claims (S 34, U 26, C 11).
+Each line is a `/verify` request, and the gold uses the same format as the API response; the
+frozen hash is in [`benchmark/ost30.sha256`](benchmark/ost30.sha256). Items are adapted from
+public datasets (ANAH, RAGTruth, FOLIO, MuSiQue, FaithEval, VitaminC, SciTab); four of them pair
+Wikipedia text with answers written for this set. We designed the set around OST characteristics
+found during development, so each item tests one specific mechanism.
 
 | category | items |
 |---|---:|
@@ -97,23 +64,17 @@ Items by category:
 | multi-passage synthesis | 4 |
 | edge case: no checkable facts | 1 |
 
-The methods compared:
+Item selection, gold and scoring rules are in the
+[evaluation set and metrics](docs/evaluation.zh-CN.md). The other three edge cases the assignment
+names (empty context, malformed model output, upstream API errors) are covered by offline tests.
 
-- **baseline**: no model calls.
-- **minimal_llm (gpt-6.1-sol)**: one gpt-6.1-sol call per item, with the three verdict definitions
-  from the assignment word for word.
-- **minimal_llm (jev)**: one Jev request per item with all passages and the whole answer, asked
-  whether the answer is SUPPORTED, CONTRADICTED or UNSUPPORTED and which passage is the evidence;
-  the answer is reported as one claim.
-- **OST (optimized, OP29)**: Jev only.
+### Results
 
-Every method receives only `context_passages` and `generated_answer`; the gold is never sent.
+Every method receives only `context_passages` and `generated_answer`.
 
-| metric | baseline | minimal_llm (gpt-6.1-sol) | minimal_llm (jev) | OST (optimized) |
+| metric | baseline | minimal_llm (gpt-6.1-sol) | minimal_llm (jev) | OST (OP29) |
 |---|---|---|---|---|
-| claim accuracy (71 claims) | 0.662 | **0.845** | 0.662 | 0.803 |
-| 95% interval (item resampling) | 0.545–0.761 | 0.750–0.922 | 0.523–0.784 | 0.672–0.898 |
-| 3-way macro-F1 | 0.591 | **0.819** | 0.630 | 0.760 |
+| claim accuracy (71 claims, 95% interval) | 0.662 [0.545, 0.761] | **0.845** [0.750, 0.922] | 0.662 [0.523, 0.784] | 0.803 [0.672, 0.898] |
 | C/U alarm F1 | 0.780 | **0.909** | 0.815 | 0.877 |
 | answer-level F1 (does the answer contain an error) | 0.750 | **0.878** | 0.865 | 0.865 |
 | character-level F1 (which spans are wrong) | 0.715 | 0.729 | 0.693 | **0.753** |
@@ -122,52 +83,16 @@ Every method receives only `context_passages` and `generated_answer`; the gold i
 | latency per item p50 / p95 | 0.0 / 0.1 s | 7.1 / 18.1 s | **0.2 / 0.3 s** | 1.0 / 1.8 s |
 | cost for 30 items (list price) | $0 | $0.45 | **$0.007** | $0.09 |
 
-Paired differences in claim accuracy (resampling by item, 10,000 times; items 29 and 30 share a
-source and count as one group):
+- **Against minimal_llm (gpt-6.1-sol)**, OST is not distinguishable in accuracy: OST − sol is
+  −4.2 points, 95% interval [−13.0, +3.8]. OST is faster on every item and costs 0.20× as much.
+- **Against minimal_llm (jev)**, the two are equal at telling whether an answer contains an error.
+  What OST adds is per-claim verdicts and localization: claim accuracy +14.1 points
+  [+3.4, +25.3], character-level F1 0.753 vs 0.693.
 
-- OST − minimal_llm: −4.2 points, 95% interval [−13.0, +3.8].
-- OST − minimal_llm (jev): +14.1, 95% interval [+3.4, +25.3].
-- OST − baseline: +14.1, 95% interval [+2.0, +26.1].
+Thirty items only give wide intervals, so no winner is claimed. All metrics, the breakdown by
+source length and the notes are in the [full results](docs/results.zh-CN.md).
 
-By source length: on the 30 items OST costs 0.07× / 0.10× / 0.27× of sol on short (< 5k chars) /
-medium (5k–20k) / long (20k–124k) sources, 0.20× overall, at 1.2 / 1.0 / 1.5 s per item against
-sol's 9.2 / 8.5 / 9.2 s; minimal_llm (jev) stays at 0.2 s and under $0.001 per item at
-every length. The figure below follows the cost per answer out to the design limit (500k
-characters of source), on 300 + 500 ANAH answers (aggregates only); Jev input priced at list,
-output is free. Costs per method and per version are in [cost](docs/cost.zh-CN.md).
-
-![Cost per answer by source length](docs/figures/cost_by_source_length.svg)
-
-**Summary.** On our own 30-item set:
-
-- against minimal_llm (gpt-6.1-sol), OST is not distinguishable in accuracy (0.803 vs 0.845; the
-  95% interval of the difference, [−13.0, +3.8], contains 0), is faster on every item (p50 1.0 s
-  vs 7.1 s) and costs 0.20× as much at list prices;
-- against minimal_llm (jev), the two are equal at telling whether an answer contains an error
-  (answer-level F1 0.865 each). What OST adds is per-claim verdicts and localization: claim
-  accuracy +14.1 points [+3.4, +25.3] and character-level F1 0.753 vs 0.693. minimal_llm (jev)
-  gives one verdict for the whole answer, and every gold sentence inherits it when aligned, so
-  claim accuracy is unfavourable to it by construction. It is also the fastest and cheapest
-  option (0.2 s and $0.0002 per item).
-
-Notes:
-
-- **Cost** is token counts times list prices, not billing. gpt-6.1-sol uses third-party prices
-  ($2 / $10 per million input / output tokens); Jev uses its official price ($0.042 per million
-  input tokens, output free).
-- **Runs**: each column is one run. The OST column is the current default configuration (OP29,
-  commit `c78c508`; later commits on `main` do not change its verdicts). Jev's answers vary from
-  run to run: against the previous default (the sentence-guard version), 2 of 71 verdicts changed
-  (04#4 S→U with the judge's S probability at 0.46 instead of 0.52; 18#1 C→U through a different
-  evidence sentence), both on claims that had already flipped between earlier runs. The sol column
-  is the prompt with the assignment's definitions; the earlier paraphrased prompt gave the same
-  accuracy with one verdict different.
-- **The set**: 30 items only give wide intervals for differences between configurations, so no
-  winner is claimed above. The set was also designed by us, around our own architecture.
-- **Only sol was compared**: with qwen3.8-flash, minimal_llm costs about $0.03 for the 30 items,
-  about a third of OST.
-
-**Key failure cases** (the full analysis is in the [failure analysis](docs/failure-analysis.zh-CN.md), in Chinese for now):
+### Key failure cases
 
 - Both model-based methods take nearby evidence as support. In item 11 the source is about a
   different Hubbell; in item 16 two passages disagree, but only the supporting one is cited.
@@ -175,10 +100,39 @@ Notes:
   claim and are judged once. The rest are judging errors; in item 18, for example, the
   contradiction needs several passages combined and OST reports U.
 - minimal_llm (gpt-6.1-sol) splits finer than the gold, so one unsupported fragment marks the
-  whole sentence U (01#4, 13#1).
+  whole sentence U.
 - minimal_llm (jev) gives one verdict per answer: one error flags every correct sentence with it.
 - The baseline is lexical only: paraphrases do not match, and distortions other than numbers and
   negation are missed.
+
+Item-by-item analysis is in the [failure analysis](docs/failure-analysis.zh-CN.md).
+
+### How we iterated
+
+The optimized method went from OP0 to OP29 in three phases: changing how answers are split,
+developing and tuning the semantic tree and its operators, and pipeline optimization driven by
+ablations of modules and their combinations. Every version was regression-tested on the 900 QA
+answers of the RAGTruth development set. From OP1 to OP29, answer-level F1 went 38.9 → 48.0,
+character-level F1 24.2 → 36.9, and cost per answer $0.00097 → $0.00066.
+
+The ablations of the last phase showed that one request per answer is the better detector of
+*whether* an answer is wrong (answer-level F1 77.7 vs 69.6 on RAGTruth), while judging sentence
+by sentence and claim by claim is what buys localization (character-level F1 15.0 vs 31.8).
+Splitting the answer helps localization, and mapping onto a source tree showed no measurable
+contribution, so OP29 builds the source tree only for long sources and lets supported sentences
+skip claim-level judging; the full RAGTruth cost fell from $6.91 to $2.57. See the
+[version history](docs/version-history.zh-CN.md) and the [ablation](docs/ablation.zh-CN.md).
+
+### Cost
+
+Costs are token counts times list prices, not billing: Jev input $0.042 per million tokens with
+free output; gpt-6.1-sol at third-party prices of $2 / $10 per million input / output tokens. The
+longer the source, the smaller OST's cost advantage over sol; above about 26k tokens of source
+OST builds a source tree and its cost steps up.
+
+![Cost per answer by source length](docs/figures/cost_by_source_length.svg)
+
+Cost per method, per version and per pipeline stage is in [cost](docs/cost.zh-CN.md).
 
 ## Run
 

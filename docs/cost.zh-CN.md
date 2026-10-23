@@ -10,6 +10,8 @@
 
 ## 附带测评集 OST30（30 题）
 
+分数和其他指标见[完整结果](results.zh-CN.md)。
+
 | | baseline | minimal_llm（gpt-6.1-sol） | minimal_llm（jev） | OST（OP29） |
 |---|---:|---:|---:|---:|
 | 30 题成本 | $0 | $0.449 | $0.007 | $0.091 |

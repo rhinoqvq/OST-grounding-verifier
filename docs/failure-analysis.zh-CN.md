@@ -2,7 +2,7 @@
 
 [返回 README](../README.zh-CN.md)
 
-题号对应 [`benchmark/ost30.jsonl`](../benchmark/ost30.jsonl) 里的 `id`，「#」后面是这一题的第几条金标 claim。每一条都对照原文核过。分析的是 README 结果表里的那几次运行：OST 是 OP29，minimal_llm（gpt-6.1-sol）用题目原文的判定定义。
+题号对应 [`benchmark/ost30.jsonl`](../benchmark/ost30.jsonl) 里的 `id`，「#」后面是这一题的第几条金标 claim。每一条都对照原文核过。分析的是[完整结果](results.zh-CN.md)里的那几次运行：OST 是 OP29，minimal_llm（gpt-6.1-sol）用题目原文的判定定义。claim 怎么对到金标句上，见[评测集与指标](evaluation.zh-CN.md#打分规则)。
 
 71 条金标 claim 里各方法错了几条：
 
