@@ -12,12 +12,15 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="GV_", env_file=".env", extra="ignore")
 
     # which of the assignment's three methods serves POST /verify
-    # minimal_jev: method 2's single request with the judge model in place of the LLM (ablation)
-    # minimal_jev_plus: minimal_jev plus the optimized method's meta-discourse gate and way of asking
-    # minimal_jev_nc: minimal_jev plus the meta-discourse gate; minimal_jev_me: that plus the
-    # optimized method's evidence probes (relevance per candidate sentence, rank fallback)
-    method: Literal["optimized", "minimal_llm", "baseline", "minimal_jev", "minimal_jev_plus",
-                    "minimal_jev_nc", "minimal_jev_me"] = "optimized"
+    # minimal_jev: method 2 with the judge model in place of the LLM: the whole answer against
+    # the whole source in one request, one claim (an ablation beside minimal_llm)
+    # minimal_jev_seg: the single request up to 2026-10-23 (J: the main system's sentence
+    # splitting, a long source narrowed by lexical overlap); the ablations below build on it
+    # minimal_jev_plus: minimal_jev_seg plus the optimized method's meta-discourse gate and way
+    # of asking; minimal_jev_nc: minimal_jev_seg plus the meta-discourse gate; minimal_jev_me:
+    # that plus the optimized method's evidence probes (relevance per candidate sentence, rank fallback)
+    method: Literal["optimized", "minimal_llm", "baseline", "minimal_jev", "minimal_jev_seg",
+                    "minimal_jev_plus", "minimal_jev_nc", "minimal_jev_me"] = "optimized"
     # method 1 (baseline): claims whose best source sentence covers less than
     # this IDF-weighted share of their content words become UNSUPPORTED.
     # Deliberately an untuned round default; retune on the eval dev split.

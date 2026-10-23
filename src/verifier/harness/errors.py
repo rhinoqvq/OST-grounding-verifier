@@ -20,6 +20,14 @@ class InputTooLarge(VerifierError):
         super().__init__(f"{what} too large: {size} > limit {limit}")
 
 
+class OutOfSingleCallRange(InputTooLarge):
+    """The request does not fit the single-call method's one judge call (too many passages
+    for one choice question, or over the request budget); that method narrows and splits
+    nothing, so it gives no verdict -> HTTP 413. Bulk runs record `status`."""
+
+    status = "out_of_single_call_range"
+
+
 class UpstreamError(VerifierError):
     """A model API failed (after retries, if retryable) -> HTTP 503/502."""
 

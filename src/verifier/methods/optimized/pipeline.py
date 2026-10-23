@@ -32,10 +32,10 @@ from verifier.methods.optimized.judge.aggregate import (
     relation_verdict,
     sentences_needing_recheck,
 )
-from verifier.methods.minimal_jev.verifier import judge_sentences
 from verifier.methods.optimized.judge.escalate import escalate_flat
 from verifier.methods.optimized.judge.citation_probe import probe_citations
 from verifier.methods.optimized.judge.guard import apply_sentence_guard
+from verifier.methods.optimized.judge.sentence_call import whole_sentence_calls
 from verifier.methods.optimized.judge.entail import (
     UnitJudgment,
     apply_grounding_gate,
@@ -328,6 +328,7 @@ async def _judge(
     context_empty = not store.all_source_sentences()
     judgments: dict[str, UnitJudgment] = {}
     stage_calls = None   # two-stage: the whole-sentence call, asked before round 3
+    no_sentence_call = None  # why the whole source does not fit one whole-sentence request
     settled: set[str] = set()
     if context_empty:
         trace.note("context empty: every claim UNSUPPORTED by definition")
@@ -342,12 +343,19 @@ async def _judge(
         if settings.two_stage:
             # stage 1: the whole-sentence call (the guard's request). A sentence it supports
             # with evidence is settled for every unit in it, which cites that evidence
-            # sentence; the other sentences get the full judgment below
+            # sentence; the other sentences get the full judgment below. A source too large
+            # for one request is never narrowed: stage 1 is skipped and every sentence
+            # takes the full path
             r = trace.start_round("2.8-stage1-sentence-call")
-            calls, info = await judge_sentences(store, deps)
-            stage_calls = {s.sentence_id: c for s, c in zip(store.answer_sentences, calls)}
+            calls, info = await whole_sentence_calls(store, deps)
+            if calls is None:
+                no_sentence_call = info["skipped"]
+                trace.note(f"stage 1 skipped ({no_sentence_call}): every sentence takes the full path")
+                calls = []
+            else:
+                stage_calls = {s.sentence_id: c for s, c in zip(store.answer_sentences, calls)}
             for unit in units:
-                call = stage_calls.get(unit.sentence_id)
+                call = (stage_calls or {}).get(unit.sentence_id)
                 if call is not None and call.supported:
                     judgments[unit.node_id] = UnitJudgment(
                         node_id=unit.node_id,
@@ -842,8 +850,13 @@ async def _judge(
         if stage_calls is not None:
             # two-stage: the same call, already asked; expected to release nothing
             calls_by_sentence, info = stage_calls, {"reused_stage1_call": True}
+        elif no_sentence_call is not None:
+            calls_by_sentence, info = {}, {"skipped": no_sentence_call}
         else:
-            calls, info = await judge_sentences(store, deps)
+            calls, info = await whole_sentence_calls(store, deps)
+            if calls is None:
+                trace.note(f"sentence guard skipped ({info['skipped']})")
+                calls = []
             calls_by_sentence = {s.sentence_id: c for s, c in zip(store.answer_sentences, calls)}
         released = apply_sentence_guard(units, judgments, calls_by_sentence, scope=settings.guard_scope)
         trace.end_round(r, **info, released=released)

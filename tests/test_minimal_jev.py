@@ -21,7 +21,7 @@ def choice(qid: str, label: str, p: float = 0.9) -> Answer:
 
 
 def make_deps(decider, **overrides) -> Dependencies:
-    settings = Settings(_env_file=None, method="minimal_jev", typesafe_api_key="t", **overrides)
+    settings = Settings(_env_file=None, method="minimal_jev_seg", typesafe_api_key="t", **overrides)
     return Dependencies(settings=settings, llm=ForbiddenLLM(), decider=decider, conn=None)
 
 

@@ -8,7 +8,7 @@ from conftest import ANSWER, PASSAGE_0, PASSAGE_1, RC1_SWITCHES, FakeLLM, script
 from test_sentence_guard import judged, node
 from verifier.harness.config import Settings
 from verifier.harness.pipeline import Dependencies
-from verifier.methods.minimal_jev.verifier import SentenceCall
+from verifier.methods.optimized.judge.sentence_call import SentenceCall
 from verifier.methods.optimized.judge.guard import apply_sentence_guard, guarded_layer
 from verifier.methods.optimized.pipeline import run_verification
 from verifier.models.decider import Answer

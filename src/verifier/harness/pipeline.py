@@ -45,6 +45,10 @@ async def run_request(request: VerifyRequest, deps: Dependencies) -> tuple[Verif
 
             return await run_baseline(request, deps)
         if method == "minimal_jev":
+            from verifier.methods.minimal_jev import run_single_call
+
+            return await run_single_call(request, deps)
+        if method == "minimal_jev_seg":
             from verifier.methods.minimal_jev import run_minimal_jev
 
             return await run_minimal_jev(request, deps)

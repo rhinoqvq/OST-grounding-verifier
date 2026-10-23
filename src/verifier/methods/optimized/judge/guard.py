@@ -6,10 +6,12 @@ sentence, relation checks, the confidence threshold, the C filter) catch errors 
 whole-sentence call misses, but on clean answers they mostly fire where that call says S
 (QA-900, 2026-10-23: 98 of 116 gate alarms, 61 of 194 fragment alarms, 56 of 93 relation
 alarms on clean answers sat in sentences the single call judged S; gate alarms hit a gold
-span 2 times in 145). The guard asks the single-call request (minimal_jev) once per answer
-and releases those alarms when it says S with evidence. A whole-sentence U or C with none
-of these flags is the judge's own call under the stricter wording and is left alone, unless
-the scope is "all" (rc2 candidate): then it is released too, as is a parent-recheck override.
+span 2 times in 145). The guard asks the method's own whole-sentence call
+(judge/sentence_call.py) once per answer and releases those alarms when it says S with
+evidence; a source too large for that one request gets no guard. A whole-sentence U or C
+with none of these flags is the judge's own call under the stricter wording and is left
+alone, unless the scope is "all" (rc2 candidate): then it is released too, as is a
+parent-recheck override.
 """
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ from verifier.output.schemas import Verdict
 from verifier.rag.tree import Node, NodeKind
 
 if TYPE_CHECKING:
-    from verifier.methods.minimal_jev.verifier import SentenceCall
+    from verifier.methods.optimized.judge.sentence_call import SentenceCall
     from verifier.methods.optimized.judge.entail import UnitJudgment
 
 # flag prefix -> layer name, checked in this order (the layer that changed the verdict last wins)

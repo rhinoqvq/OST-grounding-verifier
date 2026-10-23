@@ -1,6 +1,6 @@
 """Whole-sentence guard: structural alarms stand only when the whole-sentence call is not S."""
 
-from verifier.methods.minimal_jev.verifier import SentenceCall
+from verifier.methods.optimized.judge.sentence_call import SentenceCall
 from verifier.methods.optimized.judge.entail import UnitJudgment
 from verifier.methods.optimized.judge.guard import apply_sentence_guard, guarded_layer
 from verifier.output.schemas import Verdict

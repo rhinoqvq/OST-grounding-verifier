@@ -1,5 +1,9 @@
 """Method 2, Jev variant: the minimal baseline with the judge model in place of the LLM.
 
+minimal_jev_seg (J, the single call up to 2026-10-23): this request with the main system's
+sentence splitting (rag.source.segment). A long source is narrowed by lexical overlap (see
+below); on RAGTruth no answer was ever narrowed. J+, J+nc and J+ME build on this request.
+
 Same shape as minimal_llm — one request, a minimal prompt, the exit contract as the
 only check — so the two isolate what the model contributes, and the optimized method
 shows what the pipeline adds on the same judge. The judge only chooses, so it can
@@ -169,8 +173,9 @@ async def _ask_sentences(
 
 async def judge_sentences(store: TextStore, deps: "Dependencies") -> tuple[list[SentenceCall], dict]:
     """One call per answer sentence, in sentence order: verdict and evidence questions in
-    one request (batched only for a very long answer). The optimized method's sentence
-    guard sends exactly this request, so the two methods share one cached call."""
+    one request (batched only for a very long answer). Until 2026-10-23 the optimized
+    method's sentence guard sent this request; it now builds its own
+    (optimized/judge/sentence_call.py), the same one whenever the source is not narrowed."""
     answers, info = await _ask_sentences(store, deps, verdict_question)
     calls = []
     for k in range(len(store.answer_sentences)):

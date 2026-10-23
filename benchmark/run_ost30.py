@@ -73,7 +73,7 @@ async def run_one(item: dict, deps: Dependencies, semaphore: asyncio.Semaphore) 
             record["units"] = units_from_trace(trace)
             record["status"] = "ok"
         except VerifierError as exc:
-            record["status"] = f"error:{type(exc).__name__}"
+            record["status"] = getattr(exc, "status", f"error:{type(exc).__name__}")
             record["error"] = str(exc)[:500]
         except Exception as exc:  # noqa: BLE001 — one failing item must not stop the run
             record["status"] = f"unexpected:{type(exc).__name__}"
@@ -84,7 +84,7 @@ async def run_one(item: dict, deps: Dependencies, semaphore: asyncio.Semaphore) 
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--method", required=True, choices=["optimized", "minimal_llm", "baseline", "minimal_jev"])
+    parser.add_argument("--method", required=True, choices=["optimized", "minimal_llm", "baseline", "minimal_jev", "minimal_jev_seg"])
     parser.add_argument("--proposer", default=None, choices=["llm", "jev"])
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--data", default=str(FROZEN))
