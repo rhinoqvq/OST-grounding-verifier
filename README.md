@@ -24,6 +24,24 @@ in place; the full evaluation report is still being written.
 - [Tests](#tests)
 - [Benchmark](#benchmark)
 
+**Documents and appendix** (in Chinese for now)
+
+- Documents
+  - [Design](docs/design.zh-CN.md)
+  - [Evaluation set and metrics](docs/evaluation.zh-CN.md)
+  - [Full results](docs/results.zh-CN.md)
+  - [Failure analysis](docs/failure-analysis.zh-CN.md)
+  - [Version history](docs/version-history.zh-CN.md)
+  - [Ablation](docs/ablation.zh-CN.md)
+  - [Cost](docs/cost.zh-CN.md)
+- Appendix
+  - [Per-version data](docs/appendix/version-table.zh-CN.md)
+  - [The semantic tree, formally](docs/appendix/semantic-tree-proofs.zh-CN.md)
+  - [Audit of overlapping logic functions](docs/appendix/redundancy-audit.zh-CN.md)
+  - [Jev question catalogue](docs/appendix/jev-questions.zh-CN.md)
+  - [OST30 extraction rules](docs/appendix/ost30-extraction.zh-CN.md)
+  - [Raw responses and data tables](docs/appendix/data/)
+
 ## The three methods
 
 Where the three methods are:

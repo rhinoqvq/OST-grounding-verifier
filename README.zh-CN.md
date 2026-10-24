@@ -21,6 +21,24 @@
 - [测试](#测试)
 - [跑分](#跑分)
 
+**文档以及附件列表**
+
+- 文档
+  - [设计与实现](docs/design.zh-CN.md)
+  - [评测集与指标](docs/evaluation.zh-CN.md)
+  - [完整结果](docs/results.zh-CN.md)
+  - [失败分析](docs/failure-analysis.zh-CN.md)
+  - [版本迭代](docs/version-history.zh-CN.md)
+  - [消融实验](docs/ablation.zh-CN.md)
+  - [成本](docs/cost.zh-CN.md)
+- 附件
+  - [逐版本数据](docs/appendix/version-table.zh-CN.md)
+  - [语义树的数学论证](docs/appendix/semantic-tree-proofs.zh-CN.md)
+  - [逻辑函数的职责重合审查](docs/appendix/redundancy-audit.zh-CN.md)
+  - [Jev 题目清单](docs/appendix/jev-questions.zh-CN.md)
+  - [OST30 抽取标准](docs/appendix/ost30-extraction.zh-CN.md)
+  - [原始响应和数据表](docs/appendix/data/)
+
 ## 三种方法
 
 三种方法在这些文件夹里：
