@@ -8,7 +8,6 @@ attaches verbatim citations.
 
 **Contents**
 
-- [Documents and appendix](#documents-and-appendix)
 - [The three methods](#the-three-methods)
 - [OP29, the optimized version](#op29-the-optimized-version)
 - [Evaluation report](#evaluation-report)
@@ -20,26 +19,7 @@ attaches verbatim citations.
 - [Run](#run)
 - [Tests](#tests)
 - [Benchmark](#benchmark)
-
-## Documents and appendix
-
-Details are in [`docs/`](docs/) (in Chinese for now):
-
-| type | name | what it covers |
-|---|---|---|
-| document | [Design](docs/design.zh-CN.md) | design rationale, the semantic tree and its operators, how Jev is used, one verification run step by step, deterministic validation, error boundaries |
-| document | [Evaluation set and metrics](docs/evaluation.zh-CN.md) | how the 30 items were chosen, how the gold was set, scoring rules, metric definitions |
-| document | [Full results](docs/results.zh-CN.md) | every metric on the accompanying set with notes, and the comparison on the RAGTruth development set |
-| document | [Failure analysis](docs/failure-analysis.zh-CN.md) | which items each method gets wrong and why, and how the design hypotheses held up |
-| document | [Version history](docs/version-history.zh-CN.md) | OP0 → OP29 in three phases: what changed and what moved |
-| document | [Ablation](docs/ablation.zh-CN.md) | what each OST mechanism contributes |
-| document | [Cost](docs/cost.zh-CN.md) | cost per method and per version, and where the money goes |
-| appendix | [Per-version data](docs/appendix/version-table.zh-CN.md) | every version OP0 → OP29: change, motivation, scores, cost and latency |
-| appendix | [The semantic tree, formally](docs/appendix/semantic-tree-proofs.zh-CN.md) | the splitting operators and verdict composition rules formalized: what can be proved, under which premises, and counterexamples run |
-| appendix | [Audit of overlapping logic functions](docs/appendix/redundancy-audit.zh-CN.md) | whether functions and word lists that carry logic overlap: which overlaps are provably redundant and which provably needed |
-| appendix | [Jev question catalogue](docs/appendix/jev-questions.zh-CN.md) | which questions Jev is asked at each stage, their options, and how code uses the answers |
-| appendix | [OST30 extraction rules](docs/appendix/ost30-extraction.zh-CN.md) | per-type selection rules, seeds, skip reasons, gold changes, and how synthetic answers were written |
-| appendix | [Raw responses and data tables](docs/appendix/data/) | raw responses and call logs of the four runs in the results table; data tables per claim, per version, per ablation step and per cost stage |
+- [Documents and appendix](#documents-and-appendix)
 
 ## The three methods
 
@@ -244,3 +224,23 @@ Reproducing:
   recorded predictions of every run in the docs are included, so the numbers rescore without a model call.
 - The raw responses and call logs of the four runs in the results table are in
   [`docs/appendix/data/ost30_runs/`](docs/appendix/data/ost30_runs/).
+
+## Documents and appendix
+
+Details are in [`docs/`](docs/) (in Chinese for now):
+
+| type | name | what it covers |
+|---|---|---|
+| document | [Design](docs/design.zh-CN.md) | design rationale, the semantic tree and its operators, how Jev is used, one verification run step by step, deterministic validation, error boundaries |
+| document | [Evaluation set and metrics](docs/evaluation.zh-CN.md) | how the 30 items were chosen, how the gold was set, scoring rules, metric definitions |
+| document | [Full results](docs/results.zh-CN.md) | every metric on the accompanying set with notes, and the comparison on the RAGTruth development set |
+| document | [Failure analysis](docs/failure-analysis.zh-CN.md) | which items each method gets wrong and why, and how the design hypotheses held up |
+| document | [Version history](docs/version-history.zh-CN.md) | OP0 → OP29 in three phases: what changed and what moved |
+| document | [Ablation](docs/ablation.zh-CN.md) | what each OST mechanism contributes |
+| document | [Cost](docs/cost.zh-CN.md) | cost per method and per version, and where the money goes |
+| appendix | [Per-version data](docs/appendix/version-table.zh-CN.md) | every version OP0 → OP29: change, motivation, scores, cost and latency |
+| appendix | [The semantic tree, formally](docs/appendix/semantic-tree-proofs.zh-CN.md) | the splitting operators and verdict composition rules formalized: what can be proved, under which premises, and counterexamples run |
+| appendix | [Audit of overlapping logic functions](docs/appendix/redundancy-audit.zh-CN.md) | whether functions and word lists that carry logic overlap: which overlaps are provably redundant and which provably needed |
+| appendix | [Jev question catalogue](docs/appendix/jev-questions.zh-CN.md) | which questions Jev is asked at each stage, their options, and how code uses the answers |
+| appendix | [OST30 extraction rules](docs/appendix/ost30-extraction.zh-CN.md) | per-type selection rules, seeds, skip reasons, gold changes, and how synthetic answers were written |
+| appendix | [Raw responses and data tables](docs/appendix/data/) | raw responses and call logs of the four runs in the results table; data tables per claim, per version, per ablation step and per cost stage |
