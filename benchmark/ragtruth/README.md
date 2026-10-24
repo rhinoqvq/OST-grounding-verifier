@@ -1,7 +1,7 @@
 # RAGTruth runs (development set)
 
 Everything needed to rescore the RAGTruth numbers in the docs, and to regenerate them.
-RAGTruth (2,700 test responses, 900 each of QA, Summary, Data2txt) is our development set:
+RAGTruth (2,700 test responses, 900 each of QA, Summary, Data2txt) is the development set:
 the system was tuned on it, so absolute scores are optimistic; the docs use it to compare
 configurations.
 

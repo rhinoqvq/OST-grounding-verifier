@@ -9,7 +9,7 @@
 **目录**
 
 - [三种方法](#三种方法)
-- [OP29：我们的优化版本](#op29我们的优化版本)
+- [OP29：优化版本](#op29优化版本)
 - [文档](#文档)
 - [评测报告](#评测报告)
   - [评测集](#评测集)
@@ -25,15 +25,21 @@
 
 三种方法在这些文件夹里：
 
-| 方法 | 文件夹 | 做什么 |
+| 方法 | 文件夹 | 模型调用与实现方法 |
 |---|---|---|
 | baseline | [`src/verifier/methods/baseline/`](src/verifier/methods/baseline/) | 不调模型。回答的每一句是一条 claim，BM25 选引文，词面覆盖、数字和否定检查给判定。 |
 | minimal_llm | [`src/verifier/methods/minimal_llm/`](src/verifier/methods/minimal_llm/)（gpt-6.1-sol）<br>[`src/verifier/methods/minimal_jev/`](src/verifier/methods/minimal_jev/)（jev） | 每条回答调一次模型，放进全部原文和整段回答。gpt-6.1-sol 在这一次调用里自己拆分、判定、给引文；Jev 只回答选择题，整段回答就是一条 claim。 |
-| optimized（OST） | [`src/verifier/methods/optimized/`](src/verifier/methods/optimized/) | 我们的 OP 版本，见下文。只调 Jev。 |
+| optimized（OST） | [`src/verifier/methods/optimized/`](src/verifier/methods/optimized/) | OP 版本，见下文。只调 Jev。 |
+
+调用的模型：
+
+- Jev（`jev-1.13.0`，版本固定）：TypeSafe 的判定模型，用 `typesafe_sdk` 调用。它只回答选择题，返回每个选项的概率，不生成文字。按标价输入每百万 token $0.042，输出不收费。OST 和 minimal_llm（jev）只调它。
+- gpt-6.1-sol：生成式推理模型，用 OpenAI API 调用，只在 minimal_llm（gpt-6.1-sol）里用。按第三方标价，输入每百万 token $2，输出 $10。
+- baseline 不调模型。
 
 三种方法共用同一个服务（[`src/verifier/service.py`](src/verifier/service.py)）和同一套响应约束（[`src/verifier/output/`](src/verifier/output/)）：引文段号不越界、引文是原文的逐字子串、判 S / C 必须有引文。
 
-## OP29：我们的优化版本
+## OP29：优化版本
 
 OPn 是优化方法的迭代编号，从 OP0 到 OP29；OP29（提交 `c78c508`）是现行默认。它把回答拆成一棵语义树，树上的每个 claim 都指向回答里的字符偏移，引文由代码按偏移从原文切出。判定分两步：每一句先用一个 Jev 问题对照整份原文判一次，判为支持的句子，里面的 claim 直接定为 S；其余的 claim 再逐条判定。Jev 只做选择题、不写字，拆不拆、判什么、引哪句都由代码按概率决定。在附带的 30 题评测集上，它和 gpt-6.1-sol 单次调用的正确率分不出高下，成本是它的 0.20 倍，耗时约七分之一。详见[设计与实现](docs/design.zh-CN.md)。
 
@@ -62,7 +68,7 @@ README 只放摘要，完整的内容在 [`docs/`](docs/)：
 
 ### 评测集
 
-[`benchmark/ost30.jsonl`](benchmark/ost30.jsonl)，30 题，71 条金标 claim（S 34、U 26、C 11）。每行就是一个 `/verify` 请求，金标和接口响应的格式相同；冻结哈希在 [`benchmark/ost30.sha256`](benchmark/ost30.sha256)。题目改编自公开数据集 ANAH、RAGTruth、FOLIO、MuSiQue、FaithEval、VitaminC、SciTab，其中 4 题是在维基百科原文上自己写的回答。这套题是我们按开发中发现的 OST 的特性设计的，每题考一个具体的机制。
+[`benchmark/ost30.jsonl`](benchmark/ost30.jsonl)，30 题，71 条金标 claim（S 34、U 26、C 11）。每行就是一个 `/verify` 请求，金标和接口响应的格式相同；冻结哈希在 [`benchmark/ost30.sha256`](benchmark/ost30.sha256)。题目改编自公开数据集 ANAH、RAGTruth、FOLIO、MuSiQue、FaithEval、VitaminC、SciTab，其中 4 题是在维基百科原文上自己写的回答。这套题是按开发中发现的 OST 的特性设计的，每题考一个具体的机制。
 
 | 类别 | 题数 |
 |---|---:|
@@ -108,7 +114,7 @@ README 只放摘要，完整的内容在 [`docs/`](docs/)：
 
 优化版从 OP0 迭代到 OP29，分三个阶段：换拆分方式，语义树与算子开发及调整，模块及组合的消融实验驱动的推理管线优化。每个版本都在开发集 RAGTruth 的 900 条 QA 回答上回归。从 OP1 到 OP29，回答级 F1 38.9 → 48.0，字符级 F1 24.2 → 36.9，每条回答成本 $0.00097 → $0.00066。
 
-最后一个阶段的消融实验告诉我们：判断「有没有错」，整段一次请求反而更准（RAGTruth 上回答级 F1 77.7 对 69.6）；按句、按 claim 拆开判，换来的是定位（字符级 F1 15.0 对 31.8）。答案拆分的价值在定位，原文树映射测不出贡献，所以 OP29 把原文树改成只在长原文上建，并让判为支持的句子跳过逐条判定，RAGTruth 全量成本从 $6.91 降到 $2.57。详见[版本迭代](docs/version-history.zh-CN.md)和[消融实验](docs/ablation.zh-CN.md)。
+最后一个阶段的消融实验显示：判断「有没有错」，整段一次请求反而更准（RAGTruth 上回答级 F1 77.7 对 69.6）；按句、按 claim 拆开判，换来的是定位（字符级 F1 15.0 对 31.8）。答案拆分的价值在定位，原文树映射测不出贡献，所以 OP29 把原文树改成只在长原文上建，并让判为支持的句子跳过逐条判定，RAGTruth 全量成本从 $6.91 降到 $2.57。详见[版本迭代](docs/version-history.zh-CN.md)和[消融实验](docs/ablation.zh-CN.md)。
 
 ### 成本
 

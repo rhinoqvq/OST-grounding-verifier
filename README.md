@@ -12,13 +12,13 @@ in place; the full evaluation report is still being written.
 **Contents**
 
 - [The three methods](#the-three-methods)
-- [OP29, our optimized version](#op29-our-optimized-version)
+- [OP29, the optimized version](#op29-the-optimized-version)
 - [Documents](#documents)
 - [Evaluation report](#evaluation-report)
   - [The evaluation set](#the-evaluation-set)
   - [Results](#results)
   - [Key failure cases](#key-failure-cases)
-  - [How we iterated](#how-we-iterated)
+  - [Iteration](#iteration)
   - [Cost](#cost)
 - [Run](#run)
 - [Tests](#tests)
@@ -28,17 +28,23 @@ in place; the full evaluation report is still being written.
 
 Where the three methods are:
 
-| method | folder | what it does |
+| method | folder | model calls and implementation |
 |---|---|---|
 | baseline | [`src/verifier/methods/baseline/`](src/verifier/methods/baseline/) | No model calls. Each answer sentence is a claim; BM25 picks the citation; lexical coverage, number and negation checks give the verdict. |
 | minimal_llm | [`src/verifier/methods/minimal_llm/`](src/verifier/methods/minimal_llm/) (gpt-6.1-sol)<br>[`src/verifier/methods/minimal_jev/`](src/verifier/methods/minimal_jev/) (jev) | One model call per answer with all passages and the whole answer. gpt-6.1-sol splits, judges and cites in that call; Jev answers choice questions, so the whole answer is one claim. |
-| optimized (OST) | [`src/verifier/methods/optimized/`](src/verifier/methods/optimized/) | Our OP versions, described below. Jev only. |
+| optimized (OST) | [`src/verifier/methods/optimized/`](src/verifier/methods/optimized/) | OP versions, described below. Jev only. |
+
+Models called:
+
+- Jev (`jev-1.13.0`, pinned): TypeSafe's judge model, called through `typesafe_sdk`. It only answers choice questions and returns a probability for each option; it writes no text. List price: $0.042 per million input tokens, output free. OST and minimal_llm (jev) call only Jev.
+- gpt-6.1-sol: a generative reasoning model, called through the OpenAI API, used only in minimal_llm (gpt-6.1-sol). Third-party list price: $2 input, $10 output per million tokens.
+- baseline calls no model.
 
 All three run behind the same service ([`src/verifier/service.py`](src/verifier/service.py)) and
 the same response contract ([`src/verifier/output/`](src/verifier/output/)): citation indexes in
 range, quotes verbatim in the source, and no S or C verdict without a citation.
 
-## OP29, our optimized version
+## OP29, the optimized version
 
 OPn numbers the iterations of the optimized method, OP0 to OP29;
 OP29 (commit `c78c508`) is the default. It splits the answer into a semantic tree whose claims all
@@ -81,7 +87,7 @@ The README is the summary; the full write-ups are in [`docs/`](docs/) (in Chines
 Each line is a `/verify` request, and the gold uses the same format as the API response; the
 frozen hash is in [`benchmark/ost30.sha256`](benchmark/ost30.sha256). Items are adapted from
 public datasets (ANAH, RAGTruth, FOLIO, MuSiQue, FaithEval, VitaminC, SciTab); four of them pair
-Wikipedia text with answers written for this set. We designed the set around OST characteristics
+Wikipedia text with answers written for this set. The set is designed around OST characteristics
 found during development, so each item tests one specific mechanism.
 
 | category | items |
@@ -135,7 +141,7 @@ source length and the notes are in the [full results](docs/results.zh-CN.md).
 
 Item-by-item analysis is in the [failure analysis](docs/failure-analysis.zh-CN.md).
 
-### How we iterated
+### Iteration
 
 The optimized method went from OP0 to OP29 in three phases: changing how answers are split,
 developing and tuning the semantic tree and its operators, and pipeline optimization driven by

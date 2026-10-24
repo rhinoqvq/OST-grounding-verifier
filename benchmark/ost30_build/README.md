@@ -12,7 +12,7 @@ Put these under `var/` in the repository root:
 
 | file | source | used for |
 |---|---|---|
-| `var/anah/anah_all.json` | ANAH ([opencompass/anah](https://huggingface.co/datasets/opencompass/anah), Apache-2.0): every row of the dataset (783 topics) as one JSON list, with the columns `name`, `language`, `documents`, `selected_questions`, `GPT3.5_answers_D`, `InternLM_answers`, `human_GPT3.5_answers_D_ann`, `human_InternLM_answers_ann`. We fetched it through the Hugging Face dataset viewer. | 18 ANAH items, and the Wikipedia text of items 10, 20, 25 and 28 |
+| `var/anah/anah_all.json` | ANAH ([opencompass/anah](https://huggingface.co/datasets/opencompass/anah), Apache-2.0): every row of the dataset (783 topics) as one JSON list, with the columns `name`, `language`, `documents`, `selected_questions`, `GPT3.5_answers_D`, `InternLM_answers`, `human_GPT3.5_answers_D_ann`, `human_InternLM_answers_ann`. Fetched through the Hugging Face dataset viewer. | 18 ANAH items, and the Wikipedia text of items 10, 20, 25 and 28 |
 | `var/ragtruth/response.jsonl`, `var/ragtruth/source_info.jsonl` | RAGTruth ([ParticleMedia/RAGTruth](https://github.com/ParticleMedia/RAGTruth), MIT), the `dataset/` folder | item 05 |
 | `var/vitaminc/test.jsonl` | VitaminC ([tals/vitaminc](https://huggingface.co/datasets/tals/vitaminc), CC BY-SA 3.0), test split | item 22 |
 | `var/scitab/sci_tab.json` | SciTab ([XinyuanLu00/SciTab](https://github.com/XinyuanLu00/SciTab), MIT) | item 24 |
