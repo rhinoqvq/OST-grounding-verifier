@@ -6,9 +6,6 @@ An HTTP service that checks an LLM-generated answer against the provided source 
 splits the answer into claims, judges each one `SUPPORTED` / `CONTRADICTED` / `UNSUPPORTED`, and
 attaches verbatim citations.
 
-**Status: work in progress.** The three methods, the evaluation set and the benchmark runner are
-in place; the full evaluation report is still being written.
-
 **Contents**
 
 - [The three methods](#the-three-methods)
