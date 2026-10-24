@@ -10,6 +10,7 @@
 |---|---|---|
 | [逐版本数据](version-table.zh-CN.md) | OP0 → OP29 每个版本的改动、起因、分数、成本和延迟 | [版本迭代](../version-history.zh-CN.md) |
 | [语义树的数学论证](semantic-tree-proofs.zh-CN.md) | 拆分算子和判定组合规则的形式化：能证明什么、前提是什么、反例实测 | [设计与实现](../design.zh-CN.md) |
+| [逻辑函数的职责重合审查](redundancy-audit.zh-CN.md) | 承载逻辑语义的函数和词表有没有重复：哪几处可证冗余、哪几处可证必要，外部审查后的修订，以及后来落实了哪些 | [设计与实现](../design.zh-CN.md) |
 | [Jev 题目清单](jev-questions.zh-CN.md) | 每个阶段问 Jev 哪些题、选项是什么、代码怎么用答案 | [设计与实现](../design.zh-CN.md) |
 | [OST30 抽取标准](ost30-extraction.zh-CN.md) | 每个题型的筛选规则、种子、跳过理由、金标改动、合成回答怎么写 | [评测集与指标](../evaluation.zh-CN.md) |
 
