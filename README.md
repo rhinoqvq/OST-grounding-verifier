@@ -46,7 +46,7 @@ range, quotes verbatim in the source, and no S or C verdict without a citation.
 
 ## OP29, the optimized version
 
-<sub>OPn numbers the iterations of the optimized method, OP0 to OP29; OP29 (commit `c78c508`) is the current default.</sub>
+<sub>OPn numbers the iterations of the optimized method, OP0 to OP29; OP29 (commit `73b6a54`) is the current default.</sub>
 
 By splitting the answer or the source into a semantic tree, and letting Jev only answer choice
 questions while code decides from the probabilities, the OP versions achieve:

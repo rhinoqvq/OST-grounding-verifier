@@ -109,7 +109,7 @@
   }
  },
  "minimal_llm_sol": {
-  "_notes": "2026-10-23 sol run with the assignment's definitions (ce9d9b1). The four rulings below are the old run's (now minimal_llm_sol_oldprompt): this run cites exactly the same passages for those claims. OST30-12#2 is not carried over: this run cites 'Herodotus' recitation at Olympia was a favourite theme among ancient writers' instead of the Lucian sentence the old ruling relied on; it awaits a ruling (unruled counts as not supported).",
+  "_notes": "2026-10-23 sol run with the assignment's definitions (78ab067). The four rulings below are the old run's (now minimal_llm_sol_oldprompt): this run cites exactly the same passages for those claims. OST30-12#2 is not carried over: this run cites 'Herodotus' recitation at Olympia was a favourite theme among ancient writers' instead of the Lucian sentence the old ruling relied on; it awaits a ruling (unruled counts as not supported).",
   "OST30-15#4": {
    "ok": true,
    "status": "proposed",

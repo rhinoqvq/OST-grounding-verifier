@@ -69,7 +69,7 @@ Method and switches come from the environment like the service. With the current
 | `r2_sentence_level_first` | `GV_SOURCE_TREE=on GV_CITATION_POLICY=inherit` |
 | `r1_guard_all_recheck_off` | `GV_SOURCE_TREE=on GV_TWO_STAGE=0 GV_CITATION_POLICY=inherit` |
 
-`op27` was produced by commit `418ba46`; the two whole-sentence arms by switches of that time
+`op27` was produced by commit `7f3f54b`; the two whole-sentence arms by switches of that time
 that are no longer in the code. Jev's answers vary a little from run to run, so a regenerated
 run matches the recorded one closely, not byte for byte. Costs in the docs come from the call
 ledgers of these runs, which are too large for the repository.
