@@ -162,6 +162,18 @@ one point on the development set (OP29 over OP28) did not replicate. See the
 [external runs](docs/version-history.zh-CN.md#外部实验) and the
 [conclusions](docs/version-history.zh-CN.md#迭代的结论).
 
+Conclusions of the iteration:
+
+- Splitting helps, up to a point: judging split pieces buys localization, and the finer the split, the more noise. That point was set by ablation on the development set; it is OP29.
+- OST greatly strengthens Jev's localization: character-level F1 15.0 → 31.8 on RAGTruth, sentence-level +7.6 and +6.9 on the two ANAH runs.
+- Answer-level detection is not OST's selling point: one request per answer is 8.0 higher on the development set and mostly ties on external data.
+- Small gains on the development set do not necessarily generalize: OP29 is 0.71 above OP28 on the development set, which did not replicate on ANAH.
+- The detection gains come from mechanisms that withdraw false alarms and do not depend on the semantic tree: the meta-discourse gate +1.46, the way evidence is found +0.55, the extended guard with parent recheck off +0.88; mapping onto a source tree showed no measurable contribution.
+- OST is good at withdrawing alarms, not at adding them: going from one request per answer to per-sentence judging costs 11.4 at answer level, and OST wins back about 3.4.
+- Similar accuracy, lower cost, faster: full development-set cost $6.91 → $2.57 and latency per answer 1.27 s → 0.71 s; against a single gpt-6.1-sol call, 0.20× the cost and a median of 1.0 s vs 7.1 s per item.
+
+The evidence for each is in the [conclusions](docs/version-history.zh-CN.md#迭代的结论).
+
 ### Cost
 
 Costs are token counts times list prices, not billing: Jev input $0.042 per million tokens with
