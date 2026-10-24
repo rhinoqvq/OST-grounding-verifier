@@ -333,8 +333,6 @@ The scoring rules are at the top of [`benchmark/score_ost30.py`](benchmark/score
 - how a sentence split into several claims gets one verdict;
 - when a citation counts as supporting.
 
-Hand rulings are in the two JSON files under `benchmark/`.
-
 Reproducing:
 
 - [`benchmark/ost30_build/`](benchmark/ost30_build/) rebuilds OST30 from the public source datasets, byte for byte.
