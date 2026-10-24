@@ -153,6 +153,14 @@ contribution, so OP29 builds the source tree only for long sources and lets supp
 skip claim-level judging; the full RAGTruth cost fell from $6.91 to $2.57. See the
 [version history](docs/version-history.zh-CN.md) and the [ablation](docs/ablation.zh-CN.md).
 
+The development-set findings were also checked on external data (LLM-AggreFact, ANAH twice,
+TRIVIA+ test, FaithBench; blind sets read as aggregates only). Against minimal_llm (jev), OST's
+localization advantage held on both ANAH runs (sentence-level F1 +7.6 and +6.9) and was not
+distinguishable on TRIVIA+ and FaithBench; answer-level detection mostly tied; and a gain of under
+one point on the development set (OP29 over OP28) did not replicate. See the
+[external runs](docs/version-history.zh-CN.md#外部实验) and the
+[conclusions](docs/version-history.zh-CN.md#迭代的结论).
+
 ### Cost
 
 Costs are token counts times list prices, not billing: Jev input $0.042 per million tokens with
@@ -173,11 +181,67 @@ cp .env.example .env                        # fill in OPENAI_API_KEY, TYPESAFE_A
 .venv/Scripts/uvicorn verifier.service:app --port 8000
 ```
 
+The service runs OST (OP29) by default. To serve another method, set `GV_METHOD` in `.env`:
+
+| `GV_METHOD` | method | key needed |
+|---|---|---|
+| `optimized` (default) | OST (OP29) | `TYPESAFE_API_KEY` |
+| `baseline` | baseline | none |
+| `minimal_llm` | minimal_llm (gpt-6.1-sol) | `OPENAI_API_KEY` |
+| `minimal_jev` | minimal_llm (jev) | `TYPESAFE_API_KEY` |
+
+The other values in [`config.py`](src/verifier/harness/config.py) (`minimal_jev_seg` and so on) are ablation arms.
+
+Send the SQLite WAL example; the request body is in [`examples/wal_request.json`](examples/wal_request.json):
+
 ```bash
 curl -X POST localhost:8000/verify \
   -H "Content-Type: application/json" \
-  -d '{"context_passages": ["..."], "generated_answer": "..."}'
+  -d @examples/wal_request.json
 ```
+
+Response (one real OP29 run, verbatim):
+
+```json
+{
+  "claims": [
+    {
+      "claim_text": "SQLite WAL mode allows multiple processes across different host machines on an NFS network share to write concurrently.",
+      "verdict": "CONTRADICTED",
+      "reasoning": "The cited source text explicitly states the opposite of the claim (P0.S2) (calibrated p=1.00).",
+      "citations": [
+        {
+          "index": 0,
+          "quote": "However, WAL does not work over a network filesystem because it requires all processes to share a small amount of memory via shared memory files (-shm).",
+          "start_char": 231,
+          "end_char": 383
+        }
+      ]
+    },
+    {
+      "claim_text": "Alongside the main database file, it uses two auxiliary files (-wal and -shm) and automatically checkpoints when the log reaches roughly 1,000 pages.",
+      "verdict": "SUPPORTED",
+      "reasoning": "The cited source text entails the claim (P1.S0) (calibrated p=1.00).",
+      "citations": [
+        {
+          "index": 1,
+          "quote": "When in active use, the state of a WAL mode database is described by three separate files: the main database file 'X', the write-ahead log file 'X-wal', and the wal-index shared-memory file 'X-shm'.",
+          "start_char": 0,
+          "end_char": 198
+        }
+      ]
+    },
+    {
+      "claim_text": "By default, WAL files are encrypted with AES-256 at rest.",
+      "verdict": "UNSUPPORTED",
+      "reasoning": "The source passages neither establish nor contradict this claim (calibrated p=1.00); it may be true elsewhere, but it cannot be verified from the provided context.",
+      "citations": []
+    }
+  ]
+}
+```
+
+The second sentence is not split: it contains a condition (when the log reaches …), so the splitting rules keep it whole. Its citation quotes only the sentence about the three files, not the one about automatic checkpointing.
 
 ## Tests
 

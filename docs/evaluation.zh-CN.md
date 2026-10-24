@@ -111,3 +111,4 @@ ANAH 的引文是参考片段，不一定是原文的逐字子串。按「原样
 
 - **OST30 是随作业提交的测试集。** 冻结以后金标不再改。
 - **RAGTruth 全量 2,700 条是开发集。** 迭代和消融都在它上面做，绝对分数偏乐观，用来比机制之间的差。它的 900 条 QA 回答（QA-900）是每个版本的回归测试。RAGTruth 只标了幻觉片段，没拆 claim、没给证据，所以在它上面只看回答级 F1 和字符级 F1，按任务分层做配对 bootstrap。输入怎么从 RAGTruth 原始数据构建、怎么跑、怎么打分，以及每次运行的预测，都在 [`benchmark/ragtruth/`](../benchmark/ragtruth/)，可以不调模型复算这些数字。
+- **外部数据只用来验证，不拿来调参。** LLM-AggreFact 官方完整测试集当外部基准；ANAH（英文，抽样两次，回答不重叠）、TRIVIA+ test、FaithBench 当盲测集：开发中不看内容，每次跑之前写好预登记，结果只看汇总数，用过一次就冻结。TRIVIA+ 的 train / valid 切分和 FaithBench 另外的 90 条算开发集，可以看例子。结果见[版本迭代：外部实验](version-history.zh-CN.md#外部实验)。

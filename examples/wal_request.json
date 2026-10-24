@@ -1,0 +1,7 @@
+{
+  "context_passages": [
+    "Beginning with version 3.7.0, Write-Ahead Log (WAL) mode is available. Advantages include significantly faster performance in most scenarios and increased concurrency: readers do not block writers and writers do not block readers. However, WAL does not work over a network filesystem because it requires all processes to share a small amount of memory via shared memory files (-shm).",
+    "When in active use, the state of a WAL mode database is described by three separate files: the main database file 'X', the write-ahead log file 'X-wal', and the wal-index shared-memory file 'X-shm'. Automatic checkpointing occurs by default when the WAL passes approximately 1000 pages."
+  ],
+  "generated_answer": "SQLite WAL mode allows multiple processes across different host machines on an NFS network share to write concurrently. Alongside the main database file, it uses two auxiliary files (-wal and -shm) and automatically checkpoints when the log reaches roughly 1,000 pages. By default, WAL files are encrypted with AES-256 at rest."
+}

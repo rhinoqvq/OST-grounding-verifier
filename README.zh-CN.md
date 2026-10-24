@@ -114,6 +114,8 @@
 
 最后一个阶段的消融实验显示：判断「有没有错」，整段一次请求反而更准（RAGTruth 上回答级 F1 77.7 对 69.6）；按句、按 claim 拆开判，换来的是定位（字符级 F1 15.0 对 31.8）。答案拆分的价值在定位，原文树映射测不出贡献，所以 OP29 把原文树改成只在长原文上建，并让判为支持的句子跳过逐条判定，RAGTruth 全量成本从 $6.91 降到 $2.57。详见[版本迭代](docs/version-history.zh-CN.md)和[消融实验](docs/ablation.zh-CN.md)。
 
+开发集上的结论还在外部数据上验证过（LLM-AggreFact、两次 ANAH、TRIVIA+ test、FaithBench，盲测集只看汇总数）：和 minimal_llm（jev）相比，OST 定位上的优势在 ANAH 两次上都复现了（句子级 F1 +7.6、+6.9），TRIVIA+ 和 FaithBench 上看不出差别；回答级检出大多打平；开发集上不到 1 分的提升（OP29 对 OP28）没有复现。详见[外部实验](docs/version-history.zh-CN.md#外部实验)和[迭代的结论](docs/version-history.zh-CN.md#迭代的结论)。
+
 ### 成本
 
 按标价推算，只算 token，不是账单：Jev 输入每百万 token $0.042、输出不收费；gpt-6.1-sol 按第三方标价，输入 $2、输出 $10。原文越长，OST 相对 sol 的成本优势越小；原文超过约 2.6 万 token 时 OST 会建原文树，成本上一个台阶。
@@ -131,11 +133,67 @@ cp .env.example .env                        # 填入 OPENAI_API_KEY、TYPESAFE_A
 .venv/Scripts/uvicorn verifier.service:app --port 8000
 ```
 
+服务默认跑 OST（OP29）。换方法在 `.env` 里设 `GV_METHOD`：
+
+| `GV_METHOD` | 方法 | 需要的 key |
+|---|---|---|
+| `optimized`（默认） | OST（OP29） | `TYPESAFE_API_KEY` |
+| `baseline` | baseline | 不需要 |
+| `minimal_llm` | minimal_llm（gpt-6.1-sol） | `OPENAI_API_KEY` |
+| `minimal_jev` | minimal_llm（jev） | `TYPESAFE_API_KEY` |
+
+[`config.py`](src/verifier/harness/config.py) 里其余几个取值（`minimal_jev_seg` 等）是消融实验用的。
+
+用 SQLite WAL 例子发一个请求，请求体在 [`examples/wal_request.json`](examples/wal_request.json)：
+
 ```bash
 curl -X POST localhost:8000/verify \
   -H "Content-Type: application/json" \
-  -d '{"context_passages": ["..."], "generated_answer": "..."}'
+  -d @examples/wal_request.json
 ```
+
+返回（OP29 的一次真实运行，原样照录）：
+
+```json
+{
+  "claims": [
+    {
+      "claim_text": "SQLite WAL mode allows multiple processes across different host machines on an NFS network share to write concurrently.",
+      "verdict": "CONTRADICTED",
+      "reasoning": "The cited source text explicitly states the opposite of the claim (P0.S2) (calibrated p=1.00).",
+      "citations": [
+        {
+          "index": 0,
+          "quote": "However, WAL does not work over a network filesystem because it requires all processes to share a small amount of memory via shared memory files (-shm).",
+          "start_char": 231,
+          "end_char": 383
+        }
+      ]
+    },
+    {
+      "claim_text": "Alongside the main database file, it uses two auxiliary files (-wal and -shm) and automatically checkpoints when the log reaches roughly 1,000 pages.",
+      "verdict": "SUPPORTED",
+      "reasoning": "The cited source text entails the claim (P1.S0) (calibrated p=1.00).",
+      "citations": [
+        {
+          "index": 1,
+          "quote": "When in active use, the state of a WAL mode database is described by three separate files: the main database file 'X', the write-ahead log file 'X-wal', and the wal-index shared-memory file 'X-shm'.",
+          "start_char": 0,
+          "end_char": 198
+        }
+      ]
+    },
+    {
+      "claim_text": "By default, WAL files are encrypted with AES-256 at rest.",
+      "verdict": "UNSUPPORTED",
+      "reasoning": "The source passages neither establish nor contradict this claim (calibrated p=1.00); it may be true elsewhere, but it cannot be verified from the provided context.",
+      "citations": []
+    }
+  ]
+}
+```
+
+第二句没有拆开：句子里有条件（when the log reaches …），按拆分规则整句保留。引文只引了讲三个文件的那一句，没有引自动检查点那一句。
 
 ## 测试
 
