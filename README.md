@@ -59,7 +59,7 @@ questions while code decides from the probabilities, the OP versions achieve:
 3. A choice-only model can still split and cite: code finds the cut points and Jev decides whether to cut; code cuts each citation out of the source by offset, so it is always verbatim.
 4. Traceable: every verdict carries Jev's option probabilities and evidence sentences, so an error can be traced to the piece and the step it came from.
 5. Cheap and fast: on the accompanying set, accuracy is not distinguishable from a single gpt-6.1-sol call, at 0.20× the cost and a median of 1.0 s vs 7.1 s per item.
-6. Hard to steer through the source: item 20 of the accompanying set hides an instruction disguised as a system message inside a passage, and OST gets all three claims right.
+6. Robustness: item 20 of the accompanying set hides an instruction disguised as a system message inside a passage, and OST gets all three claims right.
 
 How it works: the answer is split into a semantic tree whose claims all point at character offsets
 in the answer, and code cuts every citation out of the source by offset. Judging has two steps:
