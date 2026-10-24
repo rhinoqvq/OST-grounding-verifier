@@ -6,6 +6,14 @@ An HTTP service that checks an LLM-generated answer against the provided source 
 splits the answer into claims, judges each one `SUPPORTED` / `CONTRADICTED` / `UNSUPPORTED`, and
 attaches verbatim citations.
 
+The optimized version (OST) builds on minimal_llm by adding a structure of semantic trees and
+operators, which lets Jev, an LLM that can only answer multiple-choice questions, split answers
+into claims and attach citations. In terms of results and performance, against a single
+gpt-6.1-sol call it reaches the same level of accuracy at about one-seventh of the latency and
+about one-fifth of the cost. Against the single-call Jev version, it is just as good at telling
+whether a whole answer contains an error, while its per-claim accuracy is about 14 percentage
+points higher. These are results on the accompanying set OST30; see [Results](#results).
+
 **Contents**
 
 - [The three methods](#the-three-methods)
