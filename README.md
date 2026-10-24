@@ -9,6 +9,7 @@ attaches verbatim citations.
 **Contents**
 
 - [The three methods](#the-three-methods)
+  - [Data flow](#data-flow)
 - [OP29, the optimized version](#op29-the-optimized-version)
 - [Evaluation report](#evaluation-report)
   - [The evaluation set](#the-evaluation-set)
@@ -40,6 +41,13 @@ Models called:
 All three run behind the same service ([`src/verifier/service.py`](src/verifier/service.py)) and
 the same response contract ([`src/verifier/output/`](src/verifier/output/)): citation indexes in
 range, quotes verbatim in the source, and no S or C verdict without a citation.
+
+### Data flow
+
+All four routes (minimal_llm comes in a gpt-6.1-sol and a Jev version) share the input and the
+response contract; they differ in between:
+
+![Data flow of the four methods](docs/figures/data_flow.svg)
 
 ## OP29, the optimized version
 

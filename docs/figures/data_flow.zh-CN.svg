@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 516" width="960" height="516" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif">
+<defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#898781"/></marker></defs>
+<rect width="960" height="516" fill="#fcfcfb"/>
+<rect x="24" y="18" width="4" height="20" rx="2" fill="#2a78d6"/>
+<text x="36" y="33" font-size="16" fill="#0b0b0b" font-weight="600" text-anchor="start">四种方法的数据流</text>
+<rect x="24" y="54" width="16" height="12" rx="3" fill="#ffffff" stroke="#d9d8d1" stroke-width="1.5"/>
+<text x="46" y="64" font-size="11.5" fill="#52514e" font-weight="400" text-anchor="start">代码</text>
+<rect x="93.0" y="54" width="16" height="12" rx="3" fill="#eaf2fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="115.0" y="64" font-size="11.5" fill="#52514e" font-weight="400" text-anchor="start">Jev 调用</text>
+<rect x="188.68" y="54" width="16" height="12" rx="3" fill="#efedfb" stroke="#6250d6" stroke-width="1.5"/>
+<text x="210.68" y="64" font-size="11.5" fill="#52514e" font-weight="400" text-anchor="start">gpt-6.1-sol 调用</text>
+<rect x="24" y="114" width="116" height="388" rx="8" fill="#ffffff" stroke="#d9d8d1" stroke-width="1.5"/>
+<text x="82.0" y="286.0" font-size="13" fill="#0b0b0b" font-weight="600" text-anchor="middle">输入</text>
+<text x="82.0" y="310.0" font-size="10.5" fill="#52514e" font-weight="400" text-anchor="middle" font-family="ui-monospace,'Cascadia Code',Consolas,monospace">context_passages</text>
+<text x="82.0" y="328.0" font-size="10.5" fill="#52514e" font-weight="400" text-anchor="middle" font-family="ui-monospace,'Cascadia Code',Consolas,monospace">generated_answer</text>
+<rect x="804" y="114" width="132" height="388" rx="8" fill="#ffffff" stroke="#d9d8d1" stroke-width="1.5"/>
+<text x="870.0" y="212.0" font-size="13" fill="#0b0b0b" font-weight="600" text-anchor="middle">响应约束</text>
+<text x="870.0" y="230.0" font-size="11.5" fill="#52514e" font-weight="400" text-anchor="middle">（代码，所有方法共用）</text>
+<text x="870.0" y="256.0" font-size="11.5" fill="#52514e" font-weight="400" text-anchor="middle">段号不越界</text>
+<text x="870.0" y="274.0" font-size="11.5" fill="#52514e" font-weight="400" text-anchor="middle">引文是原文逐字</text>
+<text x="870.0" y="292.0" font-size="11.5" fill="#52514e" font-weight="400" text-anchor="middle">S/C 必须有引文，</text>
+<text x="870.0" y="310.0" font-size="11.5" fill="#52514e" font-weight="400" text-anchor="middle">否则降为 U</text>
+<text x="870.0" y="328.0" font-size="11.5" fill="#52514e" font-weight="400" text-anchor="middle">U 不带引文</text>
+<text x="870.0" y="354.0" font-size="11.5" fill="#52514e" font-weight="400" text-anchor="middle">↓</text>
+<text x="870.0" y="380.0" font-size="11.5" fill="#0b0b0b" font-weight="600" text-anchor="middle" font-family="ui-monospace,'Cascadia Code',Consolas,monospace">claims[]</text>
+<text x="160" y="106" font-size="12.5" fill="#0b0b0b" font-weight="600" text-anchor="start">baseline</text>
+<text x="230.0" y="106" font-size="11.5" fill="#898781" font-weight="400" text-anchor="start">不调模型</text>
+<line x1="140" y1="152.0" x2="159" y2="152.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="160.0" y="114" width="194.7" height="76" rx="6" fill="#ffffff" stroke="#d9d8d1" stroke-width="1.5"/>
+<text x="257.3333333333333" y="148.5" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">按句拆回答：</text>
+<text x="257.3333333333333" y="163.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">每句一条 claim</text>
+<line x1="354.66666666666663" y1="152.0" x2="373.66666666666663" y2="152.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="374.7" y="114" width="194.7" height="76" rx="6" fill="#ffffff" stroke="#d9d8d1" stroke-width="1.5"/>
+<text x="471.99999999999994" y="148.5" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">BM25 从原文里</text>
+<text x="471.99999999999994" y="163.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">挑最像的一句当引文</text>
+<line x1="569.3333333333333" y1="152.0" x2="588.3333333333333" y2="152.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="589.3" y="114" width="194.7" height="76" rx="6" fill="#ffffff" stroke="#d9d8d1" stroke-width="1.5"/>
+<text x="686.6666666666666" y="141.0" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">词面重合低 → U</text>
+<text x="686.6666666666666" y="156.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">数字或否定对不上 → C</text>
+<text x="686.6666666666666" y="171.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">其余 → S</text>
+<line x1="784" y1="152.0" x2="803" y2="152.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="160" y="210" font-size="12.5" fill="#0b0b0b" font-weight="600" text-anchor="start">minimal_llm（gpt-6.1-sol）</text>
+<text x="356.5" y="210" font-size="11.5" fill="#898781" font-weight="400" text-anchor="start">每条回答 1 次请求</text>
+<line x1="140" y1="256.0" x2="159" y2="256.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="160.0" y="218" width="194.7" height="76" rx="6" fill="#ffffff" stroke="#d9d8d1" stroke-width="1.5"/>
+<text x="257.3333333333333" y="245.0" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">拼一个请求：全部原文</text>
+<text x="257.3333333333333" y="260.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">+ 整段回答</text>
+<text x="257.3333333333333" y="275.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">+ 三条判定定义</text>
+<line x1="354.66666666666663" y1="256.0" x2="373.66666666666663" y2="256.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="374.7" y="218" width="194.7" height="76" rx="6" fill="#efedfb" stroke="#6250d6" stroke-width="1.5"/>
+<text x="471.99999999999994" y="245.0" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">gpt-6.1-sol 一次完成：</text>
+<text x="471.99999999999994" y="260.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">拆 claim、判定、写引文</text>
+<text x="471.99999999999994" y="275.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">（JSON 输出）</text>
+<line x1="569.3333333333333" y1="256.0" x2="588.3333333333333" y2="256.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="589.3" y="218" width="194.7" height="76" rx="6" fill="#ffffff" stroke="#d9d8d1" stroke-width="1.5"/>
+<text x="686.6666666666666" y="245.0" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">解析 JSON；</text>
+<text x="686.6666666666666" y="260.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">格式不对就修复</text>
+<text x="686.6666666666666" y="275.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">重试一次</text>
+<line x1="784" y1="256.0" x2="803" y2="256.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="160" y="314" font-size="12.5" fill="#0b0b0b" font-weight="600" text-anchor="start">minimal_llm（jev）</text>
+<text x="298.5" y="314" font-size="11.5" fill="#898781" font-weight="400" text-anchor="start">每条回答 1 次 Jev 请求</text>
+<line x1="140" y1="360.0" x2="159" y2="360.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="160.0" y="322" width="194.7" height="76" rx="6" fill="#ffffff" stroke="#d9d8d1" stroke-width="1.5"/>
+<text x="257.3333333333333" y="349.0" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">拼一个请求：原文按段</text>
+<text x="257.3333333333333" y="364.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">编号 + 整段回答；</text>
+<text x="257.3333333333333" y="379.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">放不下就报错</text>
+<line x1="354.66666666666663" y1="360.0" x2="373.66666666666663" y2="360.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="374.7" y="322" width="194.7" height="76" rx="6" fill="#eaf2fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="471.99999999999994" y="349.0" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">Jev 两道选择题：</text>
+<text x="471.99999999999994" y="364.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">判定（三条定义）、</text>
+<text x="471.99999999999994" y="379.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">哪一段是证据</text>
+<line x1="569.3333333333333" y1="360.0" x2="588.3333333333333" y2="360.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="589.3" y="322" width="194.7" height="76" rx="6" fill="#ffffff" stroke="#d9d8d1" stroke-width="1.5"/>
+<text x="686.6666666666666" y="349.0" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">整段回答 = 一条 claim；</text>
+<text x="686.6666666666666" y="364.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">按段号把整段</text>
+<text x="686.6666666666666" y="379.0" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">切出来当引文</text>
+<line x1="784" y1="360.0" x2="803" y2="360.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="160" y="418" font-size="12.5" fill="#0b0b0b" font-weight="600" text-anchor="start">OST（OP29）</text>
+<text x="247.75" y="418" font-size="11.5" fill="#898781" font-weight="400" text-anchor="start">每条回答多次 Jev 请求，开发集上平均约 5 次</text>
+<line x1="140" y1="464.0" x2="159" y2="464.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="160.0" y="426" width="141.0" height="76" rx="6" fill="#eaf2fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="230.5" y="445.5" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">拆回答：</text>
+<text x="230.5" y="460.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">代码找切点，</text>
+<text x="230.5" y="475.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">Jev 判切不切；</text>
+<text x="230.5" y="490.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">元话语门</text>
+<line x1="301.0" y1="464.0" x2="320.0" y2="464.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="321.0" y="426" width="141.0" height="76" rx="6" fill="#eaf2fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="391.5" y="445.5" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">先按句判定：</text>
+<text x="391.5" y="460.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">每句对照整份原文；</text>
+<text x="391.5" y="475.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">有证据的 S</text>
+<text x="391.5" y="490.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">整句的 claim 都定 S</text>
+<line x1="462.0" y1="464.0" x2="481.0" y2="464.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="482.0" y="426" width="141.0" height="76" rx="6" fill="#eaf2fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="552.5" y="445.5" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">其余 claim 逐条判定：</text>
+<text x="552.5" y="460.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">找证据、判定、</text>
+<text x="552.5" y="475.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">对立过滤、关系核对；</text>
+<text x="552.5" y="490.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">长原文先建原文树</text>
+<line x1="623.0" y1="464.0" x2="642.0" y2="464.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="643.0" y="426" width="141.0" height="76" rx="6" fill="#eaf2fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="713.5" y="445.5" font-size="11" fill="#0b0b0b" font-weight="600" text-anchor="middle">整句护栏：</text>
+<text x="713.5" y="460.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">撤回结构层的误报；</text>
+<text x="713.5" y="475.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">代码按字符偏移</text>
+<text x="713.5" y="490.5" font-size="11" fill="#0b0b0b" font-weight="400" text-anchor="middle">切出引文</text>
+<line x1="784" y1="464.0" x2="803" y2="464.0" stroke="#898781" stroke-width="1.5" marker-end="url(#ah)"/>
+</svg>

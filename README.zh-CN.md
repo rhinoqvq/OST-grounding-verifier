@@ -7,6 +7,7 @@
 **目录**
 
 - [三种方法](#三种方法)
+  - [数据流](#数据流)
 - [OP29：优化版本](#op29优化版本)
 - [评测报告](#评测报告)
   - [评测集](#评测集)
@@ -36,6 +37,12 @@
 - baseline 不调模型。
 
 三种方法共用同一个服务（[`src/verifier/service.py`](src/verifier/service.py)）和同一套响应约束（[`src/verifier/output/`](src/verifier/output/)）：引文段号不越界、引文是原文的逐字子串、判 S / C 必须有引文。
+
+### 数据流
+
+四条路线（minimal_llm 有 gpt-6.1-sol 和 jev 两个版本）的输入和响应约束相同，区别在中间：
+
+![四种方法的数据流](docs/figures/data_flow.zh-CN.svg)
 
 ## OP29：优化版本
 
