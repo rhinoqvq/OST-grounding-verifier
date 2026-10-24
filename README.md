@@ -11,7 +11,6 @@ attaches verbatim citations.
 - [Documents and appendix](#documents-and-appendix)
 - [The three methods](#the-three-methods)
 - [OP29, the optimized version](#op29-the-optimized-version)
-- [Documents](#documents)
 - [Evaluation report](#evaluation-report)
   - [The evaluation set](#the-evaluation-set)
   - [Results](#results)
@@ -24,7 +23,7 @@ attaches verbatim citations.
 
 ## Documents and appendix
 
-All in Chinese for now.
+Details are in [`docs/`](docs/) (in Chinese for now):
 
 | type | name | what it covers |
 |---|---|---|
@@ -90,21 +89,6 @@ the whole pipeline on the assignment's SQLite WAL example (5 Jev requests, about
 ![The semantic tree: how one sentence is split, built into a tree and judged](docs/figures/semantic_tree.svg)
 
 ![How OST checks an answer](docs/figures/how_it_works.svg)
-
-## Documents
-
-Details are in [`docs/`](docs/) (in Chinese for now):
-
-| document | what it covers |
-|---|---|
-| [Design](docs/design.zh-CN.md) | design rationale, the semantic tree and its operators, how Jev is used, one verification run step by step, deterministic validation, error boundaries |
-| [Evaluation set and metrics](docs/evaluation.zh-CN.md) | how the 30 items were chosen, how the gold was set, scoring rules, metric definitions |
-| [Full results](docs/results.zh-CN.md) | every metric on the accompanying set with notes, and the comparison on the RAGTruth development set |
-| [Failure analysis](docs/failure-analysis.zh-CN.md) | which items each method gets wrong, and why |
-| [Version history](docs/version-history.zh-CN.md) | OP0 → OP29 in three phases: what changed and what moved |
-| [Ablation](docs/ablation.zh-CN.md) | what each OST mechanism contributes |
-| [Cost](docs/cost.zh-CN.md) | cost per method and per version, and where the money goes |
-| [Appendix](docs/appendix/) | per-version data, the semantic-tree proofs, an audit of overlapping logic functions, the Jev question catalogue, the full OST30 extraction rules, plus raw responses and data tables |
 
 ## Evaluation report
 
