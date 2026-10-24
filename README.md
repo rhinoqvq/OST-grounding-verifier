@@ -47,6 +47,26 @@ All three run behind the same service ([`src/verifier/service.py`](src/verifier/
 the same response contract ([`src/verifier/output/`](src/verifier/output/)): citation indexes in
 range, quotes verbatim in the source, and no S or C verdict without a citation.
 
+The contract is enforced in code before a response leaves the service, not left to the model: a
+citation whose index is out of range or whose quote is not in that passage is dropped (a
+verbatim quote with wrong offsets is re-anchored), an S or C claim left without a citation is
+downgraded to U, and a U claim's citations are cleared. Every fix is recorded in the run's trace.
+See [design](docs/design.zh-CN.md#不信任模型输出确定性校验).
+
+Edge cases:
+
+| case | handling |
+|---|---|
+| invalid request body | 422, naming the missing field |
+| input over the entry limits (answer 8,000 characters; source 500,000 characters per passage and in total, at most 1,000 passages) | 413 |
+| empty context | 200, every claim U with no citation |
+| empty or whitespace-only answer | 200, an empty claim list |
+| answer with no checkable fact | sentences that state no fact are dropped by the meta-discourse gate, and an answer with nothing left returns an empty list; dropping needs 0.80 confidence, so a doubtful sentence stays and is judged U |
+| malformed model output | minimal_llm gets one repair round and returns 502 if it is still malformed; a malformed OST verdict returns 502 |
+| upstream API error | retryable errors get up to 3 attempts, then 503; non-retryable errors return 502 at once |
+
+All of these have offline tests; see [design](docs/design.zh-CN.md#错误边界和边界情况).
+
 ## OP29, the optimized version
 
 <sub>OPn numbers the iterations of the optimized method, OP0 to OP29; OP29 (commit `73b6a54`) is the current default.</sub>
