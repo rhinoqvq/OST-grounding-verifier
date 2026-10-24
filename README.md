@@ -46,18 +46,27 @@ range, quotes verbatim in the source, and no S or C verdict without a citation.
 
 ## OP29, the optimized version
 
-OPn numbers the iterations of the optimized method, OP0 to OP29;
-OP29 (commit `c78c508`) is the default. It splits the answer into a semantic tree whose claims all
-point at character offsets in the answer, and code cuts every citation out of the source by
-offset. Judging has two steps: each sentence first gets one Jev question against the whole
-source, and the claims of a sentence judged supported are settled as S; the remaining claims are
-then judged one by one. Jev only answers choice questions and never writes text, so whether to
-split, which verdict and which citation are all decided by code from its probabilities. On the
-accompanying 30-item set it is not distinguishable in accuracy from a single gpt-6.1-sol call, at
-0.20× the cost and a seventh of the latency. See [design](docs/design.zh-CN.md).
+<sub>OPn numbers the iterations of the optimized method, OP0 to OP29; OP29 (commit `c78c508`) is the current default.</sub>
+
+By splitting the answer or the source into a semantic tree, and letting Jev only answer choice
+questions while code decides from the probabilities, the OP versions achieve:
+
+1. Finer judging granularity: every claim points at character offsets in the answer, so an alarm lands on the exact span. On RAGTruth, character-level F1 is 31.8, against 15.0 for judging the whole answer at once.
+2. Wider reach for the model: one Jev request holds about 32k tokens. The source tree is built in windows per passage, and when the source does not fit, judging keeps only the most relevant sentences, so the service accepts sources of up to 500,000 characters per passage and in total; a single call that does not fit can only return an error.
+3. A choice-only model can still split and cite: code finds the cut points and Jev decides whether to cut; code cuts each citation out of the source by offset, so it is always verbatim.
+4. Traceable: every verdict carries Jev's option probabilities and evidence sentences, so an error can be traced to the piece and the step it came from.
+5. Cheap and fast: on the accompanying set, accuracy is not distinguishable from a single gpt-6.1-sol call, at 0.20× the cost and a median of 1.0 s vs 7.1 s per item.
+6. Hard to steer through the source: item 20 of the accompanying set hides an instruction disguised as a system message inside a passage, and OST gets all three claims right.
+
+How it works: the answer is split into a semantic tree whose claims all point at character offsets
+in the answer, and code cuts every citation out of the source by offset. Judging has two steps:
+each sentence first gets one Jev question against the whole source, and the claims of a sentence
+judged supported are settled as S; the remaining claims are then judged one by one. Jev only
+answers choice questions and never writes text, so whether to split, which verdict and which
+citation are all decided by code from its probabilities. See [design](docs/design.zh-CN.md).
 
 Both animations are real runs. The first shows one sentence being split into claims, built into
-the semantic tree, judged claim by claim and aggregated back up (OST30 item 15); the second walks
+the semantic tree, judged claim by claim and aggregated back up (item 15 of the accompanying set); the second walks
 the whole pipeline on the assignment's SQLite WAL example (5 Jev requests, about $0.0003).
 
 ![The semantic tree: how one sentence is split, built into a tree and judged](docs/figures/semantic_tree.svg)
@@ -66,7 +75,7 @@ the whole pipeline on the assignment's SQLite WAL example (5 Jev requests, about
 
 ## Documents
 
-The README is the summary; the full write-ups are in [`docs/`](docs/) (in Chinese for now):
+Details are in [`docs/`](docs/) (in Chinese for now):
 
 | document | what it covers |
 |---|---|
@@ -110,12 +119,12 @@ Every method receives only `context_passages` and `generated_answer`.
 |---|---|---|---|---|
 | claim accuracy (71 claims, 95% interval) | 0.662 [0.545, 0.761] | 0.845 [0.750, 0.922] | 0.662 [0.523, 0.784] | 0.803 [0.672, 0.898] |
 | C/U alarm F1 | 0.780 | 0.909 | 0.815 | 0.877 |
-| answer-level F1 (does the answer contain an error) | 0.750 | 0.878 | 0.865 | 0.865 |
-| character-level F1 (which spans are wrong) | 0.715 | 0.729 | 0.693 | 0.753 |
-| real errors judged S (of 37) | 5 | 2 | 4 | 5 |
+| answer-level F1 | 0.750 | 0.878 | 0.865 | 0.865 |
+| character-level F1 | 0.715 | 0.729 | 0.693 | 0.753 |
+| real errors judged S (max 37) | 5 | 2 | 4 | 5 |
 | items fully correct | 10 / 30 | 19 / 30 | 13 / 30 | 17 / 30 |
 | latency per item p50 / p95 | 0.0 / 0.1 s | 7.1 / 18.1 s | 0.2 / 0.3 s | 1.0 / 1.8 s |
-| cost for 30 items (list price) | $0 | $0.45 | $0.007 | $0.09 |
+| estimated cost | $0 | $0.45 | $0.007 | $0.09 |
 
 - **Against minimal_llm (gpt-6.1-sol)**, OST is not distinguishable in accuracy: OST − sol is
   −4.2 points, 95% interval [−13.0, +3.8]. OST is faster on every item and costs 0.20× as much.
