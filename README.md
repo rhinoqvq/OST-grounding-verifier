@@ -9,7 +9,6 @@ attaches verbatim citations.
 **Contents**
 
 - [The three methods](#the-three-methods)
-  - [Data flow](#data-flow)
 - [OP29, the optimized version](#op29-the-optimized-version)
 - [Evaluation report](#evaluation-report)
   - [The evaluation set](#the-evaluation-set)
@@ -32,6 +31,11 @@ Where the three methods are:
 | minimal_llm | [`src/verifier/methods/minimal_llm/`](src/verifier/methods/minimal_llm/) (gpt-6.1-sol)<br>[`src/verifier/methods/minimal_jev/`](src/verifier/methods/minimal_jev/) (jev) | One model call per answer with all passages and the whole answer. gpt-6.1-sol splits, judges and cites in that call; Jev answers choice questions, so the whole answer is one claim. |
 | optimized (OST) | [`src/verifier/methods/optimized/`](src/verifier/methods/optimized/) | OP versions, described below. Jev only. |
 
+All four routes (minimal_llm comes in a gpt-6.1-sol and a Jev version) share the input and the
+response contract; they differ in between:
+
+![Data flow of the four methods](docs/figures/data_flow.svg)
+
 Models called:
 
 - Jev (`jev-1.13.0`, pinned): TypeSafe's judge model, called through `typesafe_sdk`. It only answers choice questions and returns a probability for each option; it writes no text. List price: $0.042 per million input tokens, output free. OST and minimal_llm (jev) call only Jev.
@@ -41,13 +45,6 @@ Models called:
 All three run behind the same service ([`src/verifier/service.py`](src/verifier/service.py)) and
 the same response contract ([`src/verifier/output/`](src/verifier/output/)): citation indexes in
 range, quotes verbatim in the source, and no S or C verdict without a citation.
-
-### Data flow
-
-All four routes (minimal_llm comes in a gpt-6.1-sol and a Jev version) share the input and the
-response contract; they differ in between:
-
-![Data flow of the four methods](docs/figures/data_flow.svg)
 
 ## OP29, the optimized version
 

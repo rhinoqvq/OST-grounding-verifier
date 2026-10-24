@@ -7,7 +7,6 @@
 **目录**
 
 - [三种方法](#三种方法)
-  - [数据流](#数据流)
 - [OP29：优化版本](#op29优化版本)
 - [评测报告](#评测报告)
   - [评测集](#评测集)
@@ -30,6 +29,10 @@
 | minimal_llm | [`src/verifier/methods/minimal_llm/`](src/verifier/methods/minimal_llm/)（gpt-6.1-sol）<br>[`src/verifier/methods/minimal_jev/`](src/verifier/methods/minimal_jev/)（jev） | 每条回答调一次模型，放进全部原文和整段回答。gpt-6.1-sol 在这一次调用里自己拆分、判定、给引文；Jev 只回答选择题，整段回答就是一条 claim。 |
 | optimized（OST） | [`src/verifier/methods/optimized/`](src/verifier/methods/optimized/) | OP 版本，见下文。只调 Jev。 |
 
+四条路线（minimal_llm 有 gpt-6.1-sol 和 jev 两个版本）的输入和响应约束相同，区别在中间：
+
+![四种方法的数据流](docs/figures/data_flow.zh-CN.svg)
+
 调用的模型：
 
 - Jev（`jev-1.13.0`，版本固定）：TypeSafe 的判定模型，用 `typesafe_sdk` 调用。它只回答选择题，返回每个选项的概率，不生成文字。按标价输入每百万 token $0.042，输出不收费。OST 和 minimal_llm（jev）只调它。
@@ -37,12 +40,6 @@
 - baseline 不调模型。
 
 三种方法共用同一个服务（[`src/verifier/service.py`](src/verifier/service.py)）和同一套响应约束（[`src/verifier/output/`](src/verifier/output/)）：引文段号不越界、引文是原文的逐字子串、判 S / C 必须有引文。
-
-### 数据流
-
-四条路线（minimal_llm 有 gpt-6.1-sol 和 jev 两个版本）的输入和响应约束相同，区别在中间：
-
-![四种方法的数据流](docs/figures/data_flow.zh-CN.svg)
 
 ## OP29：优化版本
 
