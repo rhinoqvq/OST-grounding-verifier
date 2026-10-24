@@ -16,6 +16,7 @@ attaches verbatim citations.
   - [Key failure cases](#key-failure-cases)
   - [Iteration](#iteration)
   - [Cost](#cost)
+  - [Metric definitions](#metric-definitions)
 - [Run](#run)
 - [Tests](#tests)
 - [Benchmark](#benchmark)
@@ -171,6 +172,22 @@ OST builds a source tree and its cost steps up.
 ![Cost per answer by source length](docs/figures/cost_by_source_length.svg)
 
 Cost per method, per version and per pipeline stage is in [cost](docs/cost.zh-CN.md).
+
+### Metric definitions
+
+| metric | definition |
+|---|---|
+| claim accuracy | share of the 71 gold claims judged correctly. Each method splits the answer itself; its claims are first matched to gold sentences, a sentence matched by several claims takes the strongest verdict (C > U > S), and a gold claim nothing matches counts as wrong. Matching rules are in [evaluation set and metrics](docs/evaluation.zh-CN.md#打分规则) |
+| C/U alarm F1 | C and U count as an alarm, S as none; F1 over the 71 gold claims: how precise and how complete the alarms are |
+| answer-level F1 | one item is one unit and "contains an error" is the positive class: the gold has any C / U claim; the method flags it if any of its claims is C / U |
+| character-level F1 | the answer characters covered by claims the method judged C / U, against the gold error spans, pooled over all items: how well the method marks where the error is |
+| real errors judged S | of the 37 gold claims that are wrong (C or U), how many were judged S. The most dangerous mistake |
+| items fully correct | items where every gold claim is judged correctly and no extra claim or non-claim sentence is flagged |
+| latency per item p50 / p95 | time from the item getting one of the 4 concurrency slots to the response. p50 is the median; with 30 items p95 is the third-slowest item |
+| estimated cost | tokens in the call log times list price, not a bill. Jev is charged for input only |
+| sentence-level F1, balanced accuracy | used on the external data. Sentence-level F1: a gold sentence with an error is positive, and the method flags it when it judges a claim in that sentence C / U. Balanced accuracy: the mean of the recalls on answers with and without an error, independent of their ratio |
+
+All intervals are 95%. A method's own interval resamples items 2,000 times; a difference between methods uses a paired resample, 10,000 times, seed 20261022; items 29 and 30 share a source and resample as one group. On RAGTruth, answer-level and character-level F1 are defined the same way, against RAGTruth's own hallucination spans.
 
 ## Run
 
