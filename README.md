@@ -64,7 +64,7 @@ citation are all decided by code from its probabilities. See [design](docs/desig
 
 Both animations are real runs. The first shows one sentence being split into claims, built into
 the semantic tree, judged claim by claim and aggregated back up (item 15 of the accompanying set); the second walks
-the whole pipeline on the assignment's SQLite WAL example (5 Jev requests, about $0.0003).
+the whole pipeline on a SQLite WAL example (5 Jev requests, about $0.0003).
 
 ![The semantic tree: how one sentence is split, built into a tree and judged](docs/figures/semantic_tree.svg)
 
