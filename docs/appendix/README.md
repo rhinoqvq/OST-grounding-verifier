@@ -27,7 +27,7 @@
 | [`cost_by_stage_ragtruth.csv`](data/cost_by_stage_ragtruth.csv) | RAGTruth 全量成本按环节拆开：OP27、OP29 原文树常开、OP29 默认 |
 | [`ragtruth_by_task.csv`](data/ragtruth_by_task.csv) | RAGTruth 分任务：minimal_llm（jev）和 OP29 的回答级 / 字符级 F1 和配对差 |
 | [`sample_ost30_15_op29.json`](data/sample_ost30_15_op29.json) | 附带测评集第 15 题上 OP29 的一次重跑（和记录的那次 claim 完全相同）：最终 claim 和每个单元的判定、证据句；README 里语义树动图画的就是它 |
-| [`sample_wal_op29.json`](data/sample_wal_op29.json) | 作业 SQLite WAL 例子上 OP29 的一次真实运行：最终 claim 和每个单元的判定、标记、证据句；README 动图画的就是它 |
+| [`sample_wal_op29.json`](data/sample_wal_op29.json) | SQLite WAL 例子上 OP29 的一次真实运行：最终 claim 和每个单元的判定、标记、证据句；README 动图画的就是它 |
 
 成本都按标价只算输入（Jev 每百万 token $0.042，输出不收费）。区间都是 95%，配对 bootstrap，种子 20261022。
 
