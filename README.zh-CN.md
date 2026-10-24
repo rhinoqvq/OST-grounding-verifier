@@ -6,6 +6,7 @@
 
 **目录**
 
+- [文档以及附件列表](#文档以及附件列表)
 - [三种方法](#三种方法)
 - [OP29：优化版本](#op29优化版本)
 - [文档](#文档)
@@ -19,23 +20,23 @@
 - [测试](#测试)
 - [跑分](#跑分)
 
-**文档以及附件列表**
+## 文档以及附件列表
 
-- 文档
-  - [设计与实现](docs/design.zh-CN.md)
-  - [评测集与指标](docs/evaluation.zh-CN.md)
-  - [完整结果](docs/results.zh-CN.md)
-  - [失败分析](docs/failure-analysis.zh-CN.md)
-  - [版本迭代](docs/version-history.zh-CN.md)
-  - [消融实验](docs/ablation.zh-CN.md)
-  - [成本](docs/cost.zh-CN.md)
-- 附件
-  - [逐版本数据](docs/appendix/version-table.zh-CN.md)
-  - [语义树的数学论证](docs/appendix/semantic-tree-proofs.zh-CN.md)
-  - [逻辑函数的职责重合审查](docs/appendix/redundancy-audit.zh-CN.md)
-  - [Jev 题目清单](docs/appendix/jev-questions.zh-CN.md)
-  - [OST30 抽取标准](docs/appendix/ost30-extraction.zh-CN.md)
-  - [原始响应和数据表](docs/appendix/data/)
+| 类别 | 名称 | 简介 |
+|---|---|---|
+| 文档 | [设计与实现](docs/design.zh-CN.md) | 设计思路、语义树和算子、Jev 怎么用、一次判定的流程、确定性校验、错误边界 |
+| 文档 | [评测集与指标](docs/evaluation.zh-CN.md) | 30 道题怎么选、金标怎么定、打分规则、每个指标的定义 |
+| 文档 | [完整结果](docs/results.zh-CN.md) | 附带测评集的全部指标和说明，开发集 RAGTruth 上的对照 |
+| 文档 | [失败分析](docs/failure-analysis.zh-CN.md) | 各方法错在哪些题、为什么错，以及设计假设的检验结果 |
+| 文档 | [版本迭代](docs/version-history.zh-CN.md) | OP0 → OP29 的三个阶段，每个阶段改了什么、数字动了多少 |
+| 文档 | [消融实验](docs/ablation.zh-CN.md) | OST 的每个机制各自贡献多少 |
+| 文档 | [成本](docs/cost.zh-CN.md) | 各方法、各版本的成本，以及钱花在哪一环 |
+| 附件 | [逐版本数据](docs/appendix/version-table.zh-CN.md) | OP0 → OP29 每个版本的改动、起因、分数、成本和延迟 |
+| 附件 | [语义树的数学论证](docs/appendix/semantic-tree-proofs.zh-CN.md) | 拆分算子和判定组合规则的形式化：能证明什么、前提是什么、反例实测 |
+| 附件 | [逻辑函数的职责重合审查](docs/appendix/redundancy-audit.zh-CN.md) | 承载逻辑语义的函数和词表有没有重复：哪几处可证冗余、哪几处可证必要 |
+| 附件 | [Jev 题目清单](docs/appendix/jev-questions.zh-CN.md) | 每个阶段问 Jev 哪些题、选项是什么、代码怎么用答案 |
+| 附件 | [OST30 抽取标准](docs/appendix/ost30-extraction.zh-CN.md) | 每个题型的筛选规则、种子、跳过理由、金标改动、合成回答怎么写 |
+| 附件 | [原始响应和数据表](docs/appendix/data/) | 结果表四次运行的原始响应和调用记录，逐条判定、逐版本、消融、成本的数据表 |
 
 ## 三种方法
 
