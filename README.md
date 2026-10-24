@@ -102,14 +102,14 @@ Every method receives only `context_passages` and `generated_answer`.
 
 | metric | baseline | minimal_llm (gpt-6.1-sol) | minimal_llm (jev) | OST (OP29) |
 |---|---|---|---|---|
-| claim accuracy (71 claims, 95% interval) | 0.662 [0.545, 0.761] | **0.845** [0.750, 0.922] | 0.662 [0.523, 0.784] | 0.803 [0.672, 0.898] |
-| C/U alarm F1 | 0.780 | **0.909** | 0.815 | 0.877 |
-| answer-level F1 (does the answer contain an error) | 0.750 | **0.878** | 0.865 | 0.865 |
-| character-level F1 (which spans are wrong) | 0.715 | 0.729 | 0.693 | **0.753** |
-| real errors judged S (of 37) | 5 | **2** | 4 | 5 |
-| items fully correct | 10 / 30 | **19 / 30** | 13 / 30 | 17 / 30 |
-| latency per item p50 / p95 | 0.0 / 0.1 s | 7.1 / 18.1 s | **0.2 / 0.3 s** | 1.0 / 1.8 s |
-| cost for 30 items (list price) | $0 | $0.45 | **$0.007** | $0.09 |
+| claim accuracy (71 claims, 95% interval) | 0.662 [0.545, 0.761] | 0.845 [0.750, 0.922] | 0.662 [0.523, 0.784] | 0.803 [0.672, 0.898] |
+| C/U alarm F1 | 0.780 | 0.909 | 0.815 | 0.877 |
+| answer-level F1 (does the answer contain an error) | 0.750 | 0.878 | 0.865 | 0.865 |
+| character-level F1 (which spans are wrong) | 0.715 | 0.729 | 0.693 | 0.753 |
+| real errors judged S (of 37) | 5 | 2 | 4 | 5 |
+| items fully correct | 10 / 30 | 19 / 30 | 13 / 30 | 17 / 30 |
+| latency per item p50 / p95 | 0.0 / 0.1 s | 7.1 / 18.1 s | 0.2 / 0.3 s | 1.0 / 1.8 s |
+| cost for 30 items (list price) | $0 | $0.45 | $0.007 | $0.09 |
 
 - **Against minimal_llm (gpt-6.1-sol)**, OST is not distinguishable in accuracy: OST − sol is
   −4.2 points, 95% interval [−13.0, +3.8]. OST is faster on every item and costs 0.20× as much.
